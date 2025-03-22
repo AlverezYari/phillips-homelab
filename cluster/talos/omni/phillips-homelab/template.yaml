@@ -1,5 +1,8 @@
 kind: Cluster
 name: phillips-homelab
+labels:
+  template: true
+  cni: none
 kubernetes:
   version: v1.31.4
 talos:
