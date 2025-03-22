@@ -45,16 +45,20 @@ patches:
           disk: /dev/nvme0n1
 ---
 kind: Machine
+name: 42bf6767-4044-db4b-bf34-98bd8093f5e4
+install:
+  disk: /dev/nvme0n1
+---
+kind: Machine
 name: 03000200-0400-0500-0006-000700080009
 install:
   disk: /dev/nvme0n1
+
 ---
 kind: Machine
 name: 169b5237-8624-af49-8f83-98bd808f9e04
 install:
   disk: /dev/nvme0n1
----
-kind: Machine
-name: 42bf6767-4044-db4b-bf34-98bd8093f5e4
-install:
-  disk: /dev/nvme0n1
+
+
+
