@@ -10,8 +10,6 @@ talos:
 features:
   enableWorkloadProxy: true
 patches:
-  - name: install-namespaces
-    file: patches/namespaces.yml
   - name: no-cni # disable CNI, we'll install Cilium in our extraManifests
     file: patches/cni.yml
   - name: disable-kubeproxy

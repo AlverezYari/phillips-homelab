@@ -1,5 +1,6 @@
 cluster:
-  extraManifests: 
+  extraManifests:
+   - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/main/cluster/talos/omni/phillips-homelab/manifests/namespaces.yml
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/main/cluster/talos/omni/phillips-homelab/manifests/install-cilium.yml
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/main/cluster/talos/omni/phillips-homelab/manifests/L2Announcement.yml
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/main/cluster/talos/omni/phillips-homelab/manifests/ip-pool.yml
