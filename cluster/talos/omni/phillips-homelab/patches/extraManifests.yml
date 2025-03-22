@@ -5,3 +5,4 @@ cluster:
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/main/cluster/talos/omni/phillips-homelab/manifests/ip-pool.yml
    - https://raw.githubusercontent.com/alex1989hu/kubelet-serving-cert-approver/main/deploy/standalone-install.yaml
    - https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+   - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
