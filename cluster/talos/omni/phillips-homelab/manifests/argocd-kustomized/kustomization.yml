@@ -1,0 +1,12 @@
+namespace: argocd
+resources:
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: argocd
+    target:
+      kind: ClusterRoleBinding
+
