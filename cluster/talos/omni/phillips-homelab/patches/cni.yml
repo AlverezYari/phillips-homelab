@@ -1,0 +1,5 @@
+# Flips off Talos's default CNI plugin, which is I believe is Calico or Flannel.
+cluster:
+  network:
+    cni:
+      name: none

@@ -1,0 +1,56 @@
+kind: Cluster
+name: phillips-homelab
+kubernetes:
+  version: v1.31.4
+talos:
+  version: v1.9.2
+features:
+  enableWorkloadProxy: true
+patches:
+  - name: no-cni # disable CNI, we'll install Cilium in our extraManifests
+    file: patches/cni.yml
+  - name: disable-kubeproxy
+    file: patches/disable-kubeproxy.yml
+  - name: install-cilium
+    file: patches/extraManifest.yml
+  - name: metrics-server
+    file: patches/metrics-server.yml
+systemExtensions:
+  - siderolabs/qemu-guest-agent # enable QEMU guest agent, for VMs, probably not needed here but good to have
+  - siderolabs/iscsi-tools # enable iSCSI tools, for network storage, Synology NAS?
+  - siderolabs/utils-linux-tools # enable utils-linux tools for better debugging
+---
+kind: ControlPlane
+machines:
+  - 42bf6767-4044-db4b-bf34-98bd8093f5e4
+patches:
+  - idOverride: 400-phillips-homelab-control-planes-untaint
+    inline:
+      cluster:
+        allowSchedulingOnControlPlanes: true
+---
+kind: Workers
+machines:
+  - 03000200-0400-0500-0006-000700080009
+  - 169b5237-8624-af49-8f83-98bd808f9e04
+patches:
+  - idOverride: 400-phillips-homelab-workers
+    inline:
+      machine:
+        install:
+          disk: /dev/nvme0n1
+---
+kind: Machine
+name: 03000200-0400-0500-0006-000700080009
+install:
+  disk: /dev/nvme0n1
+---
+kind: Machine
+name: 169b5237-8624-af49-8f83-98bd808f9e04
+install:
+  disk: /dev/nvme0n1
+---
+kind: Machine
+name: 42bf6767-4044-db4b-bf34-98bd8093f5e4
+install:
+  disk: /dev/nvme0n1

@@ -1,0 +1,4 @@
+# We'll disable the kube-proxy, because we're using Ciliumwhich should be way more proformant and secure.
+cluster:
+  proxy:
+    disable: true
