@@ -15,13 +15,14 @@ patches:
   - name: disable-kubeproxy
     file: patches/disable-kubeproxy.yml
   - name: install-cilium
-    file: patches/extraManifest.yml
+    file: patches/extraManifests.yml
   - name: metrics-server
     file: patches/metrics-server.yml
 systemExtensions:
-  - siderolabs/qemu-guest-agent # enable QEMU guest agent, for VMs, probably not needed here but good to have
+  - siderolabs/amd-ucode # enable AMD microcode updates
+  # Not working atm| - siderolabs/qemu-guest-agent # enable QEMU guest agent, for VMs, probably not needed here but good to have
   - siderolabs/iscsi-tools # enable iSCSI tools, for network storage, Synology NAS?
-  - siderolabs/utils-linux-tools # enable utils-linux tools for better debugging
+  - siderolabs/util-linux-tools # enable utils-linux tools for better debugging
 ---
 kind: ControlPlane
 machines:
