@@ -1,0 +1,93 @@
+debug:
+  enabled: false
+
+# This uses CRDs for identity management (typical in modern Cilium installs).
+identityAllocationMode: crd
+
+# Enable IPv4, disable IPv6
+ipv4:
+  enabled: true
+ipv6:
+  enabled: false
+
+# Replace Kube-Proxy with Cilium
+kubeProxyReplacement: true
+
+####################################
+# Security Settings
+####################################
+
+securityContext:
+  priviledged: true
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+####################################
+# Gateway API
+####################################
+gatewayAPI:
+  enabled: true
+  # If you want to sync TLS secrets from a separate namespace
+  secretsNamespace:
+    sync: true
+    name: cilium-secrets
+
+  # For L7 traffic you can enable Proxy Protocol if desired:
+  enableProxyProtocol: false
+
+  # If your cluster uses advanced L7 features (ALPN, AppProtocol) on Gateways:
+  enableAlpn: false
+  enableAppProtocol: false
+
+
+####################################
+# L2 IPAM + MetalLB-Style Operation
+####################################
+# This allows Cilium to allocate LoadBalancer IPs from CiliumLoadBalancerIPPool
+enableLBIPAM: true
+
+# Enable the L2 announcements so that allocated IPs are ARP-announced on your LAN
+l2announcements:
+  enabled: true
+  leaseDuration: 300s
+  renewDeadline: 60s
+  retryPeriod: 10s
+
+####################################
+# Hubble Settings
+####################################
+hubble:
+  enabled: true
+
+  # Listen address for Hubble's gRPC server
+  listenAddress: :4244
+
+  # TLS config if you’re securing Hubble
+  tls:
+    enabled: true
+
+
+  metrics:
+    enabled:
+    port: 9965
+    # or specify which metrics to enable, e.g.:
+    #   - drop
+    #   - tcp
+    #   - flow
+    #   - dns
+    #   - ...

@@ -1,7 +1,12 @@
 cluster:
   extraManifests:
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/namespaces.yml
-   - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/install-cilium.yml
+   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml
+   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_gateways.yaml
+   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml
+   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_referencegrants.yaml
+   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_grpcroutes.yaml
+   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/experimental/gateway.networking.k8s.io_tlsroutes.yaml
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/L2Announcement.yml
    - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/argocd-kustomized/final-argocd.yaml
    - https://raw.githubusercontent.com/alex1989hu/kubelet-serving-cert-approver/main/deploy/standalone-install.yaml
