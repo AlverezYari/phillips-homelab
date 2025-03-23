@@ -1,10 +1,3 @@
-# Provided by Helm chart
-# apiVersion: gateway.networking.k8s.io/v1
-# kind: GatewayClass
-# metadata:
-#   name: cilium
-# spec:
-#   controllerName: io.cilium/gateway-controller
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -17,19 +10,11 @@ spec:
   - name: https-1
     protocol: HTTPS
     port: 443
-    hostname: "argocd.phillips-homelab.net"
+    hostname: argocd.phillips-homelab.net
     tls:
       certificateRefs:
       - kind: Secret
-        name: ca
-  - name: https-2
-    protocol: HTTPS
-    port: 443
-    hostname: "monitoring.phillips-homelab.net"
-    tls:
-      certificateRefs:
-      - kind: Secret
-        name: ca
+        name: argocd-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -39,33 +24,13 @@ metadata:
 spec:
   parentRefs:
   - name: tls-gateway
+    sectionName: https-1
   hostnames:
-  - "argocd.phillips-homelab.net"
+  - argocd.phillips-homelab.net
   rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
+  - backendRefs:
     - name: argocd-server
       namespace: argocd
       port: 80
 ---
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: https-app-route-2
-  namespace: gateways
-spec:
-  parentRefs:
-  - name: tls-gateway
-  hostnames:
-  - "monitoring.phillips-homelab.net"
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /
-    backendRefs:
-    - name: prometheus
-      port: 9090
+

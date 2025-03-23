@@ -14,7 +14,7 @@ patches:
     file: patches/cni.yml
   - name: disable-kubeproxy
     file: patches/disable-kubeproxy.yml
-  - name: install-cilium
+  - name: prep-cluster-for-cilium
     file: patches/extraManifests.yml
   - name: metrics-server
     file: patches/metrics-server.yml
