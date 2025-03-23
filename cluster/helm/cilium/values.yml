@@ -51,8 +51,8 @@ gatewayAPI:
   enableProxyProtocol: false
 
   # If your cluster uses advanced L7 features (ALPN, AppProtocol) on Gateways:
-  enableAlpn: false
-  enableAppProtocol: false
+  enableAlpn: true
+  enableAppProtocol: true
 
 
 ####################################
