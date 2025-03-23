@@ -3,9 +3,8 @@ kind: Ingress
 metadata:
   name: argocd-ingress
   namespace: argocd
-  annotations:
-    kubernetes.io/ingress.class: "cilium"
 spec:
+  ingressClassName: cilium
   rules:
     - host: argocd.phillips-homelab.net
       http:
@@ -18,4 +17,3 @@ spec:
                 port:
                   number: 80
 ---
-
