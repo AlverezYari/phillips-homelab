@@ -6,4 +6,10 @@ metadata:
   labels:
     name: argocd
 ---
-
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateways
+  labels:
+    name: gateways
+---
