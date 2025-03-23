@@ -7,4 +7,7 @@ spec:
   blocks:
   - start: "192.168.10.191"
     stop: "192.168.10.193"
+  serviceSelector:
+    matchLabels:
+      homelab: net01
 
