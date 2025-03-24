@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: tlm-core
+  source:
+    chart: grafana
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: 8.10.4
+    helm:
+      values: |
+        grafana.ini:
+          analytics:
+            check_for_updates: true
+          grafana_net:
+            url: https://grafana.net
+          log:
+            mode: console
+          paths:
+            data: /var/lib/grafana/
+            logs: /var/log/grafana
+            plugins: /var/lib/grafana/plugins
+            provisioning: /etc/grafana/provisioning
+          server:
+            domain: monitoring.phillips-homelab.net
+            root_url: https://monitoring.phillips-homelab.net
+        grafanaAgent:
+          logLevel: warn
+        ingress:
+          enabled: false
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
