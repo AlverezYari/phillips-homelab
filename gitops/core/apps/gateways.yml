@@ -78,6 +78,7 @@ spec:
   parentRefs:
   - name: tls-gateway
     sectionName: https-2
+    namespace: gateways
   hostnames:
   - monitoring.phillips-homelab.net
   rules:
