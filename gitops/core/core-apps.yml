@@ -7,7 +7,7 @@ spec:
     namespace: argocd
     server: 'https://kubernetes.default.svc'
   source:
-    path: ./gitops/core/apps/
+    path: ./gitops/core/apps
     repoURL: 'https://github.com/AlverezYari/phillips-homelab.git'
     targetRevision: main
   project: default
