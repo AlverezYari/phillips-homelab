@@ -16,7 +16,7 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: allow-monitoring-service
+  name: allow-argocd-service
   namespace: argocd
 spec:
   from:
