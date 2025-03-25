@@ -11,7 +11,7 @@ spec:
     namespace: monitoring
   project: default
   source:
-    chart: vm/victoria-metrics-k8s-stack
+    chart: victoria-metrics-k8s-stack
     repoURL: https://victoriametrics.github.io/helm-charts/
     targetRevision: 0.39.2
     helm:
