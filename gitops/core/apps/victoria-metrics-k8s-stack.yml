@@ -18,6 +18,9 @@ spec:
       values: |
         grafana:
           enabled: false
+        defaultDashboards:
+          enabled: true
+        fullnameOverride: "vmstack"
   syncPolicy:
     automated: {}
     syncOptions:
