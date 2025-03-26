@@ -24,6 +24,7 @@ This is my very WIP Kubernetes homelab setup. I'm currently trying to get the cl
 ## GitOps - First Draft Setup Instructions
 
 1. If you are following along, you should already have ArgoCD installed in your cluster from the Cluster Prep steps. Now we'll use that badass tool to finish setting up our cluster. Afterwards it will settle into a nice loop of keeping our cluster in sync with our git repo.
-2. Move into the ./gitops/core/ directory, and apply our core resources.
+2. Move into the ./gitops/core/ directory, and apply our core resources. # This should be replaced with the argo in argo method
     - kubectl apply -f ./gitops/core/core-apps.yml
         - **Note:** This is mostly a short cut to instal all the apps defined in the './gitops/core/apps/' directory in one shot.
+3. ...
