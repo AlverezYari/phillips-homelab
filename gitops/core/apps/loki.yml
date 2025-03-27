@@ -24,16 +24,17 @@ spec:
           server:
             log_level: warn
           storage:
-            filesystem:
-              chunks_directory: /var/loki/chunks
-              rules_directory: /var/loki/rules
-              admin_api_directory: /var/loki/admin
+            type: filesystem
+              filesystem:
+                chunks_directory: /var/loki/chunks
+                rules_directory: /var/loki/rules
+                admin_api_directory: /var/loki/admin
           schemaConfig:
             configs:
-              - from: 2020-07-01
-                store: boltdb
+              - from: 2025-04-25
+                store: tsdb
                 object_store: filesystem
-                schema: v11
+                schema: v13
                 index:
                   prefix: index_
                   period: 24h
