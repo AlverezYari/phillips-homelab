@@ -25,10 +25,10 @@ spec:
             log_level: warn
           storage:
             type: filesystem
-              filesystem:
-                chunks_directory: /var/loki/chunks
-                rules_directory: /var/loki/rules
-                admin_api_directory: /var/loki/admin
+            filesystem:
+              chunks_directory: /var/loki/chunks
+              rules_directory: /var/loki/rules
+              admin_api_directory: /var/loki/admin
           schemaConfig:
             configs:
               - from: 2025-04-25
