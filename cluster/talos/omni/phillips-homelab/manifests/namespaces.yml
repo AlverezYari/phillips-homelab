@@ -13,3 +13,10 @@ metadata:
   labels:
     name: gateways
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: synology-csi
+  labels:
+    name: synology-csi
+---

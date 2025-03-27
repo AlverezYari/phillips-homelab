@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tlm-loki
+  project: tlm-core
+  source:
+    chart: loki
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: 6.28.0
+    helm:
+      values: |
+        monitoring:
+          lokiCanary:
+            extraArgs:
+              - --log.level=warn
+        loki:
+          server:
+            log_level: warn
+          storage:
+            filesystem:
+              chunks_directory: /var/loki/chunks
+              rules_directory: /var/loki/rules
+              admin_api_directory: /var/loki/admin
+          schemaConfig:
+            configs:
+              - from: 2020-07-01
+                store: boltdb
+                object_store: filesystem
+                schema: v11
+                index:
+                  prefix: index_
+                  period: 24h
+        persistence:
+          enabled: true
+          size: 10Gi
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
+
