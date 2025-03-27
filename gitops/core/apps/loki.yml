@@ -17,9 +17,9 @@ spec:
     helm:
       values: |
         monitoring:
-          lokiCanary:
-            extraArgs:
-              - --log.level=warn
+          dashboards:
+            enabled: true
+            namespace: monitoring
         loki:
           server:
             log_level: warn
