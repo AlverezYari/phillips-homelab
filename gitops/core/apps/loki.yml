@@ -8,8 +8,8 @@ metadata:
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: tlm-loki
-  project: tlm-core
+    namespace: monitoring
+  project: default
   source:
     chart: loki
     repoURL: https://grafana.github.io/helm-charts
