@@ -42,6 +42,8 @@ spec:
         sidecar:
           dashboards:
             enabled: true
+            label: grafana_dashboard
+            labelValue: true
   syncPolicy:
     automated: {}
     syncOptions:
