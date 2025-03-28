@@ -39,6 +39,9 @@ spec:
           type: pvc
           enabled: true
           size: 5Gi
+        sidecar:
+          dashboards:
+            enabled: true
   syncPolicy:
     automated: {}
     syncOptions:
