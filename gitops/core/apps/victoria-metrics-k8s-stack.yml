@@ -20,6 +20,8 @@ spec:
           enabled: false
         defaultDashboards:
           enabled: true
+          labels:
+            key: grafana_dashboard
           dashboards:
             victoriametrics-vmalert:
               enabled: true
