@@ -20,6 +20,13 @@ spec:
           enabled: false
         defaultDashboards:
           enabled: true
+          dashboards:
+            victoriametrics-vmalert:
+              enabled: true
+            victoriametrics-operator:
+              enabled: true
+            node-exporter-full:
+              enabled: false
         fullnameOverride: "vmstack"
   syncPolicy:
     automated: {}
