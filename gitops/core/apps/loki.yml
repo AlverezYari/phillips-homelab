@@ -3,23 +3,17 @@ kind: Application
 metadata:
   name: loki
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
   project: default
   source:
-    chart: loki
     repoURL: https://grafana.github.io/helm-charts
+    chart: loki
     targetRevision: 6.28.0
     helm:
       values: |
-        monitoring:
-          dashboards:
-            enabled: true
-            namespace: monitoring
         loki:
           server:
             log_level: warn
@@ -29,15 +23,18 @@ spec:
               chunks_directory: /var/loki/chunks
               rules_directory: /var/loki/rules
               admin_api_directory: /var/loki/admin
+            use_thanos_objstore: false
+            object_store:
+              type: filesystem
           schemaConfig:
             configs:
-              - from: 2025-04-25
+              - from: "2025-04-01"
                 store: tsdb
                 object_store: filesystem
                 schema: v13
                 index:
-                  prefix: index_
-                  period: 24h
+                  prefix: "index_"
+                  period: "24h"
         persistence:
           enabled: true
           size: 10Gi
