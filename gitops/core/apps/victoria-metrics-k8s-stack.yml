@@ -22,6 +22,7 @@ spec:
           enabled: true
           labels:
             key: grafana_dashboard
+            value: true
           dashboards:
             victoriametrics-vmalert:
               enabled: true
