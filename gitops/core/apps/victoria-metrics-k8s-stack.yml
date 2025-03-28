@@ -26,7 +26,7 @@ spec:
             victoriametrics-operator:
               enabled: true
             node-exporter-full:
-              enabled: false
+              enabled: true
         fullnameOverride: "vmstack"
   syncPolicy:
     automated: {}
