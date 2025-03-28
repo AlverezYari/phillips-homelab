@@ -35,6 +35,10 @@ spec:
           logLevel: warn
         ingress:
           enabled: false
+        persistence:
+          type: pvc
+          enabled: true
+          size: 5Gi
   syncPolicy:
     automated: {}
     syncOptions:
