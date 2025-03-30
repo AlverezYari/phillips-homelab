@@ -1,5 +1,5 @@
-<p align="center">
-    <center><h1>- Phillips Homelab - </h1></center>
+<p style="text-align:center">
+    <h1>- Phillips Homelab -</h1>
     <h2> 2025 Edition </h2>
 </p>
 
