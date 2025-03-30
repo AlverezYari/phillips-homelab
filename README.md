@@ -1,6 +1,6 @@
 <p align="center">
-    <center><h1>- Phillips Homelab - </h1>
-    <h2> 2025 Edition </h2></center>
+    <center><h1>- Phillips Homelab - </h1></center>
+    <h2> 2025 Edition </h2>
 </p>
 
 <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab 2025" width="300"/>
