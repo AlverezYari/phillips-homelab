@@ -1,6 +1,8 @@
-# Phillips Homelab 2025
-
-![Phillips Homelab 2025](https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png)
+<p align="center">
+    # - Phillips Homelab - 
+    # 2025 Edition
+  <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/logo.png" alt="Phillips Homelab 2025" width="300"/>
+</p>
 
 ## Intro & Overview
 
