@@ -49,17 +49,17 @@ Thanks for checking out my project, and I hope you find it useful!
 
 #### Cluster Components
 
-- **CNI:** (Cilium)[https://github.com/cilium/cilium]
+- **CNI:** [Cilium](https://github.com/cilium/cilium)
 - **Ingress:** Gateway API + Cilium
 - **Ingress Controller:** Cilium Gateway
 - **Load Balancer:** Cilium LoadBalancer IP Address Management (LBIPAM)
-- **Application Management:** (ArgoCD)[https://github.com/argoproj/argo-cd]
-- **Storage Management:** (CSI Driver for Synology NAS)[https://github.com/SynologyOpenSource/synology-csi]
-- **Metrics:** (VictoriaMetrics)[https://github.com/VictoriaMetrics/VictoriaMetrics]
-- **Logging:** (Loki)[https://github.com/grafana/loki]
-- **Dashboarding:** (Grafana)[https://github.com/grafana/grafana]
-- **Secret Management:** (External Secrets Operator)[https://github.com/external-secrets/external-secrets] (1Passsword Connection/Sync API)
-- **TLS Management:** (Cert-Manager)[https://github.com/cert-manager/cert-manager] backed by AWS Route53 DNS Challenges
+- **Application Management:** [ArgoCD](https://github.com/argoproj/argo-cd)
+- **Storage Management:** [CSI Driver for Synology NAS](https://github.com/SynologyOpenSource/synology-csi)
+- **Metrics:** [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+- **Logging:** [Loki](https://github.com/grafana/loki)
+- **Dashboarding:** [Grafana](https://github.com/grafana/grafana)
+- **Secret Management:** [External Secrets Operator](https://github.com/external-secrets/external-secrets) (1Passsword Connection/Sync API)
+- **TLS Management:** [Cert-Manager](https://github.com/cert-manager/cert-manager) backed by AWS Route53 DNS Challenges
 
 
 ## Key Features
