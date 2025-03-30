@@ -1,7 +1,7 @@
 <p align="center">
-    # - Phillips Homelab - 
-    # 2025 Edition
-  <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/logo.png" alt="Phillips Homelab 2025" width="300"/>
+    <h1> - Phillips Homelab - </h1><br>
+    <h2> - 2025 Edition - </h2>
+  <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab 2025" width="300"/>
 </p>
 
 ## Intro & Overview
