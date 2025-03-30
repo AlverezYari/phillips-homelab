@@ -1,7 +1,9 @@
-<p align="center">
-    # - Phillips Homelab - 
-    # 2025 Edition
-  <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/logo.png" alt="Phillips Homelab 2025" width="300"/>
+<h1 align="center" style="margin-top: 0px;">Phillips Homelab</h1>
+
+<p align="center">2025 Edition</p>
+
+<p align="center" style="margin-bottom: 0px !important;">
+    <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab 2025" width="300" align="center">
 </p>
 
 ## Intro & Overview
@@ -16,22 +18,24 @@ Thanks for checking out my project, and I hope you find it useful!
 
 ### Cluster Details
 
+**Note:** All links are NON-affiliate links, and are provided for reference only. I do not make any money from these links, and they are provided as a convenience to you.
+
 #### Hardware
 
-- 3x Beelink EQR5 Mini PCs
+- [3x Beelink EQR5 Mini PCs](https://www.amazon.com/dp/B0DLP5P62S?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
     - 16GB RAM
     - 512GB SSD
     - 2x 1G NICs
 
-- 1x Synology NAS DS723+
+- 1x [Synology NAS DS723+](https://www.amazon.com/dp/B0BRN9J1JN?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
     - 2x 8TB Seagate Ironwolf HDDs
     - 1x 1TB Samsung 970 EVO NVMe SSD (for caching)
 
-- 1x TP-Link TL-SG1016PE
+- 1x [TP-Link TL-SG1016PE](https://www.amazon.com/TP-Link-Unmanaged-Rackmount-Lifetime-TL-SG1016PE/dp/B0721V1TGV/ref=sr_1_1?crid=2HMDDJXIR8SW9&dib=eyJ2IjoiMSJ9.InmIW091P5DoHy4swhfKjbKOIb8n7GQGwMOtAwvUVUe4shbTEDKxYcy3VbZvZ7mwNI4kdwBYsrdQ31qqNpz5fRbXsEqEH4aqOUesekfZPDOMNQ9qSfqHfn57mzdQtdZzgsC1YB7kIF6XwnNw8eLBZnpduYlhhaY1Br6O40jDL4icYqANMNESJpT6QVzlSVG9ZLRdxEq0i3ClkHcxf2q1Ow1580qwOGljy-dnUmILKb0sCFeUG265X4MN0Y9nB4miN1W9KX6dxgZea8kdjHLyQMX6cI9x-y9HEo65Kn-rE8EVGDc2QxDAZTYrTiB_UFxv9TG-waKa6fuSCkkv7gdn6SHhUdlHykdtqzYPgD6QM8s.lT34CHavGsQl0gvXhwXR2qImMNvLA8hPQkjWDg8vQYA&dib_tag=se&keywords=tp%2Blink%2Bsg1016pe&qid=1743357065&s=electronics&sprefix=tplink%2Bsg1016pe%2Celectronics%2C85&sr=1-1&th=1)
     - 16x 1G Ports
     - 8x PoE Ports
 
-- 1x Ubiquiti Dream Machine Pro
+- 1x [Ubiquiti Dream Machine](https://www.amazon.com/Machine-MU-MIMO-Dual-Band-Gigabit-UDM-US/dp/B0DDDP93YX/ref=sr_1_4?crid=8CDBD4207294&dib=eyJ2IjoiMSJ9.li_aweq7xoRuO9PhKkIVZ7kcu27B-NjyGPvdlX9wiwvFUGWASNDzIHwZweszDN8C1xGnzFXq3TvliCt5_o1gS2PdoWi0t1MfobUd2teMwEWT7NjvxB2F4dFWJsZSwlqovfR1jcY1NkT1u5QUM-RK7Z1Qnm1oT9wRRpc3UOUq3hdgePesTFX7t6qZb50v6vSMMfEBOINbCgDBJgeG1BFQOcGt09qRukkBmB_AKjvTn62wBvp2xKOC-taB4TlQCz0p-zB-0Xs2bRB8VWauANa_x_9V55tbox6SLUqlkGSRqnbOrwyFWWRiyY6whqa9FofmQrLYl2H9HyFnqwDeyuQj0rFl9dAOow4tM1WgcVI4Cho.Xd1uCOFvhbu-BMDeoPt3eZBrF_88fzmWm4-KVZzxyhE&dib_tag=se&keywords=ubiquiti%2Bdream%2Bmachine%2Bpro&qid=1743357111&s=electronics&sprefix=Ubiquiti%2BDrea%2Celectronics%2C106&sr=1-4&th=1)
     - 1x 10G SFP+ Port
     - 8x 1G Ports
     - 1x WAN Port
@@ -45,17 +49,17 @@ Thanks for checking out my project, and I hope you find it useful!
 
 #### Cluster Components
 
-- **CNI:** Cilium
+- **CNI:** [Cilium](https://github.com/cilium/cilium)
 - **Ingress:** Gateway API + Cilium
 - **Ingress Controller:** Cilium Gateway
 - **Load Balancer:** Cilium LoadBalancer IP Address Management (LBIPAM)
-- **Application Management:** ArgoCD
-- **Storage Management:** CSI Driver for Synology NAS
-- **Metrics:** VictoriaMetrics
-- **Logging:** Loki
-- **Dashboarding:** Grafana
-- **Secret Management:** External Secrets Operator (1Passsword Connection/Sync API)
-- **TLS Management:** Cert-Manager backed by AWS Route53 DNS Challenges
+- **Application Management:** [ArgoCD](https://github.com/argoproj/argo-cd)
+- **Storage Management:** [CSI Driver for Synology NAS](https://github.com/SynologyOpenSource/synology-csi)
+- **Metrics:** [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+- **Logging:** [Loki](https://github.com/grafana/loki)
+- **Dashboarding:** [Grafana](https://github.com/grafana/grafana)
+- **Secret Management:** [External Secrets Operator](https://github.com/external-secrets/external-secrets) (1Passsword Connection/Sync API)
+- **TLS Management:** [Cert-Manager](https://github.com/cert-manager/cert-manager) backed by AWS Route53 DNS Challenges
 
 
 ## Key Features
