@@ -17,6 +17,7 @@ spec:
         ingressController:
           enabled: true
           default: true
+          loadbalancerMode: shared
         gatewayAPI:
           enableAlpn: true
           enableAppProtocol: true
