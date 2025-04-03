@@ -59,10 +59,10 @@ spec:
               - FOWNER
               - SETGID
               - SETUID
-          cleanCiliumState:
-            - NET_ADMIN
-            - SYS_ADMIN
-            - SYS_RESOURCE
+            cleanCiliumState:
+              - NET_ADMIN
+              - SYS_ADMIN
+              - SYS_RESOURCE
           priviledged: true
   destination:
     server: "https://kubernetes.default.svc"
