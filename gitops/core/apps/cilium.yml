@@ -14,6 +14,9 @@ spec:
         debug:
           enabled: false
         enableLBIPAM: true
+        ingressController:
+          enabled: true
+          default: true
         gatewayAPI:
           enableAlpn: true
           enableAppProtocol: true
