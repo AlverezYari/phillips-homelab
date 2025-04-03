@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    repoURL: "https://charts.tailscale.com"
+    repoURL: https://pkgs.tailscale.com/helmcharts
     targetRevision: "v1.82.0"
     chart: "tailscale-operator"
     helm:
