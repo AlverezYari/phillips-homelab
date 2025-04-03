@@ -19,6 +19,8 @@ spec:
           value: "true"
         - name: expose.ingress.hosts.core
           value: "harbor.phillips-homelab.net"
+        - name: expose.ingress.className
+          value: "cilium"
   destination:
     server: https://kubernetes.default.svc
     namespace: harbor
