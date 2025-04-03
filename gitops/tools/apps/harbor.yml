@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/goharbor/harbor-helm.git
+    targetRevision: v1.16.2
+    path: .
+    helm:
+      parameters:
+        - name: persistence.persistentVolumeClaim.registry.size
+          value: "200Gi"
+        - name: expose.type
+          value: "ingress"
+        - name: expose.tls.enabled
+          value: "true"
+        - name: expose.ingress.hosts.core
+          value: "harbor.phillips-homelab.net"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harbor
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
