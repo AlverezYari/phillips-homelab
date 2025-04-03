@@ -40,6 +40,8 @@ spec:
         ipv6:
           enabled: false
         kubeProxyReplacement: true
+        socketLB:
+          enabled: false
         l2announcements:
           enabled: true
           leaseDuration: 300s
