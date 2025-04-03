@@ -21,6 +21,8 @@ spec:
           value: "harbor.phillips-homelab.net"
         - name: expose.ingress.className
           value: "cilium"
+        - name: jobservice.replicaCount
+          value: 1
   destination:
     server: https://kubernetes.default.svc
     namespace: harbor
