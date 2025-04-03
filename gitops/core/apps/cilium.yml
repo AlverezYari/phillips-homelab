@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://helm.cilium.io/"
+    chart: cilium
+    targetRevision: "1.17.2"
+    helm:
+      values: |-
+        debug:
+          enabled: false
+        enableLBIPAM: true
+        gatewayAPI:
+          enableAlpn: true
+          enableAppProtocol: true
+          enableProxyProtocol: false
+          enabled: true
+          secretsNamespace:
+            name: cilium-secrets
+            sync: true
+        hubble:
+          enabled: true
+          listenAddress: :4244
+          metrics:
+            enabled: null
+            port: 9965
+          relay:
+            enabled: true
+          tls:
+            enabled: true
+          ui:
+            enabled: true
+        identityAllocationMode: crd
+        ipv4:
+          enabled: true
+        ipv6:
+          enabled: false
+        kubeProxyReplacement: true
+        l2announcements:
+          enabled: true
+          leaseDuration: 300s
+          renewDeadline: 60s
+          retryPeriod: 10s
+        securityContext:
+          capabilities:
+            ciliumAgent:
+              - CHOWN
+              - KILL
+              - NET_ADMIN
+              - NET_RAW
+              - IPC_LOCK
+              - SYS_ADMIN
+              - SYS_RESOURCE
+              - DAC_OVERRIDE
+              - FOWNER
+              - SETGID
+              - SETUID
+          cleanCiliumState:
+            - NET_ADMIN
+            - SYS_ADMIN
+            - SYS_RESOURCE
+          priviledged: true
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
