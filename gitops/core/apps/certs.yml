@@ -25,5 +25,18 @@ spec:
     kind: ClusterIssuer
   secretName: monitoring-tls
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: harbor-tls
+  namespace: gateways
+spec:
+  dnsNames:
+  - harbor.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: harbor-tls
+---
 
 
