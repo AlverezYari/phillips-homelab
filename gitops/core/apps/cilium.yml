@@ -18,6 +18,8 @@ spec:
           enabled: true
           default: true
           loadbalancerMode: shared
+          hostNetwork:
+            enabled: true
         gatewayAPI:
           enableAlpn: true
           enableAppProtocol: true
