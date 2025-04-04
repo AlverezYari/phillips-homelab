@@ -18,8 +18,8 @@ spec:
         expose:
           type: ingress
           tls:
-            enabled: false
-            certSource: none
+            enabled: true
+            certSource: auto
           ingress:
             hosts:
               core: harbor.phillips-homelab.net
