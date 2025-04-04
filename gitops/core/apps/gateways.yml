@@ -122,13 +122,9 @@ spec:
   hostnames:
   - harbor.phillips-homelab.net
   rules:
-    - matches:
-      - path:
-          type: PathPrefix
-          value: /
-      backendRefs:
-      - name: harbor
-        namespace: harbor
-        port: 80
+  - backendRefs:
+    - name: harbor
+      namespace: harbor
+      port: 80
 ---
 
