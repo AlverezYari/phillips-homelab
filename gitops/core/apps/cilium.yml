@@ -47,7 +47,7 @@ spec:
         ipv6:
           enabled: false
         kubeProxyReplacement: "true"
-        l7Proxy: "true"
+        l7Proxy: true
         socketLB:
           enabled: false
         l2announcements:
