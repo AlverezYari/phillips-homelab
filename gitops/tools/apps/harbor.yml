@@ -21,12 +21,13 @@ spec:
             enabled: true
           ingress:
             hosts:
-              core: harbor.phillips-homelab.net
+              core: "harbor.phillips-homelab.net"
             className: cilium
             annotations:
               "ingress.kubernetes.io/force-ssl-redirect": "true"
               "nginx.ingress.kubernetes.io/proxy-body-size": null
               "nginx.ingress.kubernetes.io/ssl-redirect": null
+        externalURL: https://harbor.phillips-homelab.net
   destination:
     server: https://kubernetes.default.svc
     namespace: harbor
