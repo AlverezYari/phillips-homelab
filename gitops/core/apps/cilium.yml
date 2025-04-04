@@ -72,7 +72,13 @@ spec:
           priviledged: true
   destination:
     server: "https://kubernetes.default.svc"
-    namespace: kube-system
+    namespace: kube-syste
+  ignoreDifferences:
+  - group: ""
+    kind: Service
+    jsonPointers:
+    - /spec/ports/0/nodePort
+    - /spec/ports/1/nodePort
   syncPolicy:
     automated:
       prune: true
