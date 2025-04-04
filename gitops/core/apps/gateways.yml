@@ -108,8 +108,13 @@ spec:
   hostnames:
   - harbor.phillips-homelab.net
   rules:
-  - backendRefs:
-    - name: harbor-portal
-      namespace: harbor
-      port: 80
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /
+      backendRefs:
+      - name: harbor-portal
+        namespace: harbor
+        port: 80
+---
 
