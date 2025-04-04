@@ -21,9 +21,8 @@ spec:
           value: "harbor.phillips-homelab.net"
         - name: expose.ingress.className
           value: "cilium"
-        - name: expose.ingress.annotations
-          value: |
-            ingress.kubernetes.io/force-ssl-redirect: "true"
+        - name: expose.ingress.annotations.ingress\.kubernetes\.io/force-ssl-redirect
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: harbor
