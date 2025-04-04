@@ -72,7 +72,7 @@ spec:
           priviledged: true
   destination:
     server: "https://kubernetes.default.svc"
-    namespace: kube-syste
+    namespace: kube-system
   ignoreDifferences:
   - group: ""
     kind: Service
