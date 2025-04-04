@@ -18,6 +18,9 @@ spec:
           enabled: true
           default: true
           loadbalancerMode: shared
+        nodePort:
+          enabled: true
+          nodePortRange: 30000-32767
         gatewayAPI:
           enableAlpn: true
           enableAppProtocol: true
@@ -43,7 +46,9 @@ spec:
           enabled: true
         ipv6:
           enabled: false
-        kubeProxyReplacement: true
+        kubeProxyReplacement: "true"
+        l7Proxy:
+          enabled: true
         socketLB:
           enabled: false
         l2announcements:
