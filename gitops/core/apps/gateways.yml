@@ -127,7 +127,7 @@ spec:
           type: PathPrefix
           value: /
       backendRefs:
-      - name: harbor-portal
+      - name: harbor
         namespace: harbor
         port: 80
 ---
