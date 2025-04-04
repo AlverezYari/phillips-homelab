@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/goharbor/harbor-helm.git
+    repoURL: https://helm.goharbor.io
     targetRevision: v1.16.2
     path: .
     helm:
@@ -22,7 +22,7 @@ spec:
             certSource: none
           ingress:
             hosts:
-              core: "harbor.phillips-homelab.net"
+              core: harbor.phillips-homelab.net
             className: cilium
             annotations:
               "kubernetes.io/ingress.class": "cilium"
