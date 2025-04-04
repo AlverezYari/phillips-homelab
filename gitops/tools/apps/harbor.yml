@@ -16,19 +16,9 @@ spec:
             registry:
               size: "200Gi"
         expose:
-          type: ingress
+          type: clusterIP
           tls:
-            enabled: true
-            certSource: auto
-          ingress:
-            hosts:
-              core: harbor.phillips-homelab.net
-            className: cilium
-            annotations:
-              "kubernetes.io/ingress.class": "cilium"
-              "ingress.kubernetes.io/force-ssl-redirect": "true"
-              "nginx.ingress.kubernetes.io/proxy-body-size": null
-              "nginx.ingress.kubernetes.io/ssl-redirect": null
+            enabled: false
         externalURL: https://harbor.phillips-homelab.net
   destination:
     server: https://kubernetes.default.svc
