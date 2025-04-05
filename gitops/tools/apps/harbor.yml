@@ -19,6 +19,9 @@ spec:
           type: clusterIP
           tls:
             enabled: false
+          ingress:
+            annotations:
+              ingress.kubernetes.io/ssl-redirect: "true"
         externalURL: https://harbor.phillips-homelab.net
   destination:
     server: https://kubernetes.default.svc
