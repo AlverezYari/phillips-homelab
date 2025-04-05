@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-patchesStrategicMerge:
+patches:
   - kcl-plugin-config.yml
   - kcl-plugin-patch-argocd-repo-server.yml
 
