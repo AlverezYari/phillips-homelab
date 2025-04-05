@@ -1,37 +1,37 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: harbor
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://helm.goharbor.io
-    chart: harbor
-    targetRevision: v1.16.2
-    helm:
-      values: |-
-        persistence:
-          persistentVolumeClaim:
-            registry:
-              size: "200Gi"
-        expose:
-          type: clusterIP
-          tls:
-            enabled: false
-          ingress:
-            annotations:
-              ingress.kubernetes.io/ssl-redirect: "true"
-        externalURL: https://harbor.phillips-homelab.net
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: harbor
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-      allowEmpty: false
-    syncOptions:
-      - CreateNamespace=true
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: harbor
+#   namespace: argocd
+# spec:
+#   project: default
+#   source:
+#     repoURL: https://helm.goharbor.io
+#     chart: harbor
+#     targetRevision: v1.16.2
+#     helm:
+#       values: |-
+#         persistence:
+#           persistentVolumeClaim:
+#             registry:
+#               size: "200Gi"
+#         expose:
+#           type: clusterIP
+#           tls:
+#             enabled: false
+#           ingress:
+#             annotations:
+#               ingress.kubernetes.io/ssl-redirect: "true"
+#         externalURL: https://harbor.phillips-homelab.net
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: harbor
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#       allowEmpty: false
+#     syncOptions:
+#       - CreateNamespace=true
 
 
