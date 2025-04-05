@@ -24,9 +24,9 @@ spec:
           - mountPath: /tmp
             name: cmp-tmp
       volumes:
-      - configMap:
+      - name: kcl-plugin-config
+        configMap:
           name: kcl-plugin-config
-        name: kcl-plugin-config
-      - emptyDir: {}
-        name: cmp-tmp
+      - name: cmp-tmp
+        emptyDir: {}
 
