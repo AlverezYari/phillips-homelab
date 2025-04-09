@@ -9,7 +9,7 @@ spec:
       containers:
       - name: kcl-plugin
         command: ["/var/run/argocd/argocd-cmp-server"]
-        image: kcllang/kcl
+        image: kcllang/kcl@v0.11.0
         securityContext:
           runAsNonRoot: true
           runAsUser: 999
