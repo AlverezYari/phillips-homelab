@@ -11,7 +11,7 @@ spec:
     # Path to the overlay folder
     path: 'gitops/kcl-modules/zot/overlays'
     plugin:
-      name: KCL
+      name: my-plugin
   destination:
     namespace: zot
     name: in-cluster
