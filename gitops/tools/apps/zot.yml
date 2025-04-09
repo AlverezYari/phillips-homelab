@@ -9,7 +9,7 @@ spec:
     repoURL: 'https://github.com/AlverezYari/phillips-homelab.git'
     targetRevision: HEAD
     # Path to the overlay folder
-    path: 'gitops/kcl-modules/zot/overlays/homelab.k'
+    path: 'gitops/kcl-modules/zot/overlays'
     plugin:
       name: KCL
   destination:
