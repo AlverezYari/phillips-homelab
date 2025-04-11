@@ -1,24 +1,26 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: zot-homelab
+  name: zot-registry
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/AlverezYari/phillips-homelab.git'
-    targetRevision: HEAD
-    # Path to the overlay folder
-    path: 'gitops/kcl-modules/zot/overlays'
+    repoURL: https://github.com/AlverezYari/phillips-homelab 
+    targetRevision: main
+    path: gitops/kcl-modules/zot
     plugin:
       name: kcl-v1.0
+      env:
+        - name: KCL_ARGS
+          value: "-D storage=200Gi configs/with-storage/main.k"
   destination:
+    server: https://kubernetes.default.svc
     namespace: zot
-    name: in-cluster
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+    - CreateNamespace=true
 
