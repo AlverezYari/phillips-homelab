@@ -1,9 +1,7 @@
-# zot/kcl.mod
-module:
-  name: "zot"
-  version: "0.1.0"
+[package]
+name = "zot"
+version = "0.1.0"
+description = "A KCL module for setting up a ZOT container registry"
 
-# We can add more dependencies here as needed.
-dependencies:
-  - source: "github.com/kcl-lang/kubernetes"
-    version: ">=0.4.0"
+[dependencies]
+k8s = "1.31.2"
