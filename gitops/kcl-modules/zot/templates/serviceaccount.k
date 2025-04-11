@@ -6,8 +6,9 @@ import ..pkg
 
 # Create function for ServiceAccount
 createServiceAccount = lambda config {
-    apiVersion = "v1"
-    kind = "ServiceAccount"
+    # Make sure to include all required Kubernetes fields
+    apiVersion = "v1" 
+    kind = "ServiceAccount"  # This is critical
     metadata = {
         name = config.fullname(config)
         namespace = config.namespace
