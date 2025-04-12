@@ -8,19 +8,19 @@ import ...templates.serviceaccount as serviceaccount
 import ...templates.service as service
 import ...templates.deployment as deployment
 
+# Get storage size from options or use default
+storageSize = option("storage") or "10Gi"
+
 # Create a custom configuration
 _config = pkg.ZotConfig {
     namespace = "zot-storage"
     instance = "storage"
 }
 
-# Get storage size from options or use default
-storageSize = option("storage") or "10Gi"
-
-# Create a PersistentVolumeClaim for Zot
+# Create a PersistentVolumeClaim resource
 pvc = {
-    apiVersion = "v1"
-    kind = "PersistentVolumeClaim"
+    apiVersion = "v1"  # Required
+    kind = "PersistentVolumeClaim"  # Required
     metadata = {
         name = _config.fullname(_config)
         namespace = _config.namespace
@@ -37,14 +37,13 @@ pvc = {
     }
 }
 
-# Generate resources with our custom config
+# Generate base resources
 svcAccount = serviceaccount.createServiceAccount(_config)
 svc = service.createService(_config)
 _deploy = deployment.createDeployment(_config)
 
-# Add volume mount to the deployment - we need to create a modified copy
-_container = _deploy.spec.template.spec.containers[0]
-_container |= {
+# Add volume mount to the deployment
+_deploy.spec.template.spec.containers[0] |= {
     volumeMounts = [
         {
             name = "zot-data"
@@ -53,7 +52,7 @@ _container |= {
     ]
 }
 
-# Add volume to the pod - we need to create a modified copy
+# Add volume to the pod
 _deploy.spec.template.spec |= {
     volumes = [
         {
@@ -65,10 +64,8 @@ _deploy.spec.template.spec |= {
     ]
 }
 
-# Generate resources
-svcAccount = serviceaccount.createServiceAccount(config)
-svc = service.createService(config)
-deploy = deployment.createDeployment(config)
-
-# Output core resources
-[svcAccount, svc, deploy]
+# Output each Kubernetes resource directly
+svcAccount  # Direct output
+svc  # Direct output
+_deploy  # Direct output
+pvc  # Direct output

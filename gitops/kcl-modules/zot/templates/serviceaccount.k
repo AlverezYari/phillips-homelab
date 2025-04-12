@@ -4,11 +4,10 @@ ServiceAccount resource template for Zot container registry.
 
 import ..pkg
 
-# Create function for ServiceAccount
+# Create function for ServiceAccount - make sure it returns a COMPLETE K8s resource
 createServiceAccount = lambda config {
-    # Make sure to include all required Kubernetes fields
-    apiVersion = "v1" 
-    kind = "ServiceAccount"  # This is critical
+    apiVersion = "v1"  # Required
+    kind = "ServiceAccount"  # Required
     metadata = {
         name = config.fullname(config)
         namespace = config.namespace

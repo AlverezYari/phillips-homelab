@@ -6,14 +6,51 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/AlverezYari/phillips-homelab 
-    targetRevision: main
-    path: gitops/kcl-modules/zot
-    plugin:
-      name: kcl-v1.0
-      env:
-        - name: KCL_ARGS
-          value: "-D storage=200Gi configs/with-storage/main.k"
+    repoURL: http://zotregistry.dev/helm-charts
+    chart: zot
+    targetRevision: "0.1.67"
+    helm:
+      values: |
+        replicaCount: 1
+        image:
+          repository: ghcr.io/project-zot/zot-linux-amd64
+          tag: "v2.1.2"
+          pullPolicy: IfNotPresent
+        persistence: true
+        pvc:
+          create: true
+          accessModes: ["ReadWriteOnce"]
+          storage: 200Gi
+          storageClassName: standard
+        configFiles:
+          config.json: |-
+            {
+              "storage": {
+                "rootDirectory": "/var/lib/registry",
+                "dedupe": true,
+                "gc": true,
+                "gcDelay": "1h",
+                "gcInterval": "24h"
+              },
+              "http": {
+                "address": "0.0.0.0",
+                "port": "5000"
+              },
+              "log": {
+                "level": "debug"
+              }
+            }
+        mountConfig: true
+        service:
+          type: ClusterIP
+          port: 5000
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: zot
