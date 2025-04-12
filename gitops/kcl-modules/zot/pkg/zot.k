@@ -40,4 +40,4 @@ schema ZotConfig:
     
     fullname = lambda self {
         "${self.instance}-${self.name}"
-  }
+    }

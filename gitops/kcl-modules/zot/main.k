@@ -30,12 +30,7 @@ config = pkg.ZotConfig {
         port = int(option("port"))
 }
 
-# Generate resources
-svcAccount = serviceaccount.createServiceAccount(config)
-svc = service.createService(config)
-deploy = deployment.createDeployment(config)
-
-# Output resources as individual variables
-_output_serviceaccount = svcAccount
-_output_service = svc
-_output_deployment = deploy
+# Generate resources - make sure these are directly in the output
+serviceaccount.createServiceAccount(config)  # Direct output
+service.createService(config)  # Direct output
+deployment.createDeployment(config)  # Direct output

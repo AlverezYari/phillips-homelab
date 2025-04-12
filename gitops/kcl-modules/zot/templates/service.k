@@ -4,10 +4,10 @@ Service resource template for Zot container registry.
 
 import ..pkg
 
-# Create function for Service
+# Create function for Service - make sure it returns a COMPLETE K8s resource
 createService = lambda config {
-    apiVersion = "v1"
-    kind = "Service"
+    apiVersion = "v1"  # Required
+    kind = "Service"  # Required
     metadata = {
         name = config.fullname(config)
         namespace = config.namespace
