@@ -4,10 +4,10 @@ Deployment resource template for Zot container registry.
 
 import ..pkg
 
-# Create function for Deployment
+# Create function for Deployment - make sure it returns a COMPLETE K8s resource
 createDeployment = lambda config {
-    apiVersion = "apps/v1"
-    kind = "Deployment"
+    apiVersion = "apps/v1"  # Required
+    kind = "Deployment"  # Required
     metadata = {
         name = config.fullname(config)
         namespace = config.namespace
