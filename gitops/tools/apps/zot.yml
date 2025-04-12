@@ -20,6 +20,7 @@ spec:
         pvc:
           create: true
           accessModes: ["ReadWriteOnce"]
+          storageClassName: syno-iscsi-default
           storage: 200Gi
         configFiles:
           config.json: |-
