@@ -21,7 +21,6 @@ spec:
           create: true
           accessModes: ["ReadWriteOnce"]
           storage: 200Gi
-          storageClassName: standard
         configFiles:
           config.json: |-
             {
