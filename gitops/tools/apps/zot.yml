@@ -42,6 +42,28 @@ spec:
                 },
                 "accessControl": {
                   "repositories": {
+                    "prod/**": {
+                      "policies": [
+                        {
+                          "users": ["admin", "cicd"],
+                          "actions": ["read", "create", "update", "delete"]
+                        },
+                        {
+                          "users": ["developer"],
+                          "actions": ["read"]
+                        }
+                      ],
+                      "defaultPolicy": []
+                    },
+                    "dev/**": {
+                      "policies": [
+                        {
+                          "users": ["admin", "cicd", "developer"],
+                          "actions": ["read", "create", "update", "delete"]
+                        }
+                      ],
+                      "defaultPolicy": []
+                    },
                     "**": {
                       "policies": [
                         {
@@ -49,15 +71,14 @@ spec:
                           "actions": ["read", "create", "update", "delete"]
                         }
                       ],
-                      "defaultPolicy": [
-                        {
-                          "actions": ["read"]
-                        }
-                      ]
+                      "defaultPolicy": ["read"]
                     }
+                  },
+                  "adminPolicy": {
+                    "users": ["admin"],
+                    "actions": ["read", "create", "update", "delete"]
                   }
                 }
-              },
               "log": {
                 "level": "debug"
               }
