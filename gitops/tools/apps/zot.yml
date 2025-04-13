@@ -39,6 +39,45 @@ spec:
                   "htpasswd": {
                     "path": "/secret/htpasswd"
                   }
+                },
+                "accessControl": {
+                  "repositories": {
+                    "prod/**": {
+                      "policies": [
+                        {
+                          "users": ["admin", "cicd"],
+                          "actions": ["read", "create", "update", "delete"]
+                        },
+                        {
+                          "users": ["developer"],
+                          "actions": ["read"]
+                        }
+                      ],
+                      "defaultPolicy": []
+                    },
+                    "dev/**": {
+                      "policies": [
+                        {
+                          "users": ["admin", "cicd", "developer"],
+                          "actions": ["read", "create", "update", "delete"]
+                        }
+                      ],
+                      "defaultPolicy": []
+                    },
+                    "**": {
+                      "policies": [
+                        {
+                          "users": ["admin"],
+                          "actions": ["read", "create", "update", "delete"]
+                        }
+                      ],
+                      "defaultPolicy": ["read"]
+                    }
+                  },
+                  "adminPolicy": {
+                    "users": ["admin"],
+                    "actions": ["read", "create", "update", "delete"]
+                  }
                 }
               },
               "log": {
