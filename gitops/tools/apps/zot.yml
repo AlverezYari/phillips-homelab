@@ -22,6 +22,7 @@ spec:
           accessModes: ["ReadWriteOnce"]
           storageClassName: syno-iscsi-default
           storage: 200Gi
+        mountConfig: true
         configFiles:
           config.json: |-
             {
@@ -84,13 +85,9 @@ spec:
                 "level": "debug"
               }
             }
-        mountConfig: true
         mountSecret: true
         existingSecret: "zot-auth"
-        
         secretFiles: {}
-        
-        startupProbe: null
         service:
           type: ClusterIP
           port: 5000
@@ -110,4 +107,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true
+
