@@ -98,6 +98,11 @@ spec:
           requests:
             cpu: 500m
             memory: 512Mi
+            
+        # Disable all probes
+        startupProbe: null
+        livenessProbe: null
+        readinessProbe: null
   destination:
     server: https://kubernetes.default.svc
     namespace: zot
