@@ -90,11 +90,7 @@ spec:
         
         secretFiles: {}
         
-        startupProbe:
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          failureThreshold: 30
-          
+        startupProbe: null
         service:
           type: ClusterIP
           port: 5000
