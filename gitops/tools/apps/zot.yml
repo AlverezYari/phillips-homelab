@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://zotregistry.dev/helm-charts
+    repoURL: https://github.com/AlverezYari/fork-zot-helm-chart
     chart: zot
-    targetRevision: "0.1.67"
+    targetRevision: main
     helm:
       values: |
         replicaCount: 1
@@ -92,7 +92,10 @@ spec:
           type: ClusterIP
           port: 5000
         fullnameOverride: "zot-registry"
-
+        probeAuthFromSecret:
+          enabled: true
+          secretName: "zot-auth-probes"
+          secretKey: "probesAuthHeader"
         startupProbe:
           httpGet:
             path: /v2/
@@ -101,7 +104,6 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
           failureThreshold: 3
-
         livenessProbe:
           httpGet:
             path: /v2/
@@ -110,7 +112,6 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
           failureThreshold: 3
-
         readinessProbe:
           httpGet:
             path: /v2/
@@ -119,7 +120,6 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
           failureThreshold: 3
-
         resources:
           limits:
             cpu: 1
