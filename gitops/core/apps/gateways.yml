@@ -122,7 +122,14 @@ spec:
   hostnames:
   - zot.phillips-homelab.net
   rules:
-  - backendRefs:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /v2
+    - path:
+        type: Exact
+        value: /
+    backendRefs:
     - name: zot-registry
       namespace: zot
       port: 5000
