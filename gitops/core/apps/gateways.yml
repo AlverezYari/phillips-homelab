@@ -30,8 +30,8 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: allow-harbor-service
-  namespace: harbor
+  name: allow-zot-service
+  namespace: zot
 spec:
   from:
   - group: gateway.networking.k8s.io
@@ -68,11 +68,11 @@ spec:
   - name: https-3
     protocol: HTTPS
     port: 443
-    hostname: harbor.phillips-homelab.net
+    hostname: zot.phillips-homelab.net
     tls:
       certificateRefs:
       - kind: Secret
-        name: harbor-tls
+        name: zot-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -120,15 +120,11 @@ spec:
     sectionName: https-3
     namespace: gateways
   hostnames:
-  - harbor.phillips-homelab.net
+  - zot.phillips-homelab.net
   rules:
-  - matches:
-      - path:
-          type: PathPrefix
-          value: /
-    backendRefs:
-    - name: harbor-portal
-      namespace: harbor
-      port: 80
+  - backendRefs:
+    - name: zot-registry
+      namespace: zot
+      port: 5000
 ---
 
