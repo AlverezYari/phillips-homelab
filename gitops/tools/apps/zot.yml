@@ -86,7 +86,15 @@ spec:
             }
         mountConfig: true
         mountSecret: true
-        existingSecret: "zot-registry-auth"
+        existingSecret: "zot-auth"
+        
+        secretFiles: {}
+        
+        startupProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 30
+          
         service:
           type: ClusterIP
           port: 5000
@@ -98,11 +106,6 @@ spec:
           requests:
             cpu: 500m
             memory: 512Mi
-            
-        # Disable all probes
-        startupProbe: null
-        livenessProbe: null
-        readinessProbe: null
   destination:
     server: https://kubernetes.default.svc
     namespace: zot
