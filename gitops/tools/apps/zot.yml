@@ -92,6 +92,34 @@ spec:
           type: ClusterIP
           port: 5000
         fullnameOverride: "zot-registry"
+
+        startupProbe:
+          httpGet:
+            path: /v2/
+            port: 5000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+
+        livenessProbe:
+          httpGet:
+            path: /v2/
+            port: 5000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /v2/
+            port: 5000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+
         resources:
           limits:
             cpu: 1
