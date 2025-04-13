@@ -34,16 +34,41 @@ spec:
               },
               "http": {
                 "address": "0.0.0.0",
-                "port": "5000"
+                "port": "5000",
+                "auth": {
+                  "htpasswd": {
+                    "path": "/secret/htpasswd"
+                  }
+                },
+                "accessControl": {
+                  "repositories": {
+                    "**": {
+                      "policies": [
+                        {
+                          "users": ["admin"],
+                          "actions": ["read", "create", "update", "delete"]
+                        }
+                      ],
+                      "defaultPolicy": [
+                        {
+                          "actions": ["read"]
+                        }
+                      ]
+                    }
+                  }
+                }
               },
               "log": {
                 "level": "debug"
               }
             }
         mountConfig: true
+        mountSecret: true
+        existingSecret: "zot-registry-auth"
         service:
           type: ClusterIP
           port: 5000
+        fullnameOverride: "zot-registry"
         resources:
           limits:
             cpu: 1
