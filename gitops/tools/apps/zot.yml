@@ -94,8 +94,8 @@ spec:
         fullnameOverride: "zot-registry"
         probeAuthFromSecret:
           enabled: true
-          secretName: "zot-auth-probes"
-          secretKey: "probesAuthHeader"
+          secretName: zot-auth
+          secretKey: probesAuthHeader
         startupProbe:
           httpGet:
             path: /v2/
