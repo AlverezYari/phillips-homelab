@@ -92,7 +92,7 @@ spec:
           type: ClusterIP
           port: 5000
         fullnameOverride: "zot-registry"
-        authHeader: YWRtaW46UzNjcmV0UHch
+        authHeader: "YWRtaW46UzNjcmV0UHch"
         startupProbe:
           httpGet:
             path: /v2/
