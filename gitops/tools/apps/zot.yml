@@ -92,10 +92,7 @@ spec:
           type: ClusterIP
           port: 5000
         fullnameOverride: "zot-registry"
-        probeAuthFromSecret:
-          enabled: true
-          secretName: zot-auth-probes
-          secretKey: probesAuthHeader
+        authHeader: YWRtaW46UzNjcmV0UHch
         startupProbe:
           httpGet:
             path: /v2/
