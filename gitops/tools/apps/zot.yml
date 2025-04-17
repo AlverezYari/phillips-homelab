@@ -30,9 +30,6 @@ spec:
         mountSecret: true
         existingSecret: zot-auth
 
-        ############################
-        #        CONFIG FILE       #
-        ############################
         configFiles:
           config.json: |-
             {
@@ -46,17 +43,13 @@ spec:
               "http": {
                 "address": "0.0.0.0",
                 "port": "5000",
-
-                /* ---- BASIC AUTH FOR REAL USERS ---- */
                 "auth": {
                   "htpasswd": {
                     "path": "/secret/htpasswd"
                   }
                 },
-
-                /* ---- OPEN JUST THE HEALTH ENDPOINT ---- */
                 "accessControl": {
-                  "anonymousPolicy": [ "read" ],
+                  "anonymousPolicy": ["read"],
                   "exceptions": [
                     { "method": "GET", "regex": "^/v2/$" }
                   ]
@@ -71,12 +64,11 @@ spec:
 
         fullnameOverride: zot-registry
 
-        # --- probes now need *no* header ---
+        # probes no longer need a header
         probeAuthFromSecret:
           enabled: false
         authHeader: ""
 
-        # leave probe bodies as‑is; they hit /v2/
         startupProbe:
           httpGet:
             path: /v2/
