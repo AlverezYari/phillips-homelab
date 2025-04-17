@@ -49,10 +49,32 @@ spec:
                   }
                 },
                 "accessControl": {
-                  "anonymousPolicy": ["read"],
-                  "exceptions": [
-                    { "method": "GET", "regex": "^/v2/$" }
-                  ]
+                  "repositories": {
+                    "**": {
+                      "policies": [
+                        { "users": ["admin"], "actions": ["read","create","update","delete"] }
+                      ],
+                      "defaultPolicy": ["read"],
+                      "anonymousPolicy": ["read"]
+                    },
+                    "dev/**": {
+                      "policies": [
+                        { "users": ["admin","cicd","developer"], "actions": ["read","create","update","delete"] }
+                      ],
+                      "defaultPolicy": []
+                    },
+                    "prod/**": {
+                      "policies": [
+                        { "users": ["admin","cicd"], "actions": ["read","create","update","delete"] },
+                        { "users": ["developer"], "actions": ["read"] }
+                      ],
+                      "defaultPolicy": []
+                    }
+                  },
+                  "adminPolicy": {
+                    "users": ["admin"],
+                    "actions": ["read","create","update","delete"]
+                  }
                 }
               },
               "log": { "level": "debug" }
@@ -64,11 +86,7 @@ spec:
 
         fullnameOverride: zot-registry
 
-        # probes no longer need a header
-        probeAuthFromSecret:
-          enabled: false
-        authHeader: ""
-
+        # probes use plain GET /v2/ (no header required)
         startupProbe:
           httpGet:
             path: /v2/
