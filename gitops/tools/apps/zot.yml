@@ -5,24 +5,34 @@ metadata:
   namespace: argocd
 spec:
   project: default
+
   source:
     repoURL: https://github.com/AlverezYari/fork-zot-helm-chart
-    targetRevision: "main"
-    path: "charts/zot"
+    targetRevision: main
+    path: charts/zot
     helm:
       values: |
         replicaCount: 1
+
         image:
           repository: ghcr.io/project-zot/zot-linux-amd64
           tag: "v2.1.2"
           pullPolicy: IfNotPresent
+
         persistence: true
         pvc:
           create: true
           accessModes: ["ReadWriteOnce"]
           storageClassName: syno-iscsi-default
           storage: 200Gi
+
         mountConfig: true
+        mountSecret: true
+        existingSecret: zot-auth
+
+        ############################
+        #        CONFIG FILE       #
+        ############################
         configFiles:
           config.json: |-
             {
@@ -36,63 +46,37 @@ spec:
               "http": {
                 "address": "0.0.0.0",
                 "port": "5000",
+
+                /* ---- BASIC AUTH FOR REAL USERS ---- */
                 "auth": {
                   "htpasswd": {
                     "path": "/secret/htpasswd"
                   }
                 },
+
+                /* ---- OPEN JUST THE HEALTH ENDPOINT ---- */
                 "accessControl": {
-                  "repositories": {
-                    "prod/**": {
-                      "policies": [
-                        {
-                          "users": ["admin", "cicd"],
-                          "actions": ["read", "create", "update", "delete"]
-                        },
-                        {
-                          "users": ["developer"],
-                          "actions": ["read"]
-                        }
-                      ],
-                      "defaultPolicy": []
-                    },
-                    "dev/**": {
-                      "policies": [
-                        {
-                          "users": ["admin", "cicd", "developer"],
-                          "actions": ["read", "create", "update", "delete"]
-                        }
-                      ],
-                      "defaultPolicy": []
-                    },
-                    "**": {
-                      "policies": [
-                        {
-                          "users": ["admin"],
-                          "actions": ["read", "create", "update", "delete"]
-                        }
-                      ],
-                      "defaultPolicy": ["read"]
-                    }
-                  },
-                  "adminPolicy": {
-                    "users": ["admin"],
-                    "actions": ["read", "create", "update", "delete"]
-                  }
+                  "anonymousPolicy": [ "read" ],
+                  "exceptions": [
+                    { "method": "GET", "regex": "^/v2/$" }
+                  ]
                 }
               },
-              "log": {
-                "level": "debug"
-              }
+              "log": { "level": "debug" }
             }
-        mountSecret: true
-        existingSecret: "zot-auth"
-        secretFiles: {}
+
         service:
           type: ClusterIP
           port: 5000
-        fullnameOverride: "zot-registry"
-        authHeader: "YWRtaW46UzNjcmV0UHch"
+
+        fullnameOverride: zot-registry
+
+        # --- probes now need *no* header ---
+        probeAuthFromSecret:
+          enabled: false
+        authHeader: ""
+
+        # leave probe bodies as‑is; they hit /v2/
         startupProbe:
           httpGet:
             path: /v2/
@@ -117,6 +101,7 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
           failureThreshold: 3
+
         resources:
           limits:
             cpu: 1
@@ -124,9 +109,11 @@ spec:
           requests:
             cpu: 500m
             memory: 512Mi
+
   destination:
     server: https://kubernetes.default.svc
     namespace: zot
+
   syncPolicy:
     automated:
       prune: true
