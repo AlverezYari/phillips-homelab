@@ -6,6 +6,19 @@ metadata:
   namespace: gateways
 spec:
   dnsNames:
+  - home-assistant.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: home-assistant-tls
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-tls
+  namespace: gateways
+spec:
+  dnsNames:
   - argocd.phillips-homelab.net
   issuerRef:
     name: letsencrypt-prod
