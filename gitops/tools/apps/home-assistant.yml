@@ -3,17 +3,14 @@ kind: Application
 metadata:
   name: home-assistant
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    - repoURL: https://pajikos.github.io/home-assistant-helm-chart
-      chart: home-assistant
-      targetRevision: 0.2.118
-      helm:
-        releaseName: home-assistant
-        values: |
+    repoURL: https://pajikos.github.io/home-assistant-helm-chart.git
+    chart: home-assistant
+    targetRevision: "0.2.118"
+    helm:
+      values: |-
           persistence:
             enabled: true
             size: 10Gi
