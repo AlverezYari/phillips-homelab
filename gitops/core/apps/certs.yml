@@ -2,7 +2,7 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: argocd-tls
+  name: home-assistant-tls
   namespace: gateways
 spec:
   dnsNames:
