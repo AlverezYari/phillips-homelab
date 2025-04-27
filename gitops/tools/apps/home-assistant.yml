@@ -11,6 +11,10 @@ spec:
     targetRevision: "0.2.118"
     helm:
       values: |-
+          nodeSelector:
+            homeassistant: zigbee
+          securityContext:
+            privileged: true
           persistence:
             enabled: true
             size: 10Gi
@@ -21,6 +25,14 @@ spec:
           service:
             type: ClusterIP
             port: 8123
+          additionalVolumes:
+            - name: zigbee-usb
+              hostPath:
+                path: /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_e0e4e2ad2e6cef118f1b9dadc169b110-if00-port0
+                type: CharDevice
+          additionalMounts:
+            - name: zigbee-usb
+              mountPath: /dev/ttyUSB0
           configuration:
             enabled: true
             forceInit: true
