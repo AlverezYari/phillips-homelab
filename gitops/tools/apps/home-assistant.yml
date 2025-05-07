@@ -29,9 +29,9 @@ spec:
             - name: init-hacs
               image: bash
               command: ["bash", "-c", "cd /config && wget -O - https://get.hacs.xyz | bash -"]
-          volumeMounts:
-            - mountPath: /config
-              name: home-assistant
+              volumeMounts:
+                - mountPath: /config
+                  name: home-assistant
           additionalVolumes:
             - name: zigbee-usb
               hostPath:
