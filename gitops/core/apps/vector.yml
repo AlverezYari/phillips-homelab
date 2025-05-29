@@ -1,0 +1,208 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vector
+  namespace: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: default
+  source:
+    repoURL: https://helm.vector.dev
+    chart: vector
+    targetRevision: 0.35.0
+    helm:
+      values: |
+        role: Agent
+
+        customConfig:
+          data_dir: /vector-data-dir
+          
+          api:
+            enabled: true
+            address: 127.0.0.1:8686
+            playground: false
+
+          sources:
+            kubernetes_logs:
+              type: kubernetes_logs
+              pod_annotation_fields:
+                container_image: "container_image"
+                container_id: "container_id"
+                pod_labels: "pod_labels"
+                pod_annotations: "pod_annotations"
+              namespace_annotation_fields:
+                namespace_labels: "namespace_labels"
+              node_annotation_fields:
+                node_labels: "node_labels"
+              auto_partial_merge: true
+              
+            systemd_logs:
+              type: journald
+              journal_directory: /var/log/journal
+              current_boot_only: false
+              since_now: false
+
+          transforms:
+            kubernetes_parsed:
+              type: remap
+              inputs: ["kubernetes_logs"]
+              source: |
+                .cluster = "phillips-homelab"
+                .os = "talos"
+                
+                if exists(.kubernetes.pod_namespace) {
+                  .namespace = .kubernetes.pod_namespace
+                }
+                if exists(.kubernetes.pod_name) {
+                  .pod = .kubernetes.pod_name
+                }
+                if exists(.kubernetes.container_name) {
+                  .container = .kubernetes.container_name
+                }
+                if exists(.kubernetes.pod_node_name) {
+                  .node = .kubernetes.pod_node_name
+                }
+                
+                if exists(.kubernetes.pod_labels."app.kubernetes.io/name") {
+                  .app = .kubernetes.pod_labels."app.kubernetes.io/name"
+                } else if exists(.kubernetes.pod_labels."app") {
+                  .app = .kubernetes.pod_labels."app"
+                } else if exists(.kubernetes.pod_labels."k8s-app") {
+                  .app = .kubernetes.pod_labels."k8s-app"
+                }
+                
+                if match(.message, r'^.*level=(?P<level>\w+).*') {
+                  .level = capture(.message, r'^.*level=(?P<level>\w+).*')["level"]
+                  .level = downcase(.level)
+                }
+                
+                if starts_with(.message, "{") {
+                  parsed_json = parse_json(.message) ?? {}
+                  if exists(parsed_json.level) {
+                    .level = downcase(string(parsed_json.level))
+                  }
+                  if exists(parsed_json.msg) {
+                    .msg = parsed_json.msg
+                  }
+                  if exists(parsed_json.message) {
+                    .msg = parsed_json.message
+                  }
+                }
+
+            systemd_parsed:
+              type: remap
+              inputs: ["systemd_logs"]
+              source: |
+                .cluster = "phillips-homelab"
+                .os = "talos"
+                .source = "systemd"
+                
+                if exists(._SYSTEMD_UNIT) {
+                  .unit = ._SYSTEMD_UNIT
+                }
+                if exists(._HOSTNAME) {
+                  .node = ._HOSTNAME
+                }
+                if exists(.PRIORITY) {
+                  if .PRIORITY <= 3 {
+                    .level = "error"
+                  } else if .PRIORITY <= 4 {
+                    .level = "warn"  
+                  } else if .PRIORITY <= 6 {
+                    .level = "info"
+                  } else {
+                    .level = "debug"
+                  }
+                }
+
+          sinks:
+            loki_kubernetes:
+              type: loki
+              inputs: ["kubernetes_parsed"]
+              endpoint: http://loki-gateway.monitoring.svc.cluster.local
+              encoding:
+                codec: json
+              labels:
+                cluster: "{{ cluster }}"
+                namespace: "{{ namespace }}"
+                pod: "{{ pod }}"
+                container: "{{ container }}"
+                node: "{{ node }}"
+                app: "{{ app }}"
+                
+            loki_systemd:
+              type: loki  
+              inputs: ["systemd_parsed"]
+              endpoint: http://loki-gateway.monitoring.svc.cluster.local
+              encoding:
+                codec: json
+              labels:
+                cluster: "{{ cluster }}"
+                source: "{{ source }}"
+                unit: "{{ unit }}"
+                node: "{{ node }}"
+                level: "{{ level }}"
+
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+        securityContext:
+          runAsUser: 0
+          privileged: true
+
+        podManagementPolicy: Parallel
+        
+        extraVolumes:
+          - name: var-log
+            hostPath:
+              path: /var/log
+          - name: var-lib-docker-containers
+            hostPath:
+              path: /var/lib/docker/containers
+          - name: var-lib-containerd
+            hostPath:
+              path: /var/lib/containerd
+          - name: journal
+            hostPath:
+              path: /var/log/journal
+
+        extraVolumeMounts:
+          - name: var-log
+            mountPath: /var/log
+            readOnly: true
+          - name: var-lib-docker-containers
+            mountPath: /var/lib/docker/containers
+            readOnly: true
+          - name: var-lib-containerd
+            mountPath: /var/lib/containerd
+            readOnly: true  
+          - name: journal
+            mountPath: /var/log/journal
+            readOnly: true
+
+        tolerations:
+          - operator: Exists
+            effect: NoSchedule
+          - operator: Exists
+            effect: NoExecute
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8686
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8686
+
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
