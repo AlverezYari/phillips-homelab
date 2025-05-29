@@ -84,7 +84,7 @@ spec:
                 if starts_with(msg_str, "{") {
                   parsed_json = parse_json(msg_str) ?? {}
                   if exists(parsed_json.level) {
-                    .level = downcase(to_string(parsed_json.level))
+                    .level = downcase(to_string(parsed_json.level) ?? "info")
                   }
                   if exists(parsed_json.msg) {
                     .msg = parsed_json.msg
