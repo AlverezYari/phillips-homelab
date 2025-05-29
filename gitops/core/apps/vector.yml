@@ -78,7 +78,7 @@ spec:
                 msg_str = to_string(.message) ?? ""
                 matches = parse_regex(msg_str, r'level=(?P<level>\w+)') ?? {}
                 if exists(matches.level) {
-                  .level = downcase(to_string(matches.level))
+                  .level = downcase(to_string(matches.level) ?? "info")
                 }
                 
                 if starts_with(msg_str, "{") {
