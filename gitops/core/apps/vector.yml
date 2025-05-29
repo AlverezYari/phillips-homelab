@@ -75,16 +75,18 @@ spec:
                   .app = "unknown"
                 }
                 
-                if match(string!(.message), r'^.*level=(?P<level>\w+).*') {
-                  .level = capture(string!(.message), r'^.*level=(?P<level>\w+).*')["level"]
-                  .level = downcase(.level)
+                msg_str = to_string(.message) ?? ""
+                if match(msg_str, r'^.*level=(?P<level>\w+).*') {
+                  matches = capture(msg_str, r'^.*level=(?P<level>\w+).*') ?? {}
+                  if exists(matches.level) {
+                    .level = downcase!(to_string(matches.level) ?? "info")
+                  }
                 }
                 
-                msg_str = to_string(.message) ?? ""
                 if starts_with(msg_str, "{") {
                   parsed_json = parse_json(msg_str) ?? {}
                   if exists(parsed_json.level) {
-                    .level = downcase(string(parsed_json.level))
+                    .level = downcase!(to_string(parsed_json.level) ?? "info")
                   }
                   if exists(parsed_json.msg) {
                     .msg = parsed_json.msg
@@ -103,13 +105,13 @@ spec:
                 .source = "systemd"
                 
                 if exists(._SYSTEMD_UNIT) {
-                  .unit = ._SYSTEMD_UNIT
+                  .unit = to_string(._SYSTEMD_UNIT) ?? "unknown"
                 } else {
                   .unit = "unknown"
                 }
                 
                 if exists(._HOSTNAME) {
-                  .node = ._HOSTNAME
+                  .node = to_string(._HOSTNAME) ?? "unknown"
                 } else {
                   .node = "unknown"
                 }
