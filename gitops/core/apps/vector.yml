@@ -71,6 +71,8 @@ spec:
                   .app = .kubernetes.pod_labels."app"
                 } else if exists(.kubernetes.pod_labels."k8s-app") {
                   .app = .kubernetes.pod_labels."k8s-app"
+                } else {
+                  .app = "unknown"
                 }
                 
                 if match(.message, r'^.*level=(?P<level>\w+).*') {
@@ -101,9 +103,13 @@ spec:
                 
                 if exists(._SYSTEMD_UNIT) {
                   .unit = ._SYSTEMD_UNIT
+                } else {
+                  .unit = "unknown"
                 }
                 if exists(._HOSTNAME) {
                   .node = ._HOSTNAME
+                } else {
+                  .node = "unknown"
                 }
                 if exists(.PRIORITY) {
                   if .PRIORITY <= 3 {
@@ -115,6 +121,8 @@ spec:
                   } else {
                     .level = "debug"
                   }
+                } else {
+                  .level = "info"
                 }
 
           sinks:
@@ -125,12 +133,12 @@ spec:
               encoding:
                 codec: json
               labels:
-                cluster: "{{ cluster }}"
-                namespace: "{{ namespace }}"
-                pod: "{{ pod }}"
-                container: "{{ container }}"
-                node: "{{ node }}"
-                app: "{{ app }}"
+                cluster: phillips-homelab
+                namespace: "{{`{{ namespace }}`}}"
+                pod: "{{`{{ pod }}`}}"
+                container: "{{`{{ container }}`}}"
+                node: "{{`{{ node }}`}}"
+                app: "{{`{{ app }}`}}"
                 
             loki_systemd:
               type: loki  
@@ -139,11 +147,11 @@ spec:
               encoding:
                 codec: json
               labels:
-                cluster: "{{ cluster }}"
-                source: "{{ source }}"
-                unit: "{{ unit }}"
-                node: "{{ node }}"
-                level: "{{ level }}"
+                cluster: phillips-homelab
+                source: "{{`{{ source }}`}}"
+                unit: "{{`{{ unit }}`}}"
+                node: "{{`{{ node }}`}}"
+                level: "{{`{{ level }}`}}"
 
         resources:
           requests:
