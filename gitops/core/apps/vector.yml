@@ -168,30 +168,24 @@ spec:
         podManagementPolicy: Parallel
         
         extraVolumes:
-          - name: var-log
+          - name: host-varlog
             hostPath:
               path: /var/log
-          - name: var-lib-docker-containers
-            hostPath:
-              path: /var/lib/docker/containers
-          - name: var-lib-containerd
+          - name: host-containers
             hostPath:
               path: /var/lib/containerd
-          - name: journal
+          - name: host-journal
             hostPath:
               path: /var/log/journal
 
         extraVolumeMounts:
-          - name: var-log
+          - name: host-varlog
             mountPath: /var/log
             readOnly: true
-          - name: var-lib-docker-containers
-            mountPath: /var/lib/docker/containers
-            readOnly: true
-          - name: var-lib-containerd
+          - name: host-containers
             mountPath: /var/lib/containerd
             readOnly: true  
-          - name: journal
+          - name: host-journal
             mountPath: /var/log/journal
             readOnly: true
 
