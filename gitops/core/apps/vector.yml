@@ -75,13 +75,14 @@ spec:
                   .app = "unknown"
                 }
                 
-                if match(.message, r'^.*level=(?P<level>\w+).*') {
-                  .level = capture(.message, r'^.*level=(?P<level>\w+).*')["level"]
+                if match(string!(.message), r'^.*level=(?P<level>\w+).*') {
+                  .level = capture(string!(.message), r'^.*level=(?P<level>\w+).*')["level"]
                   .level = downcase(.level)
                 }
                 
-                if starts_with(.message, "{") {
-                  parsed_json = parse_json(.message) ?? {}
+                msg_str = to_string(.message) ?? ""
+                if starts_with(msg_str, "{") {
+                  parsed_json = parse_json(msg_str) ?? {}
                   if exists(parsed_json.level) {
                     .level = downcase(string(parsed_json.level))
                   }
@@ -106,17 +107,20 @@ spec:
                 } else {
                   .unit = "unknown"
                 }
+                
                 if exists(._HOSTNAME) {
                   .node = ._HOSTNAME
                 } else {
                   .node = "unknown"
                 }
+                
                 if exists(.PRIORITY) {
-                  if .PRIORITY <= 3 {
+                  priority = to_int(.PRIORITY) ?? 6
+                  if priority <= 3 {
                     .level = "error"
-                  } else if .PRIORITY <= 4 {
-                    .level = "warn"  
-                  } else if .PRIORITY <= 6 {
+                  } else if priority <= 4 {
+                    .level = "warn"
+                  } else if priority <= 6 {
                     .level = "info"
                   } else {
                     .level = "debug"
