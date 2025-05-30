@@ -78,13 +78,13 @@ spec:
                 msg_str = to_string(.message) ?? ""
                 matches = parse_regex(msg_str, r'level=(?P<level>\w+)') ?? {}
                 if exists(matches.level) {
-                  .level = downcase(to_string(matches.level) ?? "info")
+                  .level = downcase(to_string!(matches.level))
                 }
                 
                 if starts_with(msg_str, "{") {
                   parsed_json = parse_json(msg_str) ?? {}
                   if exists(parsed_json.level) {
-                    .level = downcase(to_string(parsed_json.level) ?? "info")
+                    .level = downcase(to_string!(parsed_json.level))
                   }
                   if exists(parsed_json.msg) {
                     .msg = parsed_json.msg
