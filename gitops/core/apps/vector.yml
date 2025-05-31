@@ -92,7 +92,7 @@ spec:
             loki_kubernetes:
               type: loki
               inputs: ["kubernetes_parsed"]
-              endpoint: http://loki-gateway.monitoring.svc.cluster.local
+              endpoint: http://loki-backend.monitoring.svc.cluster.local:3100
               encoding:
                 codec: json
               labels:
