@@ -38,10 +38,12 @@ spec:
 
         backend:
           replicas: 2
+          extraArgs:
+            - -target=all
         read:
           replicas: 2
         write:
-          replicas: 3
+          replicas: 0
 
         minio:
           enabled: true
@@ -52,5 +54,3 @@ spec:
     automated: {}
     syncOptions:
       - CreateNamespace=true
-
-
