@@ -93,6 +93,7 @@ spec:
               type: loki
               inputs: ["kubernetes_parsed"]
               endpoint: http://loki-backend.monitoring.svc.cluster.local:3100
+              tenant_id: "1"
               encoding:
                 codec: json
               labels:
