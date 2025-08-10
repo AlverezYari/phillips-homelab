@@ -51,5 +51,31 @@ spec:
     kind: ClusterIssuer
   secretName: zot-tls
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jellyfin-tls
+  namespace: gateways
+spec:
+  dnsNames:
+  - jellyfin.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: jellyfin-tls
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: filebrowser-tls
+  namespace: gateways
+spec:
+  dnsNames:
+  - files.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: filebrowser-tls
+---
 
 
