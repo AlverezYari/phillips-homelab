@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openwebui
+  namespace: argocd
+spec:
+  project: default
+  
+  source:
+    repoURL: https://helm.openwebui.com
+    chart: open-webui
+    targetRevision: "7.2.0"
+    helm:
+      values: |-
+        image:
+          repository: ghcr.io/open-webui/open-webui
+          tag: main
+          pullPolicy: IfNotPresent
+        
+        nodeSelector:
+          kubernetes.io/hostname: homelab-04
+        
+        service:
+          type: ClusterIP
+          port: 8080
+        
+        ingress:
+          enabled: false
+        
+        persistence:
+          enabled: true
+          storageClass: "syno-iscsi-default"
+          accessMode: ReadWriteOnce
+          size: 20Gi
+        
+        resources:
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+            nvidia.com/gpu: 1
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+            nvidia.com/gpu: 1
+        
+        envFrom:
+        - secretRef:
+            name: openwebui-secrets
+        
+        env:
+          OLLAMA_BASE_URL: "http://openwebui-ollama:11434"
+        
+        runtimeClassName: nvidia
+        
+        ollama:
+          enabled: true
+          gpu:
+            enabled: true
+            type: nvidia
+            number: 1
+            runtimeClassName: nvidia
+          nodeSelector:
+            kubernetes.io/hostname: homelab-04
+          persistence:
+            enabled: true
+            storageClass: "syno-iscsi-default"
+            size: 150Gi
+          service:
+            type: ClusterIP
+          resources:
+            limits:
+              memory: 8Gi
+              cpu: 4000m
+              nvidia.com/gpu: 1
+            requests:
+              cpu: 2000m
+              memory: 4Gi
+              nvidia.com/gpu: 1
+    
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tools
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
