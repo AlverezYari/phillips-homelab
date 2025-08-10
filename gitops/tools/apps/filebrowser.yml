@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://utkuozdemir.org/helm-charts
     chart: filebrowser
-    targetRevision: "1.5.0"
+    targetRevision: "1.0.3"
     helm:
       values: |-
         image:
