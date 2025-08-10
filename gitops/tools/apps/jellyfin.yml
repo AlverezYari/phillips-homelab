@@ -23,15 +23,14 @@ spec:
         persistence:
           config:
             enabled: true
-            storageClass: syno-iscsi-default
+            storageClass: "syno-iscsi-default"
             accessMode: ReadWriteOnce
             size: 20Gi
           media:
             enabled: true
-            storageClass: syno-iscsi-default
+            storageClass: "syno-iscsi-default"
             accessMode: ReadWriteOnce
             size: 200Gi
-            mountPath: /media
         
         service:
           main:
