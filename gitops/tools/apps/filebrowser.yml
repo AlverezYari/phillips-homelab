@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: filebrowser
+  namespace: argocd
+spec:
+  project: default
+  
+  source:
+    repoURL: https://utkuozdemir.org/helm-charts
+    chart: filebrowser
+    targetRevision: "1.5.0"
+    helm:
+      values: |-
+        image:
+          repository: filebrowser/filebrowser
+          tag: v2.27.0
+          pullPolicy: IfNotPresent
+        
+        nodeSelector:
+          kubernetes.io/hostname: homelab-04
+        
+        persistence:
+          enabled: true
+          existingClaim: jellyfin-media
+          
+        config:
+          port: 80
+          baseURL: ""
+          address: ""
+          log: stdout
+          database: /database/filebrowser.db
+          root: /srv
+        
+        service:
+          type: ClusterIP
+          port: 80
+        
+        ingress:
+          enabled: false
+        
+        resources:
+          limits:
+            memory: 512Mi
+            cpu: 500m
+          requests:
+            memory: 256Mi
+            cpu: 100m
+    
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
