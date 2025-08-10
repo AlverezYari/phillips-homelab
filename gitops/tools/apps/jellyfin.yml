@@ -46,7 +46,6 @@ spec:
         
         resources:
           limits:
-            nvidia.com/gpu: 1
             memory: 8Gi
             cpu: 4000m
           requests:
@@ -56,8 +55,6 @@ spec:
         env:
           TZ: "America/Chicago"
           JELLYFIN_PublishedServerUrl: "http://jellyfin.media.svc.cluster.local:8096"
-          NVIDIA_VISIBLE_DEVICES: all
-          NVIDIA_DRIVER_CAPABILITIES: compute,utility,video
         
         podSecurityContext:
           runAsUser: 1000
