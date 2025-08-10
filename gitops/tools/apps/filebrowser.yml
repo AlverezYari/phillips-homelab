@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://utkuozdemir.org/helm-charts
     chart: filebrowser
-    targetRevision: "1.5.0"
+    targetRevision: "1.0.3"
     helm:
       values: |-
         image:
@@ -20,17 +20,16 @@ spec:
         nodeSelector:
           kubernetes.io/hostname: homelab-04
         
-        persistence:
-          enabled: true
-          existingClaim: jellyfin-media
-          
-        config:
-          port: 80
-          baseURL: ""
-          address: ""
-          log: stdout
-          database: /database/filebrowser.db
-          root: /srv
+        rootDir:
+          type: pvc
+          pvc:
+            existingClaim: "jellyfin-media"
+        
+        db:
+          pvc:
+            enabled: true
+            storageClassName: "syno-iscsi-default"
+            size: 1Gi
         
         service:
           type: ClusterIP
