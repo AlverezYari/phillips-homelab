@@ -83,6 +83,20 @@ spec:
   - group: ""
     kind: Service
 ---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-openwebui-service
+  namespace: tools
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -139,6 +153,14 @@ spec:
       certificateRefs:
       - kind: Secret
         name: filebrowser-tls
+  - name: https-7
+    protocol: HTTPS
+    port: 443
+    hostname: openwebui.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: openwebui-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -253,4 +275,22 @@ spec:
     - name: filebrowser
       namespace: media
       port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-7
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-7
+    namespace: gateways
+  hostnames:
+  - openwebui.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: open-webui
+      namespace: tools
+      port: 8080
 ---
