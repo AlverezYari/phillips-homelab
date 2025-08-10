@@ -33,12 +33,8 @@ spec:
             size: 200Gi
         
         service:
-          main:
-            type: LoadBalancer
-            loadBalancerIP: ""
-            ports:
-              http:
-                port: 8096
+          type: LoadBalancer
+          port: 8096
         
         ingress:
           main:
