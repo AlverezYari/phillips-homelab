@@ -10,7 +10,9 @@
 
 Welcome to my Homelab 2025 project repo! I decided to put this together to pratice working with Kubernetes and specifically Talos Linux, while not breaking the bank using one of the public clouds. Additionally, I'm currently working in the gaming space, where self-hosting, espcially at the fleet scale is always a challenge. I wanted to build a homelab that would allow me to test out some of the latest and greatest tools in the Kubernetes ecosystem, while also being able to run my own game servers, and other workloads.
 
-Currently, the cluster in comprised of 3 Beelink EQR5 mini PCs, which are running Talos Linux. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
+**Latest Update (August 2025):** The cluster has been expanded to 4 nodes! Added a custom-built system in a Thermaltake Core V21 case with my existing NVIDIA RTX 2080 SUPER GPU (repurposed from my old gaming rig) to enable AI/ML workloads including local LLM inference with Ollama and OpenWebUI.
+
+Currently, the cluster is comprised of 4 nodes running Talos Linux - three Beelink EQR5 mini PCs for general workloads and one custom-built system for GPU-accelerated tasks. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
 
 More details on both the hardware and software setup can be founded below.
 
@@ -22,10 +24,38 @@ Thanks for checking out my project, and I hope you find it useful!
 
 #### Hardware
 
+##### Worker Nodes (3x)
 - [3x Beelink EQR5 Mini PCs](https://www.amazon.com/dp/B0DLP5P62S?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
+    - AMD Ryzen 5 5500U
     - 16GB RAM
     - 512GB SSD
     - 2x 1G NICs
+
+##### GPU Node (1x) - homelab-04 (Custom Build)
+- Case: [Thermaltake Core V21 Micro ATX Cube](https://www.newegg.com/thermaltake-extreme-micro-atx-cube-chassis-core-v21-spcc-computer-case-black-ca-1d5-00s1wn-00/p/N82E16811133274)
+    - Micro ATX cube chassis
+    - Excellent airflow for GPU cooling
+    - Full-length GPU support
+    
+- Motherboard & CPU: [ASRock DeskMini X600](https://www.amazon.com/dp/B0FBTFCFMD?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
+    - AMD Ryzen 9 7940HS
+    - Mini-ITX form factor
+    - 2.5G Ethernet
+    
+- Memory: [64GB DDR5-5600](https://www.amazon.com/dp/B09RWVV3XZ?ref=ppx_yo2ov_dt_b_fed_asin_title)
+    - 2x32GB DDR5 SO-DIMM
+    
+- Storage: [1TB NVMe SSD](https://www.amazon.com/dp/B0D6NMDNNX?ref=ppx_yo2ov_dt_b_fed_asin_title)
+    
+- GPU: NVIDIA RTX 2080 SUPER (repurposed from previous gaming PC)
+    - 8GB GDDR6 VRAM
+    - CUDA compute capability 7.5
+    - Cost-effective reuse of existing hardware
+    
+- Power Supply: [600W PSU](https://www.amazon.com/dp/B0DCHBGVZK?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
+    
+- Additional Components:
+    - [OCuLink Cable](https://www.amazon.com/dp/B0DPR5RZ1T?ref=ppx_yo2ov_dt_b_fed_asin_title) (if needed for connectivity)
 
 - 1x [Synology NAS DS723+](https://www.amazon.com/dp/B0BRN9J1JN?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
     - 2x 8TB Seagate Ironwolf HDDs
@@ -83,6 +113,77 @@ Thanks for checking out my project, and I hope you find it useful!
 - **Cluster TLS Manager** [Cert-Manager](https://cert-manager.io/)
     - Maybe just as important as the External Secrets Operator, is Cert-Manager a tool used to manage TLS certificates in Kubernetes. An absolute must have for any cluster, and certainly a core component of my Homelab. I'd recommend learning how to use this guy as soon as possible when getting into learning Kubernetes. I'm using the AWS Route53 DNS challenge method to manage my TLS certificates, but you can also use the ACME challenge if you don't want to use Route53!
 
+
+## Services & Applications
+
+### Core Infrastructure
+
+- **ArgoCD:** GitOps continuous deployment for all cluster applications
+- **External Secrets Operator:** Secret management with 1Password integration
+- **Cert-Manager:** TLS certificate automation with AWS Route53
+- **VictoriaMetrics:** High-performance metrics collection and storage
+- **Loki:** Log aggregation and storage
+- **Grafana:** Observability dashboards and visualization
+
+### Media & Entertainment
+
+- **Jellyfin Media Server:** Self-hosted media streaming platform
+  - Hardware accelerated transcoding support
+  - Deployed on homelab-04 with dedicated resources
+  - Secure HTTPS access via TLS certificates
+  - 100Gi persistent storage on Synology NAS
+  
+- **Filebrowser:** Web-based file management interface
+  - Media file organization and management
+  - Direct Synology NAS integration
+  - Version 1.0.0 with 50Gi persistent storage
+
+### AI & Machine Learning
+
+- **OpenWebUI + Ollama:** Complete local AI platform
+  - Modern web interface for Large Language Models
+  - Integrated Ollama backend for local LLM inference
+  - **GPU Acceleration:** NVIDIA RTX 2080 SUPER with 8GB VRAM
+  - Deployed with `runtimeClassName: nvidia` for proper GPU runtime access
+  - Performance: ~100+ tokens/sec with GPU vs 12.8 tokens/sec CPU-only
+  - Resource allocation:
+    - Ollama: 4 CPU cores, 8Gi memory, 1 GPU, 150Gi model storage
+    - OpenWebUI: 2 CPU cores, 4Gi memory, 20Gi persistent storage
+  - Supports multiple concurrent models including Llama, Mistral, and more
+
+### Network & Connectivity
+
+- **Tailscale:** Zero-trust network access
+  - Secure remote access to all homelab services
+  - Mesh VPN with automatic NAT traversal
+  - Integration with existing cluster networking
+
+### Container Registry
+
+- **Zot Registry:** OCI-compliant container registry
+  - Local container image storage and distribution
+  - Reduces external bandwidth usage
+  - Integrated with cluster authentication
+
+## GPU Node Setup
+
+The GPU node (homelab-04) required special configuration to enable NVIDIA GPU support in Talos Linux:
+
+1. **NVIDIA Container Runtime:** Configured with `runtimeClassName: nvidia` in pod specs
+2. **GPU Resource Management:** Using nvidia.com/gpu resource requests/limits
+3. **Node Affinity:** GPU workloads pinned to homelab-04 using nodeSelector
+4. **Driver Configuration:** NVIDIA drivers loaded via Talos system extensions
+
+## Recent Updates (August 2025)
+
+- Added 4th node (custom build in Thermaltake Core V21 case) with GPU support for AI/ML workloads
+- Reused RTX 2080 SUPER from old gaming PC for cost-effective GPU compute
+- Deployed OpenWebUI with Ollama for local LLM inference
+- Configured Jellyfin media server with hardware transcoding
+- Implemented Filebrowser for media management
+- Set up TLS certificates for all public-facing services
+- Optimized resource allocation to prevent GPU scheduling conflicts
+- Fixed Ollama GPU runtime configuration for proper CUDA access
 
 ## High Level Setup Instructions
 
