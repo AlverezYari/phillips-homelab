@@ -37,11 +37,9 @@ spec:
           limits:
             memory: 4Gi
             cpu: 2000m
-            nvidia.com/gpu: 1
           requests:
             cpu: 1000m
             memory: 2Gi
-            nvidia.com/gpu: 1
         
         envFrom:
         - secretRef:
@@ -49,8 +47,6 @@ spec:
         
         env:
           OLLAMA_BASE_URL: "http://openwebui-ollama:11434"
-        
-        runtimeClassName: nvidia
         
         ollama:
           enabled: true
