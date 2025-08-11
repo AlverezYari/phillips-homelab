@@ -1,0 +1,73 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jellyfin
+  namespace: argocd
+spec:
+  project: default
+  
+  source:
+    repoURL: https://jellyfin.github.io/jellyfin-helm
+    chart: jellyfin
+    targetRevision: "2.3.0"
+    helm:
+      values: |-
+        image:
+          repository: jellyfin/jellyfin
+          tag: latest
+          pullPolicy: IfNotPresent
+        
+        nodeSelector:
+          kubernetes.io/hostname: homelab-04
+        
+        persistence:
+          config:
+            enabled: true
+            storageClass: "syno-iscsi-default"
+            accessMode: ReadWriteOnce
+            size: 20Gi
+          media:
+            enabled: true
+            storageClass: "syno-iscsi-default"
+            accessMode: ReadWriteOnce
+            size: 200Gi
+        
+        service:
+          type: LoadBalancer
+          port: 8096
+        
+        ingress:
+          main:
+            enabled: false
+        
+        resources:
+          limits:
+            memory: 8Gi
+            cpu: 4000m
+          requests:
+            cpu: 2000m
+            memory: 4Gi
+        
+        env:
+          TZ: "America/Chicago"
+          JELLYFIN_PublishedServerUrl: "http://jellyfin.media.svc.cluster.local:8096"
+        
+        podSecurityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
+          supplementalGroups:
+            - 44
+            - 109
+            - 65539
+    
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
