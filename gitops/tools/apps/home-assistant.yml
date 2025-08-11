@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-assistant
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://pajikos.github.io/home-assistant-helm-chart/
+    chart: home-assistant
+    targetRevision: "0.2.118"
+    helm:
+      values: |-
+          nodeSelector:
+            homeassistant: zigbee
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          securityContext:
+            privileged: true
+          persistence:
+            enabled: true
+            size: 10Gi
+            accessMode: ReadWriteOnce
+            storageClass: syno-iscsi-default
+          ingress:
+            enabled: false
+          service:
+            type: ClusterIP
+            port: 8123
+          initContainers:
+            - name: init-hacs
+              image: bash
+              command: ["bash", "-c", "cd /config && wget -O - https://get.hacs.xyz | bash -"]
+              volumeMounts:
+                - mountPath: /config
+                  name: home-assistant
+          additionalVolumes:
+            - name: zigbee-usb
+              hostPath:
+                path: /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_e0e4e2ad2e6cef118f1b9dadc169b110-if00-port0
+                type: CharDevice
+          additionalMounts:
+            - name: zigbee-usb
+              mountPath: /dev/ttyUSB0
+          configuration:
+            enabled: true
+            forceInit: true
+            templateConfig: |-
+              default_config:
+              http:
+                use_x_forwarded_for: true
+                trusted_proxies:
+                  - 10.244.0.0/16
+                  - 127.0.0.0/8
+                  - 10.0.0.0/8
+                  - 172.16.0.0/12
+                  - 192.168.0.0/16
+              frontend:
+                themes: !include_dir_merge_named themes
+              automation: !include automations.yaml
+              script: !include scripts.yaml
+              scene: !include scenes.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: home-assistant
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

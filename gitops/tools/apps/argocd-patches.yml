@@ -1,0 +1,20 @@
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: argocd-repo-server-patch
+#   namespace: argocd
+# spec:
+#   project: default
+#   source:
+#     path: gitops/tools/apps/argocd-patches
+#     repoURL: https://github.com/AlverezYari/phillips-homelab.git
+#     targetRevision: main
+#     kustomize: {}
+#   destination:
+#     server: "https://kubernetes.default.svc"
+#     namespace: argocd
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+

@@ -1,0 +1,159 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vector
+  namespace: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: default
+  source:
+    repoURL: https://helm.vector.dev
+    chart: vector
+    targetRevision: 0.35.0
+    helm:
+      values: |
+        role: Agent
+
+        customConfig:
+          data_dir: /vector-data-dir
+          
+          api:
+            enabled: true
+            address: 0.0.0.0:8686
+            playground: false
+
+          sources:
+            kubernetes_logs:
+              type: kubernetes_logs
+              pod_annotation_fields:
+                container_image: "container_image"
+                container_id: "container_id"
+                pod_labels: "pod_labels"
+                pod_annotations: "pod_annotations"
+              namespace_annotation_fields:
+                namespace_labels: "namespace_labels"
+              node_annotation_fields:
+                node_labels: "node_labels"
+              auto_partial_merge: true
+
+          transforms:
+            kubernetes_parsed:
+              type: remap
+              inputs: ["kubernetes_logs"]
+              source: |
+                .cluster = "phillips-homelab"
+                .os = "talos"
+                
+                if exists(.kubernetes.pod_namespace) {
+                  .namespace = .kubernetes.pod_namespace
+                }
+                if exists(.kubernetes.pod_name) {
+                  .pod = .kubernetes.pod_name
+                }
+                if exists(.kubernetes.container_name) {
+                  .container = .kubernetes.container_name
+                }
+                if exists(.kubernetes.pod_node_name) {
+                  .node = .kubernetes.pod_node_name
+                }
+                
+                if exists(.kubernetes.pod_labels."app.kubernetes.io/name") {
+                  .app = .kubernetes.pod_labels."app.kubernetes.io/name"
+                } else if exists(.kubernetes.pod_labels."app") {
+                  .app = .kubernetes.pod_labels."app"
+                } else if exists(.kubernetes.pod_labels."k8s-app") {
+                  .app = .kubernetes.pod_labels."k8s-app"
+                } else {
+                  .app = "unknown"
+                }
+                
+                msg_str = to_string(.message) ?? ""
+                matches = parse_regex(msg_str, r'level=(?P<level>\w+)') ?? {}
+                if exists(matches.level) {
+                  .level = downcase(to_string(matches.level))
+                }
+                
+                if starts_with(msg_str, "{") {
+                  parsed_json = parse_json(msg_str) ?? {}
+                  if exists(parsed_json.level) {
+                    .level = downcase(to_string(parsed_json.level) ?? "info")
+                  }
+                  if exists(parsed_json.msg) {
+                    .msg = parsed_json.msg
+                  }
+                  if exists(parsed_json.message) {
+                    .msg = parsed_json.message
+                  }
+                }
+
+          sinks:
+            loki_kubernetes:
+              type: loki
+              inputs: ["kubernetes_parsed"]
+              endpoint: http://loki-backend.monitoring.svc.cluster.local:3100
+              tenant_id: "1"
+              encoding:
+                codec: json
+              labels:
+                cluster: phillips-homelab
+                namespace: "{{`{{ namespace }}`}}"
+                pod: "{{`{{ pod }}`}}"
+                container: "{{`{{ container }}`}}"
+                node: "{{`{{ node }}`}}"
+                app: "{{`{{ app }}`}}"
+
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+
+        securityContext:
+          runAsUser: 0
+          privileged: true
+
+        podManagementPolicy: Parallel
+        
+        extraVolumes:
+          - name: host-varlog
+            hostPath:
+              path: /var/log
+          - name: host-containers
+            hostPath:
+              path: /var/lib/containerd
+
+        extraVolumeMounts:
+          - name: host-varlog
+            mountPath: /var/log
+            readOnly: true
+          - name: host-containers
+            mountPath: /var/lib/containerd
+            readOnly: true
+
+        tolerations:
+          - operator: Exists
+            effect: NoSchedule
+          - operator: Exists
+            effect: NoExecute
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8686
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8686
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true

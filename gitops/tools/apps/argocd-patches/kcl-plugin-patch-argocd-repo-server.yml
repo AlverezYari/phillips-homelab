@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+  namespace: argocd
+spec:
+  template:
+    spec:
+      containers:
+      - name: kcl-plugin
+        command: ["/var/run/argocd/argocd-cmp-server"]
+        image: kcllang/kcl@v0.11.0
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+        volumeMounts:
+          - mountPath: /var/run/argocd
+            name: var-files
+          - mountPath: /home/argocd/cmp-server/plugins
+            name: plugins
+          - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+            subPath: plugin.yaml
+            name: kcl-plugin-config
+          - mountPath: /tmp
+            name: cmp-tmp
+      volumes:
+      - name: kcl-plugin-config
+        configMap:
+          name: kcl-plugin-config
+      - name: cmp-tmp
+        emptyDir: {}
+

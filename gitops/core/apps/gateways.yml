@@ -2,6 +2,20 @@
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
+  name: allow-home-assistant-service
+  namespace: home-assistant
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
   name: allow-monitoring-service
   namespace: monitoring
 spec:
@@ -18,6 +32,62 @@ kind: ReferenceGrant
 metadata:
   name: allow-argocd-service
   namespace: argocd
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-zot-service
+  namespace: zot
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-jellyfin-service
+  namespace: media
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-filebrowser-service
+  namespace: media
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-openwebui-service
+  namespace: tools
 spec:
   from:
   - group: gateway.networking.k8s.io
@@ -51,6 +121,46 @@ spec:
       certificateRefs:
       - kind: Secret
         name: monitoring-tls
+  - name: https-3
+    protocol: HTTPS
+    port: 443
+    hostname: zot.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: zot-tls
+  - name: https-4
+    protocol: HTTPS
+    port: 443
+    hostname: home-assistant.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: home-assistant-tls
+  - name: https-5
+    protocol: HTTPS
+    port: 443
+    hostname: jellyfin.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: jellyfin-tls
+  - name: https-6
+    protocol: HTTPS
+    port: 443
+    hostname: files.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: filebrowser-tls
+  - name: https-7
+    protocol: HTTPS
+    port: 443
+    hostname: openwebui.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: openwebui-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -86,4 +196,101 @@ spec:
     - name: grafana
       namespace: monitoring
       port: 80
-
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-3
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-3
+    namespace: gateways
+  hostnames:
+  - zot.phillips-homelab.net
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /v2
+    - path:
+        type: Exact
+        value: /
+    backendRefs:
+    - name: zot-registry
+      namespace: zot
+      port: 5000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-4
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-4
+    namespace: gateways
+  hostnames:
+  - home-assistant.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: home-assistant
+      namespace: home-assistant
+      port: 8123
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-5
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-5
+    namespace: gateways
+  hostnames:
+  - jellyfin.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: jellyfin
+      namespace: media
+      port: 8096
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-6
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-6
+    namespace: gateways
+  hostnames:
+  - files.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: filebrowser
+      namespace: media
+      port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-7
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-7
+    namespace: gateways
+  hostnames:
+  - openwebui.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: open-webui
+      namespace: tools
+      port: 8080
+---
