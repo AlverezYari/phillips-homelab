@@ -23,7 +23,7 @@ data:
     blocking:
       denylists:
         ads:
-          - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+          - https://big.oisd.nl/domainswildcard
       clientGroupsBlock:
         default:
           - ads
