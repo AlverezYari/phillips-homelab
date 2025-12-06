@@ -5,6 +5,11 @@ metadata:
   namespace: blocky
 data:
   config.yaml: |
+    # Bootstrap DNS for resolving blocklist URLs during startup
+    bootstrapDns:
+      - tcp+udp:1.1.1.1
+      - tcp+udp:8.8.8.8
+
     # Upstream DNS servers
     upstreams:
       groups:
