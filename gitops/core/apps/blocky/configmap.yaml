@@ -33,9 +33,17 @@ data:
     # Custom DNS mappings (local overrides)
     customDNS:
       mapping:
-        # Add local DNS mappings as needed
-        # nas.home.lan: 192.168.1.50
-        # proxmox.home.lan: 192.168.1.100
+        # Gateway services (Cilium Gateway API)
+        argocd.phillips-homelab.net: 192.168.10.191
+        monitoring.phillips-homelab.net: 192.168.10.191
+        zot.phillips-homelab.net: 192.168.10.191
+        home-assistant.phillips-homelab.net: 192.168.10.191
+        jellyfin.phillips-homelab.net: 192.168.10.191
+        files.phillips-homelab.net: 192.168.10.191
+        openwebui.phillips-homelab.net: 192.168.10.191
+        blocky.phillips-homelab.net: 192.168.10.191
+        # Registry mirror
+        dockerhub.phillips-homelab.net: 192.168.10.195
 
     # Prometheus metrics for VictoriaMetrics scraping
     prometheus:
