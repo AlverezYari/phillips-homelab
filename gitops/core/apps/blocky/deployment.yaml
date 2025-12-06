@@ -30,7 +30,7 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /app/config.yaml
+              mountPath: /app/config.yml
               subPath: config.yaml
               readOnly: true
           resources:
