@@ -13,17 +13,15 @@ data:
           - 8.8.8.8
 
     # Conditional forwarding for internal domains
-    conditional:
-      mapping:
-        # Forward internal domain queries to UDM/router
-        # Adjust domain and IP to match your home network
-        home.lan: 192.168.1.1
+    # conditional:
+    #   mapping:
+    #     home.lan: 192.168.1.1
 
     # Ad-blocking configuration
     blocking:
       denylists:
         ads:
-          - https://big.oisd.nl/domainswildcard
+          - https://big.oisd.nl/domainswild
       clientGroupsBlock:
         default:
           - ads
