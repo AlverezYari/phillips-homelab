@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blocky-config
+  namespace: blocky
+data:
+  config.yaml: |
+    # Upstream DNS servers
+    upstreams:
+      groups:
+        default:
+          - 1.1.1.1
+          - 8.8.8.8
+
+    # Conditional forwarding for internal domains
+    conditional:
+      mapping:
+        # Forward internal domain queries to UDM/router
+        # Adjust domain and IP to match your home network
+        home.lan: 192.168.1.1
+
+    # Ad-blocking configuration
+    blocking:
+      denylists:
+        ads:
+          - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+      clientGroupsBlock:
+        default:
+          - ads
+      # Block response type (zeroIp returns 0.0.0.0)
+      blockType: zeroIp
+
+    # Custom DNS mappings (local overrides)
+    customDNS:
+      mapping:
+        # Add local DNS mappings as needed
+        # nas.home.lan: 192.168.1.50
+        # proxmox.home.lan: 192.168.1.100
+
+    # Prometheus metrics for VictoriaMetrics scraping
+    prometheus:
+      enable: true
+      path: /metrics
+
+    # Port configuration
+    ports:
+      dns: 53
+      http: 4000
+
+    # Logging configuration
+    log:
+      level: info
+      format: text
+
+    # Caching configuration
+    caching:
+      minTime: 5m
+      maxTime: 30m
+      prefetching: true

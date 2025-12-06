@@ -1,0 +1,44 @@
+---
+# LoadBalancer service for DNS (external access)
+# This IP will be used by clients as their DNS server
+apiVersion: v1
+kind: Service
+metadata:
+  name: blocky-dns
+  namespace: blocky
+  labels:
+    app: blocky
+  annotations:
+    # Request a specific IP from Cilium LB pool if needed
+    # io.cilium/lb-ipam-ips: "192.168.10.194"
+spec:
+  type: LoadBalancer
+  selector:
+    app: blocky
+  ports:
+    - name: dns-udp
+      port: 53
+      targetPort: 53
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      targetPort: 53
+      protocol: TCP
+---
+# ClusterIP service for API/metrics (internal access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: blocky
+  namespace: blocky
+  labels:
+    app: blocky
+spec:
+  type: ClusterIP
+  selector:
+    app: blocky
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+      protocol: TCP
