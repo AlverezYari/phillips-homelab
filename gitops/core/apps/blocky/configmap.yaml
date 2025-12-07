@@ -5,6 +5,11 @@ metadata:
   namespace: blocky
 data:
   config.yaml: |
+    # Bootstrap DNS for resolving blocklist URLs during startup
+    bootstrapDns:
+      - tcp+udp:1.1.1.1
+      - tcp+udp:8.8.8.8
+
     # Upstream DNS servers
     upstreams:
       groups:
@@ -17,11 +22,11 @@ data:
     #   mapping:
     #     home.lan: 192.168.1.1
 
-    # Ad-blocking configuration
+    # Ad-blocking configuration - Hagezi Pro (actively maintained 2025)
     blocking:
       denylists:
         ads:
-          - https://big.oisd.nl/domainswild
+          - https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/pro.txt
       clientGroupsBlock:
         default:
           - ads
