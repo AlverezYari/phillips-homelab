@@ -22,11 +22,11 @@ data:
     #   mapping:
     #     home.lan: 192.168.1.1
 
-    # Ad-blocking configuration
+    # Ad-blocking configuration - Hagezi Pro (actively maintained 2025)
     blocking:
       denylists:
         ads:
-          - https://big.oisd.nl/domainswild
+          - https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/pro.txt
       clientGroupsBlock:
         default:
           - ads
