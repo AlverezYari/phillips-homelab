@@ -1,0 +1,75 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garage
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://opensource.ncsa.illinois.edu/charts/
+    chart: garage
+    targetRevision: "0.9.1"
+    helm:
+      values: |-
+        garage:
+          # Single node setup - no replication needed
+          replicationFactor: "1"
+          consistencyMode: "consistent"
+          compressionLevel: "1"
+          s3:
+            api:
+              region: "garage"
+              rootDomain: ".s3.garage.local"
+            web:
+              rootDomain: ".web.garage.local"
+              index: "index.html"
+
+        persistence:
+          enabled: true
+          meta:
+            storageClass: "syno-iscsi-default"
+            size: 1Gi
+          data:
+            storageClass: "syno-iscsi-default"
+            size: 20Gi
+
+        deployment:
+          kind: StatefulSet
+          replicaCount: 1
+          podManagementPolicy: OrderedReady
+
+        service:
+          type: ClusterIP
+          s3:
+            api:
+              port: 3900
+            web:
+              port: 3902
+          rpc:
+            port: 3901
+
+        ingress:
+          s3:
+            enabled: false
+          web:
+            enabled: false
+
+        monitoring:
+          metrics:
+            enabled: true
+            serviceMonitor:
+              enabled: true
+              labels:
+                release: prometheus
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: garage
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
