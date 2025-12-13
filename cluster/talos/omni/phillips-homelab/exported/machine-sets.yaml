@@ -1,0 +1,82 @@
+metadata:
+    namespace: default
+    type: MachineSets.omni.sidero.dev
+    id: phillips-homelab-control-planes
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-18T22:30:35Z
+    updated: 2025-10-02T14:50:36Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/role-controlplane:
+    finalizers:
+        - ControlPlaneStatusController
+        - MachineSetEtcdAuditController
+        - ClusterBootstrapStatusController
+        - MachineSetController
+        - MachineProvisionController
+        - MachineSetStatusController
+        - MachineSetDestroyStatusController
+spec:
+    updatestrategy: 1
+    machineclass: null
+    bootstrapspec: null
+    deletestrategy: 0
+    updatestrategyconfig: null
+    deletestrategyconfig: null
+    machineallocation: null
+---
+metadata:
+    namespace: default
+    type: MachineSets.omni.sidero.dev
+    id: phillips-homelab-we0cfde
+    version: 1
+    owner:
+    phase: running
+    created: 2025-08-10T06:00:20Z
+    updated: 2025-10-02T14:50:36Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/role-worker:
+    finalizers:
+        - MachineSetController
+        - MachineProvisionController
+        - ControlPlaneStatusController
+        - MachineSetStatusController
+        - MachineSetDestroyStatusController
+spec:
+    updatestrategy: 1
+    machineclass: null
+    bootstrapspec: null
+    deletestrategy: 0
+    updatestrategyconfig: null
+    deletestrategyconfig: null
+    machineallocation: null
+---
+metadata:
+    namespace: default
+    type: MachineSets.omni.sidero.dev
+    id: phillips-homelab-workers
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-18T22:30:35Z
+    updated: 2025-10-02T14:50:36Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/role-worker:
+    finalizers:
+        - ControlPlaneStatusController
+        - MachineSetStatusController
+        - MachineSetController
+        - MachineProvisionController
+        - MachineSetDestroyStatusController
+spec:
+    updatestrategy: 1
+    machineclass: null
+    bootstrapspec: null
+    deletestrategy: 0
+    updatestrategyconfig: null
+    deletestrategyconfig: null
+    machineallocation: null
