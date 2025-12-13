@@ -1,0 +1,298 @@
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 000-cm-03000200-0400-0500-0006-000700080009-install-disk
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-21T02:13:01Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/cluster-machine: 03000200-0400-0500-0006-000700080009
+        omni.sidero.dev/system-patch:
+    annotations:
+        name: install-disk
+spec:
+    data: |
+        machine:
+            install:
+                disk: /dev/nvme0n1
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 000-cm-169b5237-8624-af49-8f83-98bd808f9e04-install-disk
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-21T02:34:30Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/cluster-machine: 169b5237-8624-af49-8f83-98bd808f9e04
+        omni.sidero.dev/system-patch:
+    annotations:
+        name: install-disk
+spec:
+    data: |
+        machine:
+            install:
+                disk: /dev/nvme0n1
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 000-cm-42bf6767-4044-db4b-bf34-98bd8093f5e4-install-disk
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-18T22:30:35Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/cluster-machine: 42bf6767-4044-db4b-bf34-98bd8093f5e4
+        omni.sidero.dev/system-patch:
+    annotations:
+        name: install-disk
+spec:
+    data: |
+        machine:
+            install:
+                disk: /dev/nvme0n1
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 000-cm-76567b10-4884-4b1d-abc5-345a60522d43-install-disk
+    version: 1
+    owner:
+    phase: running
+    created: 2025-08-10T06:18:23Z
+    updated: 2025-08-10T06:18:23Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/cluster-machine: 76567b10-4884-4b1d-abc5-345a60522d43
+        omni.sidero.dev/system-patch:
+    annotations:
+        name: install-disk
+spec:
+    data: |
+        machine:
+            install:
+                disk: /dev/sda
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 200-cluster-phillips-homelab-no-cni
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-22T17:14:35Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+    annotations:
+        name: no-cni
+spec:
+    data: |
+        cluster:
+            network:
+                cni:
+                    name: none
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 201-cluster-phillips-homelab-disable-kubeproxy
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-22T17:14:35Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+    annotations:
+        name: disable-kubeproxy
+spec:
+    data: |
+        cluster:
+            proxy:
+                disabled: true
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 202-cluster-phillips-homelab-install-cilium
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-22T17:14:35Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+    annotations:
+        name: install-cilium
+spec:
+    data: |
+        cluster:
+            extraManifests:
+                - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/namespaces.yml
+                - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml
+                - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_gateways.yaml
+                - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml
+                - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_referencegrants.yaml
+                - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/standard/gateway.networking.k8s.io_grpcroutes.yaml
+                - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.2.0/config/crd/experimental/gateway.networking.k8s.io_tlsroutes.yaml
+                - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/L2Announcement.yml
+                - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/argocd-kustomized/final-argocd.yaml
+                - https://raw.githubusercontent.com/alex1989hu/kubelet-serving-cert-approver/main/deploy/standalone-install.yaml
+                - https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+                - https://raw.githubusercontent.com/AlverezYari/phillips-homelab/refs/heads/main/cluster/talos/omni/phillips-homelab/manifests/gateways.yml
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 203-cluster-phillips-homelab-metrics-server
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-22T17:14:35Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+    annotations:
+        name: metrics-server
+spec:
+    data: |
+        machine:
+            kubelet:
+                extraArgs:
+                    rotate-server-certificates: true
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 400-phillips-homelab-control-planes-untaint
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-18T22:30:35Z
+    updated: 2025-08-10T03:51:18Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/machine-set: phillips-homelab-control-planes
+    annotations:
+        name:
+spec:
+    data: |
+        cluster:
+            allowSchedulingOnControlPlanes: true
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 400-phillips-homelab-workers
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-21T01:26:18Z
+    updated: 2025-08-10T03:51:19Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/machine-set: phillips-homelab-workers
+    annotations:
+        name:
+spec:
+    data: |
+        machine:
+            install:
+                disk: /dev/nvme0n1
+    compresseddata: []
+---
+metadata:
+    namespace: default
+    type: ConfigPatches.omni.sidero.dev
+    id: 950-cluster-phillips-homelab-workload-proxying
+    version: 1
+    owner: ClusterWorkloadProxyController
+    phase: running
+    created: 2025-03-22T17:14:35Z
+    updated: 2025-03-22T17:14:35Z
+    labels:
+        omni.sidero.dev/cluster: phillips-homelab
+        omni.sidero.dev/system-patch:
+spec:
+    data: |
+        cluster:
+          inlineManifests:
+            - name: omni-kube-service-exposer
+              # adapted from: https://github.com/siderolabs/kube-service-exposer/blob/main/deploy/kube-service-exposer.yaml
+              contents: |-
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRole
+                metadata:
+                  name: omni-kube-service-exposer
+                rules:
+                  - apiGroups: [""]
+                    resources: ["services"]
+                    verbs: ["get", "list", "watch"]
+                ---
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: omni-kube-service-exposer
+                  namespace: kube-system
+                ---
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: omni-kube-service-exposer
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: omni-kube-service-exposer
+                subjects:
+                  - kind: ServiceAccount
+                    name: omni-kube-service-exposer
+                    namespace: kube-system
+                ---
+                apiVersion: apps/v1
+                kind: DaemonSet
+                metadata:
+                  name: omni-kube-service-exposer
+                  namespace: kube-system
+                spec:
+                  selector:
+                    matchLabels:
+                      app.kubernetes.io/name: omni-kube-service-exposer
+                  template:
+                    metadata:
+                      labels:
+                        app.kubernetes.io/name: omni-kube-service-exposer
+                    spec:
+                      serviceAccountName: omni-kube-service-exposer
+                      hostNetwork: true
+                      dnsPolicy: ClusterFirstWithHostNet
+                      tolerations:
+                        - operator: Exists
+                      containers:
+                        - name: omni-kube-service-exposer
+                          image: ghcr.io/siderolabs/kube-service-exposer:v0.2.0
+                          args:
+                            - --debug=false
+                            - --annotation-key=omni-kube-service-exposer.sidero.dev/port
+                            # siderolink CIDR
+                            - --bind-cidrs="fdae:41e4:649b:9303::/64"
+                            - --disallowed-host-port-ranges=6443,10250,50000-50001
+    compresseddata: []

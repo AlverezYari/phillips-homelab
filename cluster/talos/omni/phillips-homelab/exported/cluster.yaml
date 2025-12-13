@@ -1,0 +1,35 @@
+metadata:
+    namespace: default
+    type: Clusters.omni.sidero.dev
+    id: phillips-homelab
+    version: 1
+    owner:
+    phase: running
+    created: 2025-03-18T22:30:34Z
+    updated: 2025-10-02T14:50:36Z
+    labels:
+        cni: none
+        template: true
+    annotations:
+        omni.sidero.dev/managed-by-cluster-templates:
+    finalizers:
+        - ClusterWorkloadProxyStatusController
+        - ClusterEndpointController
+        - ClusterConfigVersionController
+        - TalosUpgradeStatusController
+        - ClusterController
+        - KubernetesUpgradeStatusController
+        - BackupDataController
+        - ClusterStatusController
+        - SecretsController
+        - ClusterUUIDController
+        - ClusterDestroyStatusController
+spec:
+    installimage: ""
+    kubernetesversion: 1.31.4
+    talosversion: 1.9.2
+    features:
+        enableworkloadproxy: true
+        diskencryption: false
+        useembeddeddiscoveryservice: false
+    backupconfiguration: null

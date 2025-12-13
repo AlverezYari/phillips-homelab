@@ -52,12 +52,12 @@ spec:
 
         ollama:
           enabled: true
+          runtimeClassName: nvidia
           ollama:
             gpu:
               enabled: true
               type: nvidia
               number: 1
-            runtimeClassName: nvidia
           nodeSelector:
             kubernetes.io/hostname: homelab-04
           persistentVolume:
