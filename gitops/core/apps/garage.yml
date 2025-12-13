@@ -13,17 +13,37 @@ spec:
     helm:
       values: |-
         garage:
-          # Single node setup - no replication needed
-          replicationFactor: "1"
-          consistencyMode: "consistent"
-          compressionLevel: "1"
-          s3:
-            api:
-              region: "garage"
-              rootDomain: ".s3.garage.local"
-            web:
-              rootDomain: ".web.garage.local"
-              index: "index.html"
+          # Use custom TOML to include admin token for API access
+          garageTomlString: |
+            metadata_dir = "/mnt/meta"
+            data_dir = "/mnt/data"
+            db_engine = "lmdb"
+            block_size = 1048576
+            replication_factor = 1
+            consistency_mode = "consistent"
+            compression_level = 1
+            rpc_bind_addr = "[::]:3901"
+            rpc_secret = "__RPC_SECRET_REPLACE__"
+            bootstrap_peers = []
+
+            [kubernetes_discovery]
+            namespace = "garage"
+            service_name = "garage"
+            skip_crd = false
+
+            [s3_api]
+            s3_region = "garage"
+            api_bind_addr = "[::]:3900"
+            root_domain = ".s3.garage.local"
+
+            [s3_web]
+            bind_addr = "[::]:3902"
+            root_domain = ".web.garage.local"
+            index = "index.html"
+
+            [admin]
+            api_bind_addr = "[::]:3903"
+            admin_token = "fedf959894dc2247837d4ae54783ac239e0aae4c7f6ba9e39ef094e5c0f3a2b1"
 
         persistence:
           enabled: true
