@@ -63,7 +63,7 @@ spec:
           persistentVolume:
             enabled: true
             storageClass: "syno-iscsi-default"
-            size: 150Gi
+            size: 50Gi
           service:
             type: ClusterIP
           resources:
