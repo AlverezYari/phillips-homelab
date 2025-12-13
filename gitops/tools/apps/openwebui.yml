@@ -5,34 +5,35 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  
+
   source:
     repoURL: https://helm.openwebui.com
     chart: open-webui
-    targetRevision: "7.2.0"
+    targetRevision: "8.19.0"
     helm:
       values: |-
         image:
           repository: ghcr.io/open-webui/open-webui
-          tag: main
+          tag: ""
           pullPolicy: IfNotPresent
-        
+
         nodeSelector:
           kubernetes.io/hostname: homelab-04
-        
+
         service:
           type: ClusterIP
           port: 8080
-        
+
         ingress:
           enabled: false
-        
+
         persistence:
           enabled: true
           storageClass: "syno-iscsi-default"
-          accessMode: ReadWriteOnce
+          accessModes:
+            - ReadWriteOnce
           size: 20Gi
-        
+
         resources:
           limits:
             memory: 4Gi
@@ -40,24 +41,26 @@ spec:
           requests:
             cpu: 1000m
             memory: 2Gi
-        
-        envFrom:
-        - secretRef:
-            name: openwebui-secrets
-        
-        env:
-          OLLAMA_BASE_URL: "http://openwebui-ollama:11434"
-        
+
+        extraEnvFrom:
+          - secretRef:
+              name: openwebui-secrets
+
+        extraEnvVars:
+          - name: OLLAMA_BASE_URL
+            value: "http://openwebui-ollama:11434"
+
         ollama:
           enabled: true
-          gpu:
-            enabled: true
-            type: nvidia
-            number: 1
+          ollama:
+            gpu:
+              enabled: true
+              type: nvidia
+              number: 1
             runtimeClassName: nvidia
           nodeSelector:
             kubernetes.io/hostname: homelab-04
-          persistence:
+          persistentVolume:
             enabled: true
             storageClass: "syno-iscsi-default"
             size: 150Gi
