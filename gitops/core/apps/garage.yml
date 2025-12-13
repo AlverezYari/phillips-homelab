@@ -59,9 +59,7 @@ spec:
           metrics:
             enabled: true
             serviceMonitor:
-              enabled: true
-              labels:
-                release: prometheus
+              enabled: false
 
   destination:
     server: https://kubernetes.default.svc
