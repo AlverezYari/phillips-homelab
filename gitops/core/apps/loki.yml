@@ -14,6 +14,13 @@ spec:
     targetRevision: 6.29.0
     helm:
       values: |
+        global:
+          extraArgs:
+            - -config.expand-env=true
+          extraEnvFrom:
+            - secretRef:
+                name: garage-s3-credentials
+
         deploymentMode: SimpleScalable
 
         loki:
@@ -40,15 +47,14 @@ spec:
             s3:
               endpoint: garage.garage.svc:3900
               region: garage
+              secretAccessKey: ${secret_access_key}
+              accessKeyId: ${access_key_id}
               s3ForcePathStyle: true
               insecure: true
             bucketNames:
               chunks: chunks
               ruler: ruler
               admin: chunks
-          storage_config:
-            aws:
-              existingSecret: garage-s3-credentials
 
         backend:
           replicas: 2
