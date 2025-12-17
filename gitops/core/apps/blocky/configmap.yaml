@@ -47,6 +47,8 @@ data:
         blocky.phillips-homelab.net: 192.168.10.194
         # Registry mirror
         dockerhub.phillips-homelab.net: 192.168.10.195
+        # Synology NAS
+        nas.phillips-homelab.net: 192.168.10.195
 
     # Prometheus metrics for VictoriaMetrics scraping
     prometheus:
