@@ -35,6 +35,29 @@ spec:
           limits_config:
             allow_structured_metadata: true
             volume_enabled: true
+          storage:
+            type: s3
+            s3:
+              endpoint: garage.garage.svc:3900
+              region: garage
+              s3ForcePathStyle: true
+              insecure: true
+            bucketNames:
+              chunks: chunks
+              ruler: ruler
+              admin: chunks
+          storage_config:
+            aws:
+              endpoint: garage.garage.svc:3900
+              region: garage
+              s3forcepathstyle: true
+              insecure: true
+              access_key_id: ${ACCESS_KEY_ID}
+              secret_access_key: ${SECRET_ACCESS_KEY}
+
+        extraEnvFrom:
+          - secretRef:
+              name: garage-s3-credentials
 
         backend:
           replicas: 2
@@ -67,10 +90,7 @@ spec:
               cpu: 200m
 
         minio:
-          enabled: true
-          persistence:
-            enabled: true
-            size: 10Gi
+          enabled: false
   syncPolicy:
     automated: {}
     syncOptions:
