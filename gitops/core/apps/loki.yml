@@ -49,16 +49,18 @@ spec:
               ruler: ruler
               admin: chunks
 
-        extraEnvFrom:
-          - secretRef:
-              name: garage-s3-credentials
-
         backend:
           replicas: 2
           extraArgs:
             - -target=all
+          extraEnvFrom:
+            - secretRef:
+                name: garage-s3-credentials
         read:
           replicas: 2
+          extraEnvFrom:
+            - secretRef:
+                name: garage-s3-credentials
         write:
           replicas: 0
 
