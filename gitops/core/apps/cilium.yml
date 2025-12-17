@@ -83,6 +83,21 @@ spec:
     jsonPointers:
     - /spec/ports/0/nodePort
     - /spec/ports/1/nodePort
+  - group: ""
+    kind: Secret
+    name: cilium-ca
+    jsonPointers:
+    - /data
+  - group: ""
+    kind: Secret
+    name: hubble-server-certs
+    jsonPointers:
+    - /data
+  - group: ""
+    kind: Secret
+    name: hubble-relay-client-certs
+    jsonPointers:
+    - /data
   syncPolicy:
     automated:
       prune: true
