@@ -14,13 +14,6 @@ spec:
     targetRevision: 6.29.0
     helm:
       values: |
-        global:
-          extraArgs:
-            - -config.expand-env=true
-          extraEnvFrom:
-            - secretRef:
-                name: garage-s3-credentials
-
         deploymentMode: SimpleScalable
 
         loki:
@@ -60,8 +53,17 @@ spec:
           replicas: 2
           extraArgs:
             - -target=all
+            - -config.expand-env=true
+          extraEnvFrom:
+            - secretRef:
+                name: garage-s3-credentials
         read:
           replicas: 2
+          extraArgs:
+            - -config.expand-env=true
+          extraEnvFrom:
+            - secretRef:
+                name: garage-s3-credentials
         write:
           replicas: 0
 
