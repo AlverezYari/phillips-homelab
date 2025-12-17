@@ -49,10 +49,9 @@ spec:
               ruler: ruler
               admin: chunks
 
-        global:
-          extraEnvFrom:
-            - secretRef:
-                name: garage-s3-credentials
+        extraEnvFrom:
+          - secretRef:
+              name: garage-s3-credentials
 
         backend:
           replicas: 2
