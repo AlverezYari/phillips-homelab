@@ -93,6 +93,7 @@ Thanks for checking out my project, and I hope you find it useful!
 **Observability Stack:**
 - **Metrics:** [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
 - **Logging:** [Loki](https://github.com/grafana/loki)
+- **Log Storage:** [Garage](https://garagehq.deuxfleurs.fr/) (S3-compatible object storage)
 - **Log Collection:** [Vector](https://vector.dev/)
 - **Dashboarding:** [Grafana](https://github.com/grafana/grafana)
 
@@ -120,6 +121,9 @@ Thanks for checking out my project, and I hope you find it useful!
 
 - **Cluster Observability Logs:** [Loki](https://github.com/grafana/loki)
     - Despite what I said above about Grafana Labs, I still think that Loki is a great product and I'm using it here for my logging storage solution. I might look at swapping it out for something like VictoriaLogs in the future, but to get us off the ground I've decided to stick with Loki for now.
+
+- **Log Object Storage:** [Garage](https://garagehq.deuxfleurs.fr/)
+    - Garage is a lightweight, self-hosted, S3-compatible distributed object storage system. I switched to Garage from MinIO primarily due to MinIO's license change from Apache 2.0 to AGPL v3, which introduces significant compliance considerations. Garage remains under a permissive license and is far more resource-efficient for homelab use cases. It runs as a single-node StatefulSet with 50Gi of storage on the Synology NAS via iSCSI. S3 credentials are managed securely through External Secrets Operator, pulling from 1Password. Note: Configuring Loki to use external S3 storage requires per-component `extraEnvFrom` injection with `-config.expand-env=true` as documented in [grafana/loki#12249](https://github.com/grafana/loki/issues/12249).
 
 - **Log Collection:** [Vector](https://vector.dev/)
     - Vector is being used as the log collection agent to gather logs from across the cluster and forward them to Loki. Vector is a high-performance observability data pipeline that's designed to be reliable and efficient. I chose Vector over alternatives like Fluent Bit or Filebeat because of its modern architecture and excellent performance characteristics.
@@ -218,8 +222,16 @@ The GPU node (homelab-04) required special configuration to enable NVIDIA GPU su
 3. **Node Affinity:** GPU workloads pinned to homelab-04 using nodeSelector
 4. **Driver Configuration:** NVIDIA drivers loaded via Talos system extensions
 
-## Recent Updates (August 2025)
+## Recent Updates
 
+### December 2025
+- Replaced MinIO with Garage for Loki S3 storage (AGPL license concerns)
+- Upgraded ArgoCD from v2.14.7 (EOL) to v3.2.1
+- Upgraded Cilium from v1.17.2 to v1.17.10 (security patch)
+- Upgraded Tailscale operator from v1.82.0 to v1.90.9
+- Added DNS entry for Synology NAS via Blocky
+
+### August 2025
 - Added 4th node (custom build in Thermaltake Core V21 case) with GPU support for AI/ML workloads
 - Reused RTX 2080 SUPER from old gaming PC for cost-effective GPU compute
 - Deployed OpenWebUI with Ollama for local LLM inference
@@ -272,4 +284,4 @@ This repository serves as both documentation and configuration for my personal h
 
 ---
 
-*Last updated: June 2025*
+*Last updated: December 2025*
