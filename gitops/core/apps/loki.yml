@@ -42,22 +42,17 @@ spec:
               region: garage
               s3ForcePathStyle: true
               insecure: true
+              accessKeyId: ${access_key_id}
+              secretAccessKey: ${secret_access_key}
             bucketNames:
               chunks: chunks
               ruler: ruler
               admin: chunks
-          storage_config:
-            aws:
-              endpoint: garage.garage.svc:3900
-              region: garage
-              s3forcepathstyle: true
-              insecure: true
-              access_key_id: ${ACCESS_KEY_ID}
-              secret_access_key: ${SECRET_ACCESS_KEY}
 
-        extraEnvFrom:
-          - secretRef:
-              name: garage-s3-credentials
+        global:
+          extraEnvFrom:
+            - secretRef:
+                name: garage-s3-credentials
 
         backend:
           replicas: 2
