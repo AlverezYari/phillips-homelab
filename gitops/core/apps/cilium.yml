@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: "https://helm.cilium.io/"
     chart: cilium
-    targetRevision: "1.17.2"
+    targetRevision: "1.17.10"
     helm:
       values: |-
         debug:
