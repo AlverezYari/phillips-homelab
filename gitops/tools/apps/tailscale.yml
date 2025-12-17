@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: https://pkgs.tailscale.com/helmcharts
-    targetRevision: "v1.82.0"
+    targetRevision: "v1.90.9"
     chart: "tailscale-operator"
     helm:
       releaseName: tailscale-operator
