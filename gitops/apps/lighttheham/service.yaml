@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: lighttheham
+  namespace: lighttheham
+spec:
+  selector:
+    app: lighttheham
+  ports:
+    - port: 4321
+      targetPort: 4321
+      protocol: TCP
+  type: ClusterIP

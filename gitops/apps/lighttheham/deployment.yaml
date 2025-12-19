@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lighttheham
+  namespace: lighttheham
+  labels:
+    app: lighttheham
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lighttheham
+  template:
+    metadata:
+      labels:
+        app: lighttheham
+    spec:
+      initContainers:
+        - name: litestream-restore
+          image: litestream/litestream:0.3
+          args:
+            - restore
+            - -if-db-not-exists
+            - -if-replica-exists
+            - /app/data/lighttheham.db
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          envFrom:
+            - secretRef:
+                name: lighttheham-s3
+      containers:
+        - name: app
+          image: zot.phillips-homelab.net/light-the-ham:latest
+          ports:
+            - containerPort: 4321
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "4321"
+            - name: PUBLIC_APP_URL
+              value: "https://lighttheham.com"
+          envFrom:
+            - secretRef:
+                name: lighttheham-oauth
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: uploads
+              mountPath: /app/public/uploads
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 4321
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4321
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        - name: litestream
+          image: litestream/litestream:0.3
+          args:
+            - replicate
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          envFrom:
+            - secretRef:
+                name: lighttheham-s3
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 100m
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: lighttheham-data
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: lighttheham-uploads
+        - name: litestream-config
+          configMap:
+            name: litestream-config
