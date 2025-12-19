@@ -50,6 +50,8 @@ spec:
               value: "https://lighttheham.com"
             - name: SITE_URL
               value: "https://lighttheham.com"
+            - name: ADMIN_EMAILS
+              value: "caseyphillips@gmail.com,devs@lighttheham.com"
           envFrom:
             - secretRef:
                 name: lighttheham-oauth
