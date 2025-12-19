@@ -22,6 +22,8 @@ spec:
             - tunnel
             - --protocol
             - http2
+            - --metrics
+            - 0.0.0.0:2000
             - run
             - --token
             - $(TUNNEL_TOKEN)
