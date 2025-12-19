@@ -7,15 +7,14 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/AlverezYari/fork-zot-helm-chart
-    targetRevision: main
-    path: charts/zot
+    repoURL: https://zotregistry.dev/helm-charts
+    chart: zot
+    targetRevision: 0.1.91
     helm:
       values: |
         replicaCount: 1
         image:
           repository: ghcr.io/project-zot/zot-linux-amd64
-          tag: "v2.1.2"
           pullPolicy: IfNotPresent
         persistence: true
         pvc:
@@ -24,7 +23,6 @@ spec:
           storageClassName: syno-iscsi-default
           storage: 200Gi
         mountConfig: true
-        mountSecret: false
         externalSecrets:
           - secretName: zot-auth
             mountPath: /secret
@@ -54,19 +52,6 @@ spec:
                       ],
                       "defaultPolicy": ["read"],
                       "anonymousPolicy": ["read"]
-                    },
-                    "dev/**": {
-                      "policies": [
-                        { "users": ["admin","cicd","developer"], "actions": ["read","create","update","delete"] }
-                      ],
-                      "defaultPolicy": []
-                    },
-                    "prod/**": {
-                      "policies": [
-                        { "users": ["admin","cicd"], "actions": ["read","create","update","delete"] },
-                        { "users": ["developer"], "actions": ["read"] }
-                      ],
-                      "defaultPolicy": []
                     }
                   },
                   "adminPolicy": {
@@ -82,26 +67,6 @@ spec:
           port: 5000
         fullnameOverride: zot-registry
         startupProbe:
-          httpGet:
-            path: /v2/
-            port: 5000
-            scheme: HTTP
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          failureThreshold: 3
-        livenessProbe:
-          httpGet:
-            path: /v2/
-            port: 5000
-            scheme: HTTP
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /v2/
-            port: 5000
-            scheme: HTTP
           initialDelaySeconds: 5
           periodSeconds: 10
           failureThreshold: 3
