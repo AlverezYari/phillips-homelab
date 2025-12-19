@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litestream-config
+  namespace: lighttheham
+data:
+  litestream.yml: |
+    dbs:
+      - path: /app/data/lighttheham.db
+        replicas:
+          - type: s3
+            bucket: lighttheham-litestream
+            path: db
+            endpoint: http://garage.garage.svc:3900
+            region: garage
+            force-path-style: true
+            sync-interval: 5s

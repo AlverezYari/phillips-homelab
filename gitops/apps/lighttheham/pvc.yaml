@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lighttheham-data
+  namespace: lighttheham
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lighttheham-uploads
+  namespace: lighttheham
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 50Gi

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lighttheham
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    path: gitops/apps/lighttheham
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: lighttheham
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
