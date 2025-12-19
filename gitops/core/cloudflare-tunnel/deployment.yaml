@@ -20,6 +20,8 @@ spec:
           image: cloudflare/cloudflared:2024.10.0
           args:
             - tunnel
+            - --protocol
+            - http2
             - run
             - --token
             - $(TUNNEL_TOKEN)
