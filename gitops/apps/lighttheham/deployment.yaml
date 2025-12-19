@@ -17,6 +17,8 @@ spec:
       labels:
         app: lighttheham
     spec:
+      securityContext:
+        fsGroup: 1001
       initContainers:
         - name: litestream-restore
           image: litestream/litestream:0.3
