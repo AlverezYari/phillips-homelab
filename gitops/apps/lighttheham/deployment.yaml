@@ -48,6 +48,8 @@ spec:
               value: "4321"
             - name: PUBLIC_APP_URL
               value: "https://lighttheham.com"
+            - name: SITE_URL
+              value: "https://lighttheham.com"
           envFrom:
             - secretRef:
                 name: lighttheham-oauth
