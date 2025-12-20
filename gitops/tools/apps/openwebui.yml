@@ -23,6 +23,8 @@ spec:
         service:
           type: ClusterIP
           port: 8080
+          annotations:
+            tailscale.com/expose: "true"
 
         ingress:
           enabled: false

@@ -7,3 +7,4 @@ resources:
 
 patches:
   - path: params.yml
+  - path: tailscale-patch.yml
