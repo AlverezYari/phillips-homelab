@@ -8,10 +8,18 @@ spec:
     matchLabels:
       app: lighttheham
   ingress:
-    # Allow traffic from Cloudflare tunnel only
+    # Allow traffic from Cloudflare tunnel
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: cloudflare
+    # Allow metrics scraping from monitoring namespace (vmagent)
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+      toPorts:
+        - ports:
+            - port: "4321"
+              protocol: TCP
   egress:
     # Allow DNS
     - toEndpoints:
