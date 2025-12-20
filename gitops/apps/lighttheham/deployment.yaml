@@ -19,6 +19,9 @@ spec:
     spec:
       securityContext:
         fsGroup: 1001
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: litestream-restore
           image: litestream/litestream:0.3
@@ -27,6 +30,11 @@ spec:
             - -if-db-not-exists
             - -if-replica-exists
             - /app/data/lighttheham.db
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: data
               mountPath: /app/data
@@ -39,6 +47,11 @@ spec:
       containers:
         - name: app
           image: zot.phillips-homelab.net/light-the-ham:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 4321
           env:
@@ -83,6 +96,11 @@ spec:
             periodSeconds: 10
         - name: litestream
           image: litestream/litestream:0.3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           args:
             - replicate
           volumeMounts:
