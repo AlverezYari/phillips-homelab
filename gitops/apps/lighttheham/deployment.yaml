@@ -55,6 +55,8 @@ spec:
           envFrom:
             - secretRef:
                 name: lighttheham-oauth
+            - secretRef:
+                name: lighttheham-google-maps
           volumeMounts:
             - name: data
               mountPath: /app/data
