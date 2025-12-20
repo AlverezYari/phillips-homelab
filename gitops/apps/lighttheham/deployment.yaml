@@ -48,7 +48,6 @@ spec:
           image: zot.phillips-homelab.net/light-the-ham:latest
           securityContext:
             allowPrivilegeEscalation: false
-            runAsNonRoot: true
             capabilities:
               drop:
                 - ALL
