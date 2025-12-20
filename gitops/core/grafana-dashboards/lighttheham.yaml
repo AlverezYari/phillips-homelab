@@ -8,9 +8,7 @@ metadata:
 data:
   lighttheham.json: |
     {
-      "annotations": {
-        "list": []
-      },
+      "annotations": {"list": []},
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
@@ -18,317 +16,158 @@ data:
       "links": [],
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "red", "value": 80}
-                ]
-              },
-              "unit": "percent"
-            }
-          },
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "reqps"}},
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
           "id": 1,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "pluginVersion": "12.1.0",
-          "targets": [
-            {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"lighttheham\", container!=\"\"}[5m])) * 100",
-              "legendFormat": "CPU Usage",
-              "refId": "A"
-            }
-          ],
-          "title": "CPU Usage %",
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(rate(http_requests_total{namespace=\"lighttheham\"}[5m]))", "legendFormat": "req/s", "refId": "A"}],
+          "title": "Request Rate",
           "type": "stat"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 256000000},
-                  {"color": "red", "value": 512000000}
-                ]
-              },
-              "unit": "bytes"
-            }
-          },
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1}]}, "unit": "s"}},
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
           "id": 2,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "pluginVersion": "12.1.0",
-          "targets": [
-            {
-              "expr": "sum(container_memory_working_set_bytes{namespace=\"lighttheham\", container!=\"\"})",
-              "legendFormat": "Memory",
-              "refId": "A"
-            }
-          ],
-          "title": "Memory Usage",
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"lighttheham\"}[5m])) by (le))", "legendFormat": "p95", "refId": "A"}],
+          "title": "P95 Latency",
           "type": "stat"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {"type": "linear"},
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {"group": "A", "mode": "none"},
-                "thresholdsStyle": {"mode": "off"}
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [{"color": "green", "value": null}]
-              },
-              "unit": "percent"
-            }
-          },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
           "id": 3,
-          "options": {
-            "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
-            "tooltip": {"mode": "single", "sort": "none"}
-          },
-          "pluginVersion": "12.1.0",
-          "targets": [
-            {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"lighttheham\", container!=\"\"}[5m])) by (container) * 100",
-              "legendFormat": "{{container}}",
-              "refId": "A"
-            }
-          ],
-          "title": "CPU by Container",
-          "type": "timeseries"
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "http_requests_active{namespace=\"lighttheham\"}", "legendFormat": "Active", "refId": "A"}],
+          "title": "Active Requests",
+          "type": "stat"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {"type": "linear"},
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {"group": "A", "mode": "none"},
-                "thresholdsStyle": {"mode": "off"}
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [{"color": "green", "value": null}]
-              },
-              "unit": "bytes"
-            }
-          },
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.01}]}, "unit": "percentunit"}},
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
           "id": 4,
-          "options": {
-            "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
-            "tooltip": {"mode": "single", "sort": "none"}
-          },
-          "pluginVersion": "12.1.0",
-          "targets": [
-            {
-              "expr": "sum(container_memory_working_set_bytes{namespace=\"lighttheham\", container!=\"\"}) by (container)",
-              "legendFormat": "{{container}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Memory by Container",
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(rate(http_requests_total{namespace=\"lighttheham\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{namespace=\"lighttheham\"}[5m]))", "legendFormat": "Error Rate", "refId": "A"}],
+          "title": "Error Rate",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "reqps"}},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "id": 5,
+          "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+          "targets": [{"expr": "sum(rate(http_requests_total{namespace=\"lighttheham\"}[5m])) by (status)", "legendFormat": "{{status}}", "refId": "A"}],
+          "title": "Requests by Status",
           "type": "timeseries"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 1},
-                  {"color": "red", "value": 3}
-                ]
-              }
-            }
-          },
-          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24},
-          "id": 5,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "pluginVersion": "12.1.0",
-          "targets": [
-            {
-              "expr": "kube_pod_container_status_restarts_total{namespace=\"lighttheham\"}",
-              "legendFormat": "{{container}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Container Restarts",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"color": "red", "index": 0, "text": "Down"}}, "type": "value"},
-                {"options": {"1": {"color": "green", "index": 1, "text": "Up"}}, "type": "value"}
-              ],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [{"color": "green", "value": null}]
-              }
-            }
-          },
-          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 24},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "s"}},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
           "id": 6,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "pluginVersion": "12.1.0",
+          "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
           "targets": [
-            {
-              "expr": "kube_pod_status_ready{namespace=\"lighttheham\", condition=\"true\"}",
-              "legendFormat": "Ready",
-              "refId": "A"
-            }
+            {"expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{namespace=\"lighttheham\"}[5m])) by (le))", "legendFormat": "p50", "refId": "A"},
+            {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"lighttheham\"}[5m])) by (le))", "legendFormat": "p95", "refId": "B"},
+            {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"lighttheham\"}[5m])) by (le))", "legendFormat": "p99", "refId": "C"}
           ],
-          "title": "Pod Ready",
+          "title": "Request Latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 12},
+          "id": 7,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(lth_properties_submitted_total{namespace=\"lighttheham\"})", "legendFormat": "Properties", "refId": "A"}],
+          "title": "Properties Submitted",
           "type": "stat"
         },
         {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 28},
-          "id": 7,
-          "options": {
-            "dedupStrategy": "none",
-            "enableLogDetails": true,
-            "prettifyLogMessage": false,
-            "showCommonLabels": false,
-            "showLabels": false,
-            "showTime": true,
-            "sortOrder": "Descending",
-            "wrapLogMessage": false
-          },
-          "pluginVersion": "12.1.0",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "yellow", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 12},
+          "id": 8,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(lth_ratings_submitted_total{namespace=\"lighttheham\"})", "legendFormat": "Ratings", "refId": "A"}],
+          "title": "Ratings Submitted",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 12},
+          "id": 9,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(lth_tips_submitted_total{namespace=\"lighttheham\"})", "legendFormat": "Tips", "refId": "A"}],
+          "title": "Tips Submitted",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "purple", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 12},
+          "id": 10,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(lth_tours_created_total{namespace=\"lighttheham\"})", "legendFormat": "Tours", "refId": "A"}],
+          "title": "Tours Created",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 4, "x": 16, "y": 12},
+          "id": 11,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(lth_claims_submitted_total{namespace=\"lighttheham\"})", "legendFormat": "Claims", "refId": "A"}],
+          "title": "Claims Submitted",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 4, "x": 20, "y": 12},
+          "id": 12,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(lth_user_logins_total{namespace=\"lighttheham\"})", "legendFormat": "Logins", "refId": "A"}],
+          "title": "User Logins",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "bytes"}},
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 16},
+          "id": 13,
+          "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
           "targets": [
-            {
-              "expr": "{namespace=\"lighttheham\"}",
-              "refId": "A"
-            }
+            {"expr": "process_resident_memory_bytes{namespace=\"lighttheham\"}", "legendFormat": "Resident", "refId": "A"},
+            {"expr": "process_heap_bytes{namespace=\"lighttheham\"}", "legendFormat": "Heap", "refId": "B"}
           ],
+          "title": "Node.js Memory",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "percent"}},
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 16},
+          "id": 14,
+          "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+          "targets": [{"expr": "rate(process_cpu_seconds_total{namespace=\"lighttheham\"}[5m]) * 100", "legendFormat": "CPU %", "refId": "A"}],
+          "title": "Node.js CPU",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+          "id": 15,
+          "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
+          "targets": [{"expr": "{namespace=\"lighttheham\"}", "refId": "A"}],
           "title": "Application Logs",
           "type": "logs"
         }
@@ -341,5 +180,5 @@ data:
       "timezone": "browser",
       "title": "Light the Ham",
       "uid": "lighttheham",
-      "version": 1
+      "version": 2
     }
