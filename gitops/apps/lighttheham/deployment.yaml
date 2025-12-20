@@ -19,7 +19,6 @@ spec:
     spec:
       securityContext:
         fsGroup: 1001
-        runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       initContainers:
@@ -49,6 +48,7 @@ spec:
           image: zot.phillips-homelab.net/light-the-ham:latest
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
             capabilities:
               drop:
                 - ALL
