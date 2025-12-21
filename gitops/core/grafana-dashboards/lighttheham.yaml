@@ -21,7 +21,7 @@ data:
           "gridPos": {"h": 4, "w": 5, "x": 0, "y": 0},
           "id": 16,
           "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-          "targets": [{"expr": "sum(http_requests_total{namespace=\"lighttheham\"})", "legendFormat": "Total", "refId": "A"}],
+          "targets": [{"expr": "sum(http_requests_total{namespace=\"lighttheham\", path!~\"^/$|^/metrics.*\"})", "legendFormat": "Total", "refId": "A"}],
           "title": "Total Requests",
           "type": "stat"
         },
