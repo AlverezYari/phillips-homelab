@@ -17,8 +17,18 @@ data:
       "panels": [
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}},
+          "gridPos": {"h": 4, "w": 5, "x": 0, "y": 0},
+          "id": 16,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(http_requests_total{namespace=\"lighttheham\"})", "legendFormat": "Total", "refId": "A"}],
+          "title": "Total Requests",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "reqps"}},
-          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "gridPos": {"h": 4, "w": 5, "x": 5, "y": 0},
           "id": 1,
           "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
           "targets": [{"expr": "sum(rate(http_requests_total{namespace=\"lighttheham\"}[5m]))", "legendFormat": "req/s", "refId": "A"}],
@@ -28,7 +38,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1}]}, "unit": "s"}},
-          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "gridPos": {"h": 4, "w": 5, "x": 10, "y": 0},
           "id": 2,
           "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
           "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"lighttheham\"}[5m])) by (le))", "legendFormat": "p95", "refId": "A"}],
@@ -38,7 +48,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}},
-          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "gridPos": {"h": 4, "w": 4, "x": 15, "y": 0},
           "id": 3,
           "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
           "targets": [{"expr": "http_requests_active{namespace=\"lighttheham\"}", "legendFormat": "Active", "refId": "A"}],
@@ -48,7 +58,7 @@ data:
         {
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "fieldConfig": {"defaults": {"mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.01}]}, "unit": "percentunit"}},
-          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "gridPos": {"h": 4, "w": 5, "x": 19, "y": 0},
           "id": 4,
           "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
           "targets": [{"expr": "sum(rate(http_requests_total{namespace=\"lighttheham\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{namespace=\"lighttheham\"}[5m]))", "legendFormat": "Error Rate", "refId": "A"}],
