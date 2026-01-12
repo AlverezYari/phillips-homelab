@@ -32,9 +32,15 @@ spec:
             max_concurrent: 4
           pattern_ingester:
             enabled: true
+          compactor:
+            retention_enabled: true
+            delete_request_store: s3
+            retention_delete_delay: 2h
+            retention_delete_worker_count: 150
           limits_config:
             allow_structured_metadata: true
             volume_enabled: true
+            retention_period: 720h
           storage:
             type: s3
             s3:
