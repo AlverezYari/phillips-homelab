@@ -1,14 +1,14 @@
 <h1 align="center" style="margin-top: 0px;">Phillips Homelab</h1>
 
-<p align="center">2025 Edition</p>
+<p align="center">2026 Edition</p>
 
 <p align="center" style="margin-bottom: 0px !important;">
-    <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab 2025" width="300" align="center">
+    <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab 2026" width="300" align="center">
 </p>
 
 ## Intro & Overview
 
-Welcome to my Homelab 2025 project repo! I decided to put this together to practice working with Kubernetes and specifically Talos Linux, while not breaking the bank using one of the public clouds. Additionally, I'm currently working in the gaming space, where self-hosting, especially at the fleet scale is always a challenge. I wanted to build a homelab that would allow me to test out some of the latest and greatest tools in the Kubernetes ecosystem, while also being able to run my own game servers, and other workloads.
+Welcome to my Homelab 2026 project repo! I decided to put this together to practice working with Kubernetes and specifically Talos Linux, while not breaking the bank using one of the public clouds. Additionally, I'm currently working in the gaming space, where self-hosting, especially at the fleet scale is always a challenge. I wanted to build a homelab that would allow me to test out some of the latest and greatest tools in the Kubernetes ecosystem, while also being able to run my own game servers, and other workloads.
 
 
 **Latest Update (August 2025):** The cluster has been expanded to 4 nodes! Added a custom-built system in a Thermaltake Core V21 case with my existing NVIDIA RTX 2080 SUPER GPU (repurposed from my old gaming rig) to enable AI/ML workloads including local LLM inference with Ollama and OpenWebUI.
@@ -284,4 +284,4 @@ This repository serves as both documentation and configuration for my personal h
 
 ---
 
-*Last updated: December 2025*
+*Last updated: January 2026*
