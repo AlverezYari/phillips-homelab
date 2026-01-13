@@ -54,6 +54,7 @@ spec:
 
         ollama:
           enabled: true
+          replicaCount: 0
           runtimeClassName: nvidia
           ollama:
             gpu:
