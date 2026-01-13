@@ -4,6 +4,27 @@ metadata:
   name: loki
   namespace: argocd
 spec:
+  ignoreDifferences:
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /data
+    - group: policy
+      kind: PodDisruptionBudget
+      jsonPointers:
+        - /spec
+    - group: apps
+      kind: DaemonSet
+      jsonPointers:
+        - /spec/template/metadata/annotations
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/metadata/annotations
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/template/metadata/annotations
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -100,3 +121,5 @@ spec:
     automated: {}
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
