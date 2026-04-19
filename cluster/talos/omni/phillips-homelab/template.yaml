@@ -4,7 +4,7 @@ labels:
   template: true
   cni: none
 kubernetes:
-  version: v1.31.4
+  version: v1.35.4
 talos:
   version: v1.12.6
 features:
