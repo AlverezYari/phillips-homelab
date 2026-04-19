@@ -11,9 +11,9 @@
 Welcome to my Homelab 2026 project repo! I decided to put this together to practice working with Kubernetes and specifically Talos Linux, while not breaking the bank using one of the public clouds. Additionally, I'm currently working in the gaming space, where self-hosting, especially at the fleet scale is always a challenge. I wanted to build a homelab that would allow me to test out some of the latest and greatest tools in the Kubernetes ecosystem, while also being able to run my own game servers, and other workloads.
 
 
-**Latest Update (August 2025):** The cluster has been expanded to 4 nodes! Added a custom-built system in a Thermaltake Core V21 case with my existing NVIDIA RTX 2080 SUPER GPU (repurposed from my old gaming rig) to enable AI/ML workloads including local LLM inference with Ollama and OpenWebUI.
+**Latest Update (April 2026):** Major cluster upgrade - Talos Linux upgraded from v1.9.2 to v1.12.6, Kubernetes upgraded from v1.31.4 to v1.35.4. GPU node (homelab-04) temporarily removed due to a failing disk; replacement NVMe incoming, will be re-added once hardware is swapped.
 
-Currently, the cluster is comprised of 4 nodes running Talos Linux - three Beelink EQR5 mini PCs for general workloads and one custom-built system for GPU-accelerated tasks. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
+Currently, the cluster is comprised of 3 active nodes running Talos Linux - three Beelink EQR5 mini PCs for general workloads. A fourth custom-built GPU node (homelab-04) is offline pending a disk replacement and will be re-added with its NVIDIA RTX 2080 SUPER for AI/ML workloads. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
 
 More details on both the hardware and software setup can be found below.
 
@@ -75,8 +75,8 @@ Thanks for checking out my project, and I hope you find it useful!
 
 - **Cluster OS:** Talos Linux
 - **Cluster Management:** Omni
-- **Kubernetes Version:** 1.31.4
-- **Talos Version:** 1.9.2
+- **Kubernetes Version:** 1.35.4
+- **Talos Version:** 1.12.6
 
 #### Cluster Components
 
@@ -104,7 +104,7 @@ Thanks for checking out my project, and I hope you find it useful!
 
 ## Key Features
 
-- **Cluster Management:** [Omni + Talos](https://www.talos.dev/v1.9/talos-guides/install/omni/)
+- **Cluster Management:** [Omni + Talos](https://www.talos.dev/v1.12/talos-guides/install/omni/)
     - Omni is a pretty amazing tool that works together with Talos Linux to provide a extremely quick, easy, secure, and most importantly CLEAN way to manage your kubernetes cluster. I highly recommend checking it out if you are looking for a way to get into Kubernetes without the complexity of managing a full blown control plane. While I do think its important that every KubeNaunt go through the age old ritual and hell of settting up a cluster from scratch (the HARD way), I also think that its important to have a way to get up clusters up cleanly and quickly, on whatever hardware you have available to you. This really helps one to better understand how to appoach Kubernetes as a wholistic platform and not just a collection of complex components.
 
 - **Cluster networking:** [Cilium + Gateway API](https://docs.cilium.io/)
@@ -224,6 +224,15 @@ The GPU node (homelab-04) required special configuration to enable NVIDIA GPU su
 
 ## Recent Updates
 
+### April 2026
+- Major cluster upgrade: Talos Linux v1.9.2 → v1.12.6 (stepped through v1.9.6, v1.10.9, v1.11.6)
+- Major cluster upgrade: Kubernetes v1.31.4 → v1.35.4 (stepped through v1.32.13, v1.33.11, v1.34.7)
+- Synced Omni cluster template to be the single source of truth (captured drift from UI-applied patches)
+- Moved system extensions from cluster-wide to per-machine-set configuration
+- Added nut-client extension to worker and control plane nodes
+- Temporarily removed GPU node (homelab-04) due to failing disk; replacement NVMe on order
+- Scaled down GPU workloads (Jellyfin, OpenWebUI, Filebrowser) to 0 replicas until hardware is replaced
+
 ### December 2025
 - Replaced MinIO with Garage for Loki S3 storage (AGPL license concerns)
 - Upgraded ArgoCD from v2.14.7 (EOL) to v3.2.1
@@ -284,4 +293,4 @@ This repository serves as both documentation and configuration for my personal h
 
 ---
 
-*Last updated: January 2026*
+*Last updated: April 2026*
