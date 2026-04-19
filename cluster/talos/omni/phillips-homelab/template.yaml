@@ -6,7 +6,7 @@ labels:
 kubernetes:
   version: v1.31.4
 talos:
-  version: v1.9.2
+  version: v1.9.6
 features:
   enableWorkloadProxy: true
 patches:
@@ -18,11 +18,8 @@ patches:
     file: patches/extraManifests.yml
   - name: metrics-server
     file: patches/metrics-server.yml
-systemExtensions:
-  - siderolabs/amd-ucode # enable AMD microcode updates
-  # Not working atm| - siderolabs/qemu-guest-agent # enable QEMU guest agent, for VMs, probably not needed here but good to have
-  - siderolabs/iscsi-tools # enable iSCSI tools, for network storage, Synology NAS?
-  - siderolabs/util-linux-tools # enable utils-linux tools for better debugging
+  - name: nameservers
+    file: patches/nameservers.yml
 ---
 kind: ControlPlane
 machines:
@@ -32,6 +29,11 @@ patches:
     inline:
       cluster:
         allowSchedulingOnControlPlanes: true
+systemExtensions:
+  - siderolabs/amd-ucode
+  - siderolabs/iscsi-tools
+  - siderolabs/nut-client
+  - siderolabs/util-linux-tools
 ---
 kind: Workers
 machines:
@@ -43,22 +45,30 @@ patches:
       machine:
         install:
           disk: /dev/nvme0n1
+systemExtensions:
+  - siderolabs/amd-ucode
+  - siderolabs/iscsi-tools
+  - siderolabs/nut-client
+  - siderolabs/util-linux-tools
 ---
 kind: Machine
 name: 42bf6767-4044-db4b-bf34-98bd8093f5e4
 install:
   disk: /dev/nvme0n1
+patches:
+  - name: nameservers-local
+    file: patches/nameservers-local.yml
 ---
 kind: Machine
 name: 03000200-0400-0500-0006-000700080009
 install:
   disk: /dev/nvme0n1
-
+patches:
+  - name: nameservers-local
+    file: patches/nameservers-local.yml
 ---
 kind: Machine
 name: 169b5237-8624-af49-8f83-98bd808f9e04
 install:
   disk: /dev/nvme0n1
-
-
 
