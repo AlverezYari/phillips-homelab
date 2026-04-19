@@ -12,11 +12,13 @@ spec:
     targetRevision: "2.3.0"
     helm:
       values: |-
+        replicaCount: 0
+
         image:
           repository: jellyfin/jellyfin
           tag: latest
           pullPolicy: IfNotPresent
-        
+
         nodeSelector:
           kubernetes.io/hostname: homelab-04
         

@@ -12,6 +12,8 @@ spec:
     targetRevision: "8.19.0"
     helm:
       values: |-
+        replicaCount: 0
+
         image:
           repository: ghcr.io/open-webui/open-webui
           tag: ""
