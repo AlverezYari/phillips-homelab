@@ -11,9 +11,9 @@
 Welcome to my Homelab 2026 project repo! I decided to put this together to practice working with Kubernetes and specifically Talos Linux, while not breaking the bank using one of the public clouds. Additionally, I'm currently working in the gaming space, where self-hosting, especially at the fleet scale is always a challenge. I wanted to build a homelab that would allow me to test out some of the latest and greatest tools in the Kubernetes ecosystem, while also being able to run my own game servers, and other workloads.
 
 
-**Latest Update (April 2026):** Major cluster upgrade - Talos Linux upgraded from v1.9.2 to v1.12.6, Kubernetes upgraded from v1.31.4 to v1.35.4. GPU node (homelab-04) temporarily removed due to a failing disk; replacement NVMe incoming, will be re-added once hardware is swapped.
+**Latest Update (April 2026):** Major cluster upgrade - Talos Linux upgraded from v1.9.2 to v1.12.6, Kubernetes upgraded from v1.31.4 to v1.35.4. GPU node (homelab-04) restored with new NVMe drive and an AM5 motherboard/CPU upgrade to AMD Ryzen 7 9700X (Zen 5, 8-core). Switched the NVIDIA stack from the proprietary driver to the open-source kernel modules (LTS) per Sidero's 1.10+ recommendations.
 
-Currently, the cluster is comprised of 3 active nodes running Talos Linux - three Beelink EQR5 mini PCs for general workloads. A fourth custom-built GPU node (homelab-04) is offline pending a disk replacement and will be re-added with its NVIDIA RTX 2080 SUPER for AI/ML workloads. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
+Currently, the cluster is comprised of 4 active nodes running Talos Linux - three Beelink EQR5 mini PCs for general workloads, plus a fourth custom-built GPU node (homelab-04) running an NVIDIA RTX 2080 SUPER for AI/ML workloads. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
 
 More details on both the hardware and software setup can be found below.
 
@@ -38,15 +38,14 @@ Thanks for checking out my project, and I hope you find it useful!
     - Excellent airflow for GPU cooling
     - Full-length GPU support
     
-- Motherboard & CPU: [ASRock DeskMini X600](https://www.amazon.com/dp/B0FBTFCFMD?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)
-    - AMD Ryzen 9 7940HS
-    - Mini-ITX form factor
-    - 2.5G Ethernet
+- Motherboard & CPU: ASRock board (TODO: confirm model after April 2026 swap)
+    - AMD Ryzen 7 9700X (Zen 5, 8-core, AM5 desktop)
+    - 2.5G Ethernet (Intel)
     
-- Memory: [64GB DDR5-5600](https://www.amazon.com/dp/B09RWVV3XZ?ref=ppx_yo2ov_dt_b_fed_asin_title)
-    - 2x32GB DDR5 SO-DIMM
+- Memory: 64GB DDR5 (Patriot)
+    - 2x32GB DDR5 DIMMs
     
-- Storage: [1TB NVMe SSD](https://www.amazon.com/dp/B0D6NMDNNX?ref=ppx_yo2ov_dt_b_fed_asin_title)
+- Storage: 1TB NVMe SSD (replacement, April 2026)
     
 - GPU: NVIDIA RTX 2080 SUPER (repurposed from previous gaming PC)
     - 8GB GDDR6 VRAM
@@ -232,6 +231,10 @@ The GPU node (homelab-04) required special configuration to enable NVIDIA GPU su
 - Added nut-client extension to worker and control plane nodes
 - Temporarily removed GPU node (homelab-04) due to failing disk; replacement NVMe on order
 - Scaled down GPU workloads (Jellyfin, OpenWebUI, Filebrowser) to 0 replicas until hardware is replaced
+- Restored homelab-04 with new NVMe drive + AM5 motherboard/CPU upgrade (Ryzen 9 7940HS → Ryzen 7 9700X)
+- Switched NVIDIA stack to open-source kernel modules LTS branch (Sidero's recommendation for Talos 1.10+) and pinned the device plugin DaemonSet to the new extension label
+- Re-enrolled homelab-04 in Omni as a separate `gpu` worker machine set with the GPU/firmware extensions isolated from the regular workers
+- Scaled GPU workloads back to 1 replica
 
 ### December 2025
 - Replaced MinIO with Garage for Loki S3 storage (AGPL license concerns)

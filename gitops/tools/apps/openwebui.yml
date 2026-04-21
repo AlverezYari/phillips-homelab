@@ -12,7 +12,7 @@ spec:
     targetRevision: "8.19.0"
     helm:
       values: |-
-        replicaCount: 0
+        replicaCount: 1
 
         image:
           repository: ghcr.io/open-webui/open-webui
@@ -56,7 +56,7 @@ spec:
 
         ollama:
           enabled: true
-          replicaCount: 0
+          replicaCount: 1
           runtimeClassName: nvidia
           ollama:
             gpu:

@@ -67,8 +67,47 @@ patches:
   - name: nameservers-local
     file: patches/nameservers-local.yml
 ---
+kind: Workers
+name: gpu
+machines:
+  - 76567b10-4884-4b1d-abc5-345a60522d43
+patches:
+  - idOverride: 400-phillips-homelab-gpu-workers
+    inline:
+      machine:
+        install:
+          disk: /dev/nvme0n1
+  - name: nvidia-modules
+    file: patches/nvidia-modules.yml
+systemExtensions:
+  - siderolabs/amd-ucode
+  - siderolabs/intel-ice-firmware
+  - siderolabs/iscsi-tools
+  - siderolabs/nut-client
+  - siderolabs/nvidia-container-toolkit-lts
+  - siderolabs/nvidia-open-gpu-kernel-modules-lts
+  - siderolabs/realtek-firmware
+  - siderolabs/util-linux-tools
+---
 kind: Machine
 name: 169b5237-8624-af49-8f83-98bd808f9e04
 install:
   disk: /dev/nvme0n1
+---
+kind: Machine
+name: 76567b10-4884-4b1d-abc5-345a60522d43
+install:
+  disk: /dev/nvme0n1
+patches:
+  - name: nameservers-local
+    file: patches/nameservers-local.yml
+  - name: node-ip-fix
+    file: patches/node-ip-fix.yml
+  - name: nut-client
+    file: patches/nut-client.yml
+  - idOverride: 500-homelab-04-hostname
+    inline:
+      machine:
+        network:
+          hostname: homelab-04
 
