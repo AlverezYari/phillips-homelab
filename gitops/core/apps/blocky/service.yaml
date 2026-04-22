@@ -9,8 +9,7 @@ metadata:
   labels:
     app: blocky
   annotations:
-    # Request a specific IP from Cilium LB pool if needed
-    # io.cilium/lb-ipam-ips: "192.168.10.194"
+    lbipam.cilium.io/ips: "192.168.10.210"
 spec:
   type: LoadBalancer
   selector:
