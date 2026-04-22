@@ -4,8 +4,13 @@ kind: Gateway
 metadata:
   name: tls-gateway
   namespace: gateways
+  annotations:
+    lbipam.cilium.io/ips: "192.168.10.211"
 spec:
   gatewayClassName: cilium
+  infrastructure:
+    annotations:
+      lbipam.cilium.io/ips: "192.168.10.211"
   listeners:
   - name: https-1
     protocol: HTTPS

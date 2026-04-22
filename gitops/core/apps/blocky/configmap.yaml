@@ -36,15 +36,15 @@ data:
     # Custom DNS mappings (local overrides)
     customDNS:
       mapping:
-        # Gateway services (Cilium Gateway API on .194)
-        argocd.phillips-homelab.net: 192.168.10.194
-        monitoring.phillips-homelab.net: 192.168.10.194
-        zot.phillips-homelab.net: 192.168.10.194
-        home-assistant.phillips-homelab.net: 192.168.10.194
-        jellyfin.phillips-homelab.net: 192.168.10.194
-        files.phillips-homelab.net: 192.168.10.194
-        openwebui.phillips-homelab.net: 192.168.10.194
-        blocky.phillips-homelab.net: 192.168.10.194
+        # Gateway services (Cilium Gateway API on .211)
+        argocd.phillips-homelab.net: 192.168.10.211
+        monitoring.phillips-homelab.net: 192.168.10.211
+        zot.phillips-homelab.net: 192.168.10.211
+        home-assistant.phillips-homelab.net: 192.168.10.211
+        jellyfin.phillips-homelab.net: 192.168.10.211
+        files.phillips-homelab.net: 192.168.10.211
+        openwebui.phillips-homelab.net: 192.168.10.211
+        blocky.phillips-homelab.net: 192.168.10.211
         # Registry mirror
         dockerhub.phillips-homelab.net: 192.168.10.195
         # Synology NAS

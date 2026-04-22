@@ -37,6 +37,8 @@ spec:
         service:
           type: LoadBalancer
           port: 8096
+          annotations:
+            lbipam.cilium.io/ips: "192.168.10.212"
         
         ingress:
           main:
