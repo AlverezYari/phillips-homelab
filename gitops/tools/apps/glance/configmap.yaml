@@ -22,8 +22,29 @@ data:
               - type: clock
                 hour-format: 12h
 
+              - type: monitor
+                cache: 5m
+                title: Homelab Services
+                sites:
+                  - title: ArgoCD
+                    url: https://argocd.phillips-homelab.net
+                  - title: Grafana
+                    url: https://monitoring.phillips-homelab.net
+                  - title: Omni
+                    url: https://phillips-homelab.omni.siderolabs.io/
+                  - title: Blocky
+                    url: https://blocky.phillips-homelab.net
+                  - title: Home Assistant
+                    url: https://home-assistant.phillips-homelab.net
+                  - title: Jellyfin
+                    url: https://jellyfin.phillips-homelab.net
+                  - title: Files
+                    url: https://files.phillips-homelab.net
+                  - title: OpenWebUI
+                    url: https://openwebui.phillips-homelab.net
+
               - type: weather
-                location: Austin, Texas, United States
+                location: Vestavia Hills, Alabama, United States
                 units: imperial
                 hour-format: 12h
 
@@ -37,8 +58,8 @@ data:
                         url: https://argocd.phillips-homelab.net
                       - title: Monitoring
                         url: https://monitoring.phillips-homelab.net
-                      - title: Zot Registry
-                        url: https://zot.phillips-homelab.net
+                      - title: Omni Portal
+                        url: https://phillips-homelab.omni.siderolabs.io/
                       - title: Blocky
                         url: https://blocky.phillips-homelab.net
                   - title: Apps
@@ -52,18 +73,29 @@ data:
                       - title: OpenWebUI
                         url: https://openwebui.phillips-homelab.net
 
-              - type: rss
+              - type: hacker-news
+                limit: 15
+                collapse-after: 6
+
+              - type: lobsters
+                sort-by: hot
+                limit: 15
+                collapse-after: 6
+
+              - type: reddit
+                subreddit: homelab
                 limit: 10
                 collapse-after: 5
-                cache: 3h
-                feeds:
-                  - url: https://kubernetes.io/feed.xml
-                    title: Kubernetes Blog
-                  - url: https://www.cncf.io/feed/
-                    title: CNCF
+
+              - type: reddit
+                subreddit: selfhosted
+                limit: 10
+                collapse-after: 5
 
           - size: small
             widgets:
+              - type: calendar
+
               - type: releases
                 cache: 1d
                 repositories:
@@ -71,3 +103,5 @@ data:
                   - argoproj/argo-cd
                   - 0xerr0r/blocky
                   - cilium/cilium
+                  - siderolabs/talos
+                  - kubernetes/kubernetes
