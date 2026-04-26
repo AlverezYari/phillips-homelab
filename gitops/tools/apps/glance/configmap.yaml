@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glance-config
+  namespace: glance
+data:
+  glance.yml: |
+    server:
+      port: 8080
+      host: 0.0.0.0
+
+    theme:
+      background-color: 240 8 9
+      primary-color: 43 50 70
+      contrast-multiplier: 1.1
+
+    pages:
+      - name: Home
+        columns:
+          - size: small
+            widgets:
+              - type: clock
+                hour-format: 12h
+
+              - type: weather
+                location: Austin, Texas, United States
+                units: imperial
+                hour-format: 12h
+
+          - size: full
+            widgets:
+              - type: bookmarks
+                groups:
+                  - title: Infra
+                    links:
+                      - title: ArgoCD
+                        url: https://argocd.phillips-homelab.net
+                      - title: Monitoring
+                        url: https://monitoring.phillips-homelab.net
+                      - title: Zot Registry
+                        url: https://zot.phillips-homelab.net
+                      - title: Blocky
+                        url: https://blocky.phillips-homelab.net
+                  - title: Apps
+                    links:
+                      - title: Home Assistant
+                        url: https://home-assistant.phillips-homelab.net
+                      - title: Jellyfin
+                        url: https://jellyfin.phillips-homelab.net
+                      - title: Files
+                        url: https://files.phillips-homelab.net
+                      - title: OpenWebUI
+                        url: https://openwebui.phillips-homelab.net
+
+              - type: rss
+                limit: 10
+                collapse-after: 5
+                cache: 3h
+                feeds:
+                  - url: https://kubernetes.io/feed.xml
+                    title: Kubernetes Blog
+                  - url: https://www.cncf.io/feed/
+                    title: CNCF
+
+          - size: small
+            widgets:
+              - type: releases
+                cache: 1d
+                repositories:
+                  - glanceapp/glance
+                  - argoproj/argo-cd
+                  - 0xerr0r/blocky
+                  - cilium/cilium
