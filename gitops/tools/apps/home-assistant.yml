@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: http://pajikos.github.io/home-assistant-helm-chart/
     chart: home-assistant
-    targetRevision: "0.2.118"
+    targetRevision: "0.3.56"
     helm:
       values: |-
           nodeSelector:
