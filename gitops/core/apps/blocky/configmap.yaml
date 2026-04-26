@@ -37,6 +37,7 @@ data:
     customDNS:
       mapping:
         # Gateway services (Cilium Gateway API on .211)
+        phillips-homelab.net: 192.168.10.211
         argocd.phillips-homelab.net: 192.168.10.211
         monitoring.phillips-homelab.net: 192.168.10.211
         zot.phillips-homelab.net: 192.168.10.211
