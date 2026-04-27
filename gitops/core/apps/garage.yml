@@ -19,6 +19,10 @@ spec:
     kind: StatefulSet
     jsonPointers:
     - /spec/template/metadata/annotations
+    # The data PVC was expanded from 20Gi -> 50Gi after initial deploy.
+    # StatefulSet volumeClaimTemplates are immutable, so the template field
+    # stays at 20Gi forever even though the live PVC is at 50Gi.
+    - /spec/volumeClaimTemplates
 
   source:
     repoURL: https://opensource.ncsa.illinois.edu/charts/
