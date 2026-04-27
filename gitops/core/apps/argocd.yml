@@ -15,3 +15,7 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      # Required when Argo CD manages itself, per v3.2 -> v3.3 upgrade notes:
+      # ApplicationSet CRD exceeds the 262KB client-side-apply annotation limit.
+      - ServerSideApply=true
