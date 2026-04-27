@@ -12,14 +12,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: atuin
   project: default
-  # CNPG operator and ESO webhook apply server-side defaults to these specs
-  # that aren't worth declaring in our manifest. Tell the diff engine they
-  # are owned by their respective controllers.
+  # CNPG operator and ESO webhook apply server-side defaults that aren't
+  # worth declaring in our manifest. Filter out fields owned by their
+  # field managers — cleaner than enumerating every defaulted path.
   ignoreDifferences:
   - group: postgresql.cnpg.io
     kind: Cluster
-    jsonPointers:
-    - /spec/monitoring
+    managedFieldsManagers:
+    - manager
   - group: external-secrets.io
     kind: ExternalSecret
     jsonPointers:
