@@ -23,7 +23,7 @@ spec:
       containers:
         - name: atuin
           image: ghcr.io/atuinsh/atuin:18.15.2
-          args: ["server", "start"]
+          args: ["start"]
           ports:
             - name: http
               containerPort: 8888
