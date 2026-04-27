@@ -9,6 +9,7 @@ resources:
   - objectstore.yaml
   - cluster.yaml
   - scheduledbackup.yaml
+  - vmpodscrape.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
