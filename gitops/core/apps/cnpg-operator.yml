@@ -18,8 +18,9 @@ spec:
     targetRevision: "0.28.0"
     helm:
       values: |
-        monitoring:
-          podMonitorEnabled: true
+        # podMonitorEnabled is off — cluster uses VictoriaMetrics native CRDs,
+        # not prometheus-operator PodMonitor. Scraping is wired separately
+        # via VMPodScrape resources.
         config:
           data:
             INHERITED_ANNOTATIONS: "categories"
