@@ -32,4 +32,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-      - ServerSideDiff=false
+      - ServerSideDiff=true
