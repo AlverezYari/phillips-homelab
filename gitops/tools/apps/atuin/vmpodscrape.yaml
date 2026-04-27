@@ -1,0 +1,13 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: atuin-pg
+  namespace: atuin
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: atuin-pg
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
