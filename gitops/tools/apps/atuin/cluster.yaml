@@ -1,0 +1,29 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: atuin-pg
+  namespace: atuin
+spec:
+  instances: 1
+
+  storage:
+    storageClass: syno-iscsi-default
+    size: 5Gi
+
+  bootstrap:
+    initdb:
+      database: atuin
+      owner: atuin
+
+  plugins:
+  - name: barman-cloud.cloudnative-pg.io
+    isWALArchiver: true
+    parameters:
+      barmanObjectName: atuin-backups
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
