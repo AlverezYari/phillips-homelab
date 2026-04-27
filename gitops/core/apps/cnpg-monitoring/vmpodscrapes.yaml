@@ -11,17 +11,6 @@ spec:
     - port: metrics
       path: /metrics
       interval: 30s
----
-apiVersion: operator.victoriametrics.com/v1beta1
-kind: VMPodScrape
-metadata:
-  name: cnpg-barman-plugin
-  namespace: cnpg-system
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: plugin-barman-cloud
-  podMetricsEndpoints:
-    - targetPort: 9090
-      path: /metrics
-      interval: 30s
+# Note: plugin-barman-cloud's only listening port (9090) is its gRPC mTLS
+# plugin-protocol server, not Prometheus metrics. The plugin doesn't expose
+# a HTTP /metrics endpoint, so there's no scrape for it here.
