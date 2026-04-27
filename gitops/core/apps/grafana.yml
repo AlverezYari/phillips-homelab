@@ -10,6 +10,26 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
   project: default
+  # Common helm-chart drift patterns (mirrors loki.yml + garage.yml):
+  # - Secret data: chart re-randomizes admin-password on each render
+  # - Deployment template annotations: chart computes checksum/config etc.
+  # - PVC labels: chart adds helm labels at create-time, kube-controller-manager
+  #   then takes ownership, ArgoCD re-render drifts
+  ignoreDifferences:
+  - group: ""
+    kind: Secret
+    name: grafana
+    jsonPointers:
+    - /data
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/template/metadata/annotations
+  - group: ""
+    kind: PersistentVolumeClaim
+    jsonPointers:
+    - /metadata/labels
+    - /metadata/annotations
   source:
     chart: grafana
     repoURL: https://grafana.github.io/helm-charts
