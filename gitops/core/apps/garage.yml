@@ -5,6 +5,20 @@ metadata:
   namespace: argocd
 spec:
   project: default
+  # The chart regenerates rpc_secret on each render (random replacement of
+  # the __RPC_SECRET_REPLACE__ placeholder), which churns the Secret data
+  # and the StatefulSet template's checksum/config annotation. Same pattern
+  # as loki.yml.
+  ignoreDifferences:
+  - group: ""
+    kind: Secret
+    name: garage-rpc-secret
+    jsonPointers:
+    - /data
+  - group: apps
+    kind: StatefulSet
+    jsonPointers:
+    - /spec/template/metadata/annotations
 
   source:
     repoURL: https://opensource.ncsa.illinois.edu/charts/
