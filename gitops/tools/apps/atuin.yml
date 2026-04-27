@@ -18,8 +18,31 @@ spec:
   ignoreDifferences:
   - group: postgresql.cnpg.io
     kind: Cluster
-    managedFieldsManagers:
-    - manager
+    jsonPointers:
+    - /spec/affinity
+    - /spec/bootstrap/initdb/encoding
+    - /spec/bootstrap/initdb/localeCType
+    - /spec/bootstrap/initdb/localeCollate
+    - /spec/enablePDB
+    - /spec/enableSuperuserAccess
+    - /spec/failoverDelay
+    - /spec/imageName
+    - /spec/logLevel
+    - /spec/maxSyncReplicas
+    - /spec/minSyncReplicas
+    - /spec/monitoring
+    - /spec/postgresGID
+    - /spec/postgresUID
+    - /spec/postgresql
+    - /spec/primaryUpdateMethod
+    - /spec/primaryUpdateStrategy
+    - /spec/replicationSlots
+    - /spec/smartShutdownTimeout
+    - /spec/startDelay
+    - /spec/stopDelay
+    - /spec/switchoverDelay
+    jqPathExpressions:
+    - '.spec.plugins[]?.enabled'
   - group: external-secrets.io
     kind: ExternalSecret
     jsonPointers:
