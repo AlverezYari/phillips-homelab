@@ -1,0 +1,19 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: atuin-backups
+  namespace: atuin
+spec:
+  configuration:
+    destinationPath: s3://atuin-backups/
+    endpointURL: http://garage.garage.svc:3900
+    s3Credentials:
+      accessKeyId:
+        name: atuin-garage-backup
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: atuin-garage-backup
+        key: ACCESS_SECRET_KEY
+    wal:
+      compression: gzip
+  retentionPolicy: "7d"
