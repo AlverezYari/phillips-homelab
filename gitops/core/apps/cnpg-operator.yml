@@ -12,11 +12,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cnpg-system
   project: default
-  ignoreDifferences:
-  - group: apps
-    kind: Deployment
-    jsonPointers:
-    - /status/terminatingReplicas
   source:
     repoURL: https://cloudnative-pg.github.io/charts
     chart: cloudnative-pg
@@ -37,3 +32,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - ServerSideDiff=false
