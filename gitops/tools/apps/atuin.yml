@@ -12,6 +12,20 @@ spec:
     server: https://kubernetes.default.svc
     namespace: atuin
   project: default
+  # CNPG operator and ESO webhook apply server-side defaults to these specs
+  # that aren't worth declaring in our manifest. Tell the diff engine they
+  # are owned by their respective controllers.
+  ignoreDifferences:
+  - group: postgresql.cnpg.io
+    kind: Cluster
+    jsonPointers:
+    - /spec/monitoring
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
   source:
     path: gitops/tools/apps/atuin
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
