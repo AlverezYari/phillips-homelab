@@ -19,3 +19,8 @@ spec:
       # Required when Argo CD manages itself, per v3.2 -> v3.3 upgrade notes:
       # ApplicationSet CRD exceeds the 262KB client-side-apply annotation limit.
       - ServerSideApply=true
+      # Temporary: skip CSA->SSA migration during the v3.2 -> v3.3 upgrade.
+      # The migration step bloats the existing kubectl.kubernetes.io/
+      # last-applied-configuration annotation past the 262KB limit on the
+      # applicationsets CRD. Remove this option after we're on v3.3.2+.
+      - ClientSideApplyMigration=false
