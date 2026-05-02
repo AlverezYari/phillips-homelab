@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: breakwater
+  namespace: pixelflut
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: breakwater
+  template:
+    metadata:
+      labels:
+        app: breakwater
+    spec:
+      containers:
+        - name: breakwater
+          image: sbernauer/breakwater:latest
+          args:
+            - --width
+            - "1280"
+            - --height
+            - "720"
+            - --vnc-listen-address
+            - "0.0.0.0:5900"
+          ports:
+            - name: pixelflut
+              containerPort: 1234
+              protocol: TCP
+            - name: vnc
+              containerPort: 5900
+              protocol: TCP
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
