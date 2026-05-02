@@ -1,0 +1,29 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: forgejo-pg
+  namespace: forgejo
+spec:
+  instances: 1
+
+  storage:
+    storageClass: syno-iscsi-default
+    size: 10Gi
+
+  bootstrap:
+    initdb:
+      database: forgejo
+      owner: forgejo
+
+  plugins:
+  - name: barman-cloud.cloudnative-pg.io
+    isWALArchiver: true
+    parameters:
+      barmanObjectName: forgejo-backups
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi

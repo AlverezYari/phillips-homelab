@@ -46,6 +46,7 @@ data:
         files.phillips-homelab.net: 192.168.10.211
         openwebui.phillips-homelab.net: 192.168.10.211
         blocky.phillips-homelab.net: 192.168.10.211
+        code.phillips-homelab.net: 192.168.10.211
         # Registry mirror
         dockerhub.phillips-homelab.net: 192.168.10.195
         # Synology NAS
