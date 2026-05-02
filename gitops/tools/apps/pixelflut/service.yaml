@@ -16,3 +16,7 @@ spec:
       port: 5900
       targetPort: vnc
       protocol: TCP
+    - name: web
+      port: 8080
+      targetPort: web
+      protocol: TCP
