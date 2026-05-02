@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: forgejo
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: forgejo
+  project: default
+  source:
+    chart: forgejo
+    repoURL: oci://code.forgejo.org/forgejo-helm
+    targetRevision: 17.0.1
+    helm:
+      values: |
+        postgresql:
+          enabled: false
+        postgresql-ha:
+          enabled: false
+        valkey:
+          enabled: false
+        valkey-cluster:
+          enabled: false
+        redis:
+          enabled: false
+        redis-cluster:
+          enabled: false
+
+        replicaCount: 1
+
+        persistence:
+          enabled: true
+          create: true
+          size: 200Gi
+          accessModes:
+            - ReadWriteOnce
+          storageClass: syno-iscsi-default
+
+        service:
+          http:
+            type: ClusterIP
+            port: 3000
+          ssh:
+            type: ClusterIP
+            port: 22
+
+        ingress:
+          enabled: false
+
+        gitea:
+          config:
+            server:
+              ROOT_URL: https://code.phillips-homelab.net
+              DOMAIN: code.phillips-homelab.net
+              DISABLE_SSH: true
+              OFFLINE_MODE: false
+            database:
+              DB_TYPE: postgres
+              HOST: forgejo-pg-rw.forgejo.svc.cluster.local:5432
+              NAME: forgejo
+              USER: forgejo
+              SSL_MODE: require
+            cache:
+              ADAPTER: memory
+            session:
+              PROVIDER: memory
+          additionalConfigFromEnvs:
+            - name: GITEA__database__PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-pg-app
+                  key: password
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,13 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: forgejo-pg
+  namespace: forgejo
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: forgejo-pg
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

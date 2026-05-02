@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: forgejo-db
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: forgejo
+  project: default
+  ignoreDifferences:
+  - group: postgresql.cnpg.io
+    kind: Cluster
+    jsonPointers:
+    - /spec/affinity
+    - /spec/bootstrap/initdb/encoding
+    - /spec/bootstrap/initdb/localeCType
+    - /spec/bootstrap/initdb/localeCollate
+    - /spec/enablePDB
+    - /spec/enableSuperuserAccess
+    - /spec/failoverDelay
+    - /spec/imageName
+    - /spec/logLevel
+    - /spec/maxSyncReplicas
+    - /spec/minSyncReplicas
+    - /spec/monitoring
+    - /spec/postgresGID
+    - /spec/postgresUID
+    - /spec/postgresql
+    - /spec/primaryUpdateMethod
+    - /spec/primaryUpdateStrategy
+    - /spec/replicationSlots
+    - /spec/smartShutdownTimeout
+    - /spec/startDelay
+    - /spec/stopDelay
+    - /spec/switchoverDelay
+    jqPathExpressions:
+    - '.spec.plugins[]?.enabled'
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
+  source:
+    path: gitops/tools/apps/forgejo-db
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true

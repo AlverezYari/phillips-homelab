@@ -125,6 +125,20 @@ spec:
   - group: ""
     kind: Service
 ---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-forgejo-service
+  namespace: forgejo
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -205,6 +219,14 @@ spec:
       certificateRefs:
       - kind: Secret
         name: glance-tls
+  - name: https-10
+    protocol: HTTPS
+    port: 443
+    hostname: code.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: code-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -373,3 +395,21 @@ spec:
     - name: glance
       namespace: glance
       port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-10
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-10
+    namespace: gateways
+  hostnames:
+  - code.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: forgejo-http
+      namespace: forgejo
+      port: 3000
