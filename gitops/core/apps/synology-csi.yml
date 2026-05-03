@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: synology-csi
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: synology-csi
+  project: default
+  # Adopt the live install as-is. The CSI was originally `kubectl apply`'d
+  # with old (2021-era) sidecars and Casey's custom v1.2.0.2 image build;
+  # gitops-ifying first, sidecar/upstream bumps in a follow-up PR.
+  #
+  # client-info-secret (the DSM credentials) is intentionally NOT in this
+  # kustomize. It stays out-of-band; an ExternalSecret follow-up will move
+  # it to 1Password.
+  ignoreDifferences:
+    # CSIDriver gets server-side defaults set by the API server.
+    - group: storage.k8s.io
+      kind: CSIDriver
+      jsonPointers:
+        - /spec/requiresRepublish
+        - /spec/seLinuxMount
+        - /spec/storageCapacity
+    # StatefulSet/DaemonSet template metadata may grow kubectl rollout
+    # restart annotations that we don't want to track.
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/template/metadata/annotations
+    - group: apps
+      kind: DaemonSet
+      jsonPointers:
+        - /spec/template/metadata/annotations
+  source:
+    path: gitops/core/apps/synology-csi
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true

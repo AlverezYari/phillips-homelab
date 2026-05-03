@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: synology-csi-snapshotter
+  namespace: synology-csi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: synology-csi-snapshotter
+  serviceName: synology-csi-snapshotter
+  template:
+    metadata:
+      labels:
+        app: synology-csi-snapshotter
+    spec:
+      containers:
+      - args:
+        - --v=5
+        - --csi-address=$(ADDRESS)
+        env:
+        - name: ADDRESS
+          value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        image: registry.k8s.io/sig-storage/csi-snapshotter:v4.2.1
+        imagePullPolicy: Always
+        name: csi-snapshotter
+        securityContext:
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+      - args:
+        - --nodeid=NotUsed
+        - --endpoint=$(CSI_ENDPOINT)
+        - --client-info
+        - /etc/synology/client-info.yml
+        - --log-level=info
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///var/lib/csi/sockets/pluginproxy/csi.sock
+        image: ghcr.io/alverezyari/synology-csi:v1.2.0.2
+        imagePullPolicy: IfNotPresent
+        name: csi-plugin
+        securityContext:
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/csi/sockets/pluginproxy/
+          name: socket-dir
+        - mountPath: /etc/synology
+          name: client-info
+          readOnly: true
+      hostNetwork: true
+      serviceAccountName: csi-snapshotter-sa
+      volumes:
+      - emptyDir: {}
+        name: socket-dir
+      - name: client-info
+        secret:
+          secretName: client-info-secret
