@@ -11,9 +11,11 @@
 Welcome to my Homelab 2026 project repo! I decided to put this together to practice working with Kubernetes and specifically Talos Linux, while not breaking the bank using one of the public clouds. Additionally, I'm currently working in the gaming space, where self-hosting, especially at the fleet scale is always a challenge. I wanted to build a homelab that would allow me to test out some of the latest and greatest tools in the Kubernetes ecosystem, while also being able to run my own game servers, and other workloads.
 
 
-**Latest Update (April 2026):** Major cluster upgrade - Talos Linux upgraded from v1.9.2 to v1.12.6, Kubernetes upgraded from v1.31.4 to v1.35.4. GPU node (homelab-04) restored with new NVMe drive and an AM5 motherboard/CPU upgrade to AMD Ryzen 7 9700X (Zen 5, 8-core). Switched the NVIDIA stack from the proprietary driver to the open-source kernel modules (LTS) per Sidero's 1.10+ recommendations.
+**Latest Update (May 2026):** Stood up a self-hosted **Forgejo** instance at `code.phillips-homelab.net` — a hedge against GitHub flakiness as coding-agent activity has been hammering it through 2026. 32 of my GitHub repos are now mirrored locally on a 1-hour sync interval, with HTTPS and SSH clone both working over LAN/Tailnet. Backed by a CloudNativePG Postgres cluster with daily Barman→Garage backups. Also a chunky Synology cleanup pass (24 orphan iSCSI LUNs removed, ~2.6 TB reclaimed) and pulled the Synology CSI install out of cluster drift into proper gitops management.
 
-Currently, the cluster is comprised of 4 active nodes running Talos Linux - three Beelink EQR5 mini PCs for general workloads, plus a fourth custom-built GPU node (homelab-04) running an NVIDIA RTX 2080 SUPER for AI/ML workloads. The cluster is running on my internal lab network which is manged on a Ubiquiti Dream Machine Pro, thought a TP link switch. The cluster is running on a 1G network, which does share bandwidth with my day to day home network. Storage to the cluster is mostly provided by a Synology NAS, which is controlled via a csi driver running in the cluster (love this setup!). The core configuration and management of the cluster is acomplished using a mix of Ommi/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage my application level.
+**April 2026:** Major cluster upgrade — Talos Linux v1.9.2 → v1.12.6, Kubernetes v1.31.4 → v1.35.4. GPU node (homelab-04) restored with a new NVMe drive and an AM5 motherboard/CPU upgrade to AMD Ryzen 7 9700X (Zen 5, 8-core). Switched the NVIDIA stack from the proprietary driver to the open-source kernel modules (LTS) per Sidero's 1.10+ recommendations. WAN was also upgraded to a **2 Gbps AT&T fiber** circuit and the BGW620 ISP modem was bypassed via a WAS-110 SFP+ ONT stick (running spoofed BGW320 certs), so fiber lands directly in the gateway with no double-NAT and full line-rate.
+
+Currently, the cluster is comprised of 4 active nodes running Talos Linux — three Beelink EQR5 mini PCs for general workloads, plus a fourth custom-built GPU node (homelab-04) running an NVIDIA RTX 2080 SUPER for AI/ML workloads. The cluster is running on my internal lab network behind a **Ubiquiti UCG-Fiber** gateway (with the WAS-110 SFP+ doing direct-fiber WAN ingress) through a TP-Link switch. The cluster is running on a 1G network for now, which does share bandwidth with the rest of the house — a 10G DAC uplink between the switch and gateway, plus VLAN segmentation for IoT/cluster/management isolation, are on the follow-up list. Storage to the cluster is mostly provided by a Synology NAS (DS723+), which is controlled via a CSI driver running in the cluster (love this setup!). The core configuration and management of the cluster is accomplished using a mix of Omni/Talos at the cluster configuration level, and I'm running ArgoCD within the cluster itself to manage everything at the application level.
 
 More details on both the hardware and software setup can be found below.
 
@@ -61,14 +63,20 @@ Thanks for checking out my project, and I hope you find it useful!
     - 2x 8TB Seagate Ironwolf HDDs
     - 1x 1TB Samsung 970 EVO NVMe SSD (for caching)
 
-- 1x [TP-Link TL-SG1016PE](https://www.amazon.com/TP-Link-Unmanaged-Rackmount-Lifetime-TL-SG1016PE/dp/B0721V1TGV/ref=sr_1_1?crid=2HMDDJXIR8SW9&dib=eyJ2IjoiMSJ9.InmIW091P5DoHy4swhfKjbKOIb8n7GQGwMOtAwvUVUe4shbTDDKxYcy3VbZvZ7mwNI4kdwBYsrdQ31qqNpz5fRbXsEqEH4aqOUesekfZPDOMNQ9qSfqHfn57mzdQtdZzgsC1YB7kIF6XwnNw8eLBZnpduYlhhYa1Br6O40jDL4icYqANMNESJpT6QVzlSVG9ZLRdxEq0i3ClkHcxf2q1Ow1580qwOGljy-dnUmILKb0sCFeUG265X4MN0Y9nB4miN1W9KX6dxgZea8kdjHLyQMX6cI9x-y9HEo65Kn-rE8EVGDc2QxDAZTYrTiB_UFxv9TG-waKa6fuSCkkv7gdn6SHhUdlHykdtqzYPgD6QM8s.lT34CHavGsQl0gvXhwXR2qImMNvLA8hPQkjWDg8vQYA&dib_tag=se&keywords=tp%2Blink%2Bsg1016pe&qid=1743357065&s=electronics&sprefix=tplink%2Bsg1016pe%2Celectronics%2C85&sr=1-1&th=1)
-    - 16x 1G Ports
-    - 8x PoE Ports
+##### Network
 
-- 1x [Ubiquiti Dream Machine](https://www.amazon.com/Machine-MU-MIMO-Dual-Band-Gigabit-UDM-US/dp/B0DDDP93YX/ref=sr_1_4?crid=8CDBD4207294&dib=eyJ2IjoiMSJ9.li_aweq7xoRuO9PhKkIVZ7kcu27B-NjyGPvdlX9wiwvFUGWASNDzIHwZweszDN8C1xGnzFXq3TvliCt5_o1gS2PdoWi0t1MfobUd2teMwEWT7NjvxB2F4dFWJsZSwlqovfR1jcY1NkT1u5QUM-RK7Z1Qnm1oT9wRRpc3UOUq3hdgePesTFX7t6qZb50v6vSMMfEBOINbCgDBJgeG1BFQOcGt09qRukkBmB_AKjvTn62wBvp2xKOC-taB4TlQCz0p-zB-0Xs2bRB8VWauANa_x_9V55tbox6SLUqlkGSRqnbOrwyFWWRiyY6whaqa9FofmQrLYl2H9HyFnqwDeyuQj0rFl9dAOow4tM1WgcVI4Cho.Xd1uCOFvhbu-BMDeoPt3eZBrF_88fzmWm4-KVZzxyhE&dib_tag=se&keywords=ubiquiti%2Bdream%2Bmachine%2Bpro&qid=1743357111&s=electronics&sprefix=Ubiquiti%2BDrea%2Celectronics%2C106&sr=1-4&th=1)
-    - 1x 10G SFP+ Port
-    - 8x 1G Ports
-    - 1x WAN Port
+- **WAN:** AT&T 2 Gbps fiber (upgraded April 2026)
+    - AT&T BGW620 ISP-supplied modem **bypassed** via a WAS-110 SFP+ ONT stick running foreign BGW320 certs — the ISP gateway sits unplugged, fiber lands directly in the UCG-Fiber's SFP+ port for no double-NAT and line-rate throughput
+    - DNS01 challenges and external-facing services route through a Cloudflare-managed DNS zone
+
+- 1x **Ubiquiti UCG-Fiber** gateway
+    - Dedicated SFP+ for the WAS-110 ONT
+    - 2.5G LAN uplink to the switch
+    - WireGuard server for VPN, plus the standard Unifi controller bits
+
+- 1x [TP-Link TL-SG1016PE](https://www.amazon.com/TP-Link-Unmanaged-Rackmount-Lifetime-TL-SG1016PE/dp/B0721V1TGV/ref=sr_1_1?crid=2HMDDJXIR8SW9&dib=eyJ2IjoiMSJ9.InmIW091P5DoHy4swhfKjbKOIb8n7GQGwMOtAwvUVUe4shbTDDKxYcy3VbZvZ7mwNI4kdwBYsrdQ31qqNpz5fRbXsEqEH4aqOUesekfZPDOMNQ9qSfqHfn57mzdQtdZzgsC1YB7kIF6XwnNw8eLBZnpduYlhhYa1Br6O40jDL4icYqANMNESJpT6QVzlSVG9ZLRdxEq0i3ClkHcxf2q1Ow1580qwOGljy-dnUmILKb0sCFeUG265X4MN0Y9nB4miN1W9KX6dxgZea8kdjHLyQMX6cI9x-y9HEo65Kn-rE8EVGDc2QxDAZTYrTiB_UFxv9TG-waKa6fuSCkkv7gdn6SHhUdlHykdtqzYPgD6QM8s.lT34CHavGsQl0gvXhwXR2qImMNvLA8hPQkjWDg8vQYA&dib_tag=se&keywords=tp%2Blink%2Bsg1016pe&qid=1743357065&s=electronics&sprefix=tplink%2Bsg1016pe%2Celectronics%2C85&sr=1-1&th=1) PoE switch
+    - 16x 1G ports, 8 of them PoE
+    - **Follow-up:** 10G DAC uplink between switch and UCG-Fiber to give the cluster a real backplane independent of household traffic, plus VLAN segmentation (cluster / IoT / management / day-to-day)
 
 #### Cluster Management
 
@@ -87,7 +95,8 @@ Thanks for checking out my project, and I hope you find it useful!
 - **Application Management:** [ArgoCD](https://github.com/argoproj/argo-cd)
 - **Storage Management:** [CSI Driver for Synology NAS](https://github.com/SynologyOpenSource/synology-csi)
 - **Secret Management:** [External Secrets Operator](https://github.com/external-secrets/external-secrets) (1Password Connection/Sync API)
-- **TLS Management:** [Cert-Manager](https://github.com/cert-manager/cert-manager) backed by AWS Route53 DNS Challenges
+- **TLS Management:** [Cert-Manager](https://github.com/cert-manager/cert-manager) backed by Cloudflare DNS-01 challenges
+- **Source Control / Git Mirror:** [Forgejo](https://forgejo.org/) (CNPG-backed, mirrors GitHub repos as a hedge against upstream instability)
 
 **Observability Stack:**
 - **Metrics:** [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
@@ -98,8 +107,10 @@ Thanks for checking out my project, and I hope you find it useful!
 
 **Additional Services:**
 - **Container Registry:** [Zot](https://zotregistry.io/)
+- **Source Control:** [Forgejo](https://forgejo.org/) — `code.phillips-homelab.net`
 - **VPN/Networking:** [Tailscale](https://tailscale.com/)
 - **Home Automation:** [Home Assistant](https://www.home-assistant.io/)
+- **Homepage:** [Glance](https://github.com/glanceapp/glance) — apex `phillips-homelab.net`
 
 ## Key Features
 
@@ -134,10 +145,13 @@ Thanks for checking out my project, and I hope you find it useful!
     - External Sevcrets Operator is a tool used to sync sercrets from some kind of external secret store (ie AWS Secrets Manager, HashiCorp Vault, etc) into a Kubernetes Cluster. This is a great way to manage secrets in a secure and scalable way. I'm using the 1Password connection API to sync secrets from my 1Password vault into home homelab cluster. The setup honestly was a huge pain to get working and one of the most annoying parts of my baseline setup. This is caused by 1Password requiring you to run a special API connection server in order to connect to their API. This is a bit of a chore, but once you get it working it works well enough. Again, at my day job setting this up with something like AWS Secrets Store is a lot easier. Eitherway you should be using something like this to manage your secrets in Kubernetes! One of the MOST important things to get right in your cluster!
 
 - **Cluster TLS Manager** [Cert-Manager](https://cert-manager.io/)
-    - Maybe just as important as the External Secrets Operator, is Cert-Manager a tool used to manage TLS certificates in Kubernetes. An absolute must have for any cluster, and certainly a core component of my Homelab. I'd recommend learning how to use this guy as soon as possible when getting into learning Kubernetes. I'm using the AWS Route53 DNS challenge method to manage my TLS certificates, but you can also use the ACME challenge if you don't want to use Route53!
+    - Maybe just as important as the External Secrets Operator, is Cert-Manager a tool used to manage TLS certificates in Kubernetes. An absolute must have for any cluster, and certainly a core component of my Homelab. I'd recommend learning how to use this guy as soon as possible when getting into learning Kubernetes. I migrated from AWS Route53 to **Cloudflare DNS-01** in April 2026 (the migration consolidated DNS management with my forge/CDN setup), but the same pattern works with any provider cert-manager supports.
 
 - **Container Registry:** [Zot](https://zotregistry.io/)
     - Zot is a lightweight, OCI-compliant container registry that I'm using to store custom container images and cache public images locally. This reduces external bandwidth usage and provides faster image pulls within the cluster.
+
+- **Source Control / Git Mirror:** [Forgejo](https://forgejo.org/)
+    - Forgejo is a self-hosted, OCI-compliant Git forge (community-driven Gitea fork). I stood it up in May 2026 specifically as a hedge against the GitHub flakiness that's been happening through 2026 — coding-agent activity has been hammering GitHub at well above their planned capacity, and I wanted my own local copy of the repos I depend on. Backed by a CloudNativePG cluster (1 instance, daily Barman→Garage backups, the same atuin pattern), 200Gi data PVC on the Synology iSCSI CSI, internal-only HTTPS at `code.phillips-homelab.net` and SSH cloning via a LoadBalancer Service. 32 of my GitHub repos auto-mirror on a 1-hour interval. There's a `scripts/forgejo-mirror-github.py` (uv self-contained) for bulk-creating new mirrors via the migration API. The longer-term play is to use it as the source-of-truth forge for CI experiments that don't lock me into the GitHub Actions ecosystem.
 
 - **VPN/Mesh Networking:** [Tailscale](https://tailscale.com/)
     - Tailscale provides secure mesh networking capabilities, allowing me to securely access cluster services from anywhere without exposing them to the public internet. It's particularly useful for accessing internal dashboards and administrative interfaces.
@@ -212,6 +226,16 @@ Cilium's eBPF-based networking provides advanced security features including net
   - Reduces external bandwidth usage
   - Integrated with cluster authentication
 
+### Source Control
+
+- **Forgejo:** Self-hosted Git forge with GitHub mirror
+  - Mirrors 32 GitHub repos on a 1-hour sync interval
+  - Internal-only HTTPS at `code.phillips-homelab.net` (LAN/Tailnet)
+  - SSH cloning via LoadBalancer (`git@code.phillips-homelab.net:owner/repo.git`)
+  - CNPG-backed Postgres with daily Barman backups to Garage (s3://forgejo-backups)
+  - 200Gi data PVC on Synology iSCSI CSI; admin creds + DB creds + GitHub PAT all flow from 1Password via External Secrets Operator
+  - Hedge against GitHub instability + future home for CI experiments outside the GH Actions ecosystem
+
 ## GPU Node Setup
 
 The GPU node (homelab-04) required special configuration to enable NVIDIA GPU support in Talos Linux:
@@ -222,6 +246,17 @@ The GPU node (homelab-04) required special configuration to enable NVIDIA GPU su
 4. **Driver Configuration:** NVIDIA drivers loaded via Talos system extensions
 
 ## Recent Updates
+
+### May 2026
+- **Stood up Forgejo** at `code.phillips-homelab.net` — CNPG-backed, internal-only, HTTPS + SSH (LoadBalancer), open registration disabled, 200Gi data PVC. Daily Barman backups to Garage.
+- **Mirrored 32 GitHub repos** into Forgejo on a 1-hour sync interval; uv self-contained Python script (`scripts/forgejo-mirror-github.py`) handles bulk mirror creation via Forgejo's migration API + GitHub repos via `gh auth token`.
+- **Synology CSI install + StorageClass adopted into gitops** (`gitops/core/apps/synology-csi/`) — was previously `kubectl apply`'d drift; brief misadventure switching to upstream `synology/synology-csi:v1.2.1` revealed that the existing fork specifically bundles `iscsiadm` for Talos compat (upstream image expects host iscsiadm that Talos doesn't expose). Reverted to the fork build with a `~/.claude` follow-up note explaining why.
+- **Synology DSM credentials** (`client-info-secret`) moved to an ExternalSecret pulling from 1Password, matching the atuin pattern.
+- **Synology orphan LUN cleanup**: 24 LUNs deleted, **~2.6 TB reclaimed** on the NAS pool. Added `scripts/synology-lun-cleanup.py` (uv self-contained) with `--auto-discover` (cross-references kubectl PVs against DSM LUN list to identify orphans), proper timeouts, and per-LUN error handling.
+- **Argo CD upgraded v3.3.8 → v3.3.9** for [GHSA-3v3m-wc6v-x4x3](https://github.com/argoproj/argo-cd/security/advisories/GHSA-3v3m-wc6v-x4x3) (CVSS 9.6 — Kubernetes Secret extraction via ServerSideDiff; we actively use ServerSideDiff so were squarely in-scope).
+- **Zot helm chart bumped 0.1.91 → 0.1.112** (picks up the maintainers' resolution of the auth-probes issues) + dead `dockerhub.phillips-homelab.net` Blocky entry removed.
+- **Glance homepage** shipped at apex `phillips-homelab.net` with HN, Lobsters, reddit, releases monitor (PR #214).
+- **WAN upgraded to AT&T 2 Gbps fiber** (April 25 visit, finished verifying May) — BGW620 ISP modem bypassed via WAS-110 SFP+ ONT stick with spoofed BGW320 certs, fiber lands directly in the UCG-Fiber gateway. DNS migrated from AWS Route53 to Cloudflare for the cert-manager DNS-01 path.
 
 ### April 2026
 - Major cluster upgrade: Talos Linux v1.9.2 → v1.12.6 (stepped through v1.9.6, v1.10.9, v1.11.6)
@@ -257,7 +292,7 @@ The GPU node (homelab-04) required special configuration to enable NVIDIA GPU su
 
 ### Prerequisites
 1. Omni account for cluster management
-2. AWS Route53 domain for DNS challenges
+2. Cloudflare-managed DNS zone for cert-manager DNS-01 challenges (was AWS Route53 pre-April 2026)
 3. 1Password account with Connect API access
 4. Synology NAS with DSM 7.0+
 
@@ -296,4 +331,4 @@ This repository serves as both documentation and configuration for my personal h
 
 ---
 
-*Last updated: April 2026*
+*Last updated: May 2026*
