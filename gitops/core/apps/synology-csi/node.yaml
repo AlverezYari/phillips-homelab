@@ -52,7 +52,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        image: ghcr.io/alverezyari/synology-csi:v1.2.0.2
+        image: synology/synology-csi:v1.2.1
         imagePullPolicy: IfNotPresent
         name: csi-plugin
         securityContext:
