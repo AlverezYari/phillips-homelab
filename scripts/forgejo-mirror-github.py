@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
+import subprocess
 import sys
 from typing import Any
 
@@ -47,6 +48,24 @@ from rich.table import Table
 from rich.prompt import Confirm
 
 console = Console()
+
+
+def resolve_github_token() -> str:
+    """Prefer GITHUB_TOKEN env, then `gh auth token`, then interactive prompt."""
+    if os.environ.get("GITHUB_TOKEN"):
+        return os.environ["GITHUB_TOKEN"]
+    try:
+        proc = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True, text=True, check=True, timeout=5,
+        )
+        token = proc.stdout.strip()
+        if token:
+            console.print("[dim]using token from `gh auth token`[/dim]")
+            return token
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return getpass.getpass("GitHub PAT (read:contents): ")
 
 
 def list_github_repos(
@@ -173,9 +192,7 @@ def main() -> int:
 
     skip_set = {s.strip() for s in args.skip.split(",") if s.strip()}
 
-    github_token = os.environ.get("GITHUB_TOKEN") or getpass.getpass(
-        f"GitHub PAT (read:contents for {args.github_user}'s repos): "
-    )
+    github_token = resolve_github_token()
     forgejo_token = os.environ.get("FORGEJO_TOKEN") or getpass.getpass(
         f"Forgejo PAT (write:repository for {args.forgejo_owner}@{args.forgejo_url}): "
     )
