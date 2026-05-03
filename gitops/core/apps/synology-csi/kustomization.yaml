@@ -6,6 +6,7 @@ resources:
   - csidriver.yaml
   - serviceaccounts.yaml
   - rbac.yaml
+  - externalsecret.yaml
   - controller.yaml
   - node.yaml
   - snapshotter.yaml
