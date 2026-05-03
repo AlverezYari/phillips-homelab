@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+    spec:
+      priorityClassName: system-node-critical
+      runtimeClassName: nvidia
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+      # Use Exists rather than a version-pinned label so future Talos
+      # extension version bumps don't break GPU scheduling. The label is
+      # set by the siderolabs/nvidia-open-gpu-kernel-modules-lts extension
+      # (presence-only check is enough — the value tracks Talos version).
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: extensions.talos.dev/nvidia-open-gpu-kernel-modules-lts
+                    operator: Exists
+      containers:
+        - name: nvidia-device-plugin-ctr
+          image: nvcr.io/nvidia/k8s-device-plugin:v0.16.2
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config-file=/etc/nvidia/k8s-device-plugin/config.yaml
+          env:
+            - name: FAIL_ON_INIT_ERROR
+              value: "false"
+            - name: NVIDIA_DRIVER_ROOT
+              value: /
+            - name: PASS_DEVICE_SPECS
+              value: "true"
+            - name: DEVICE_LIST_STRATEGY
+              value: envvar
+            - name: DEVICE_ID_STRATEGY
+              value: uuid
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: all
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - SYS_ADMIN
+              drop:
+                - ALL
+          volumeMounts:
+            - mountPath: /var/lib/kubelet/device-plugins
+              name: device-plugin
+            - mountPath: /dev
+              name: dev
+            - mountPath: /etc/nvidia/k8s-device-plugin
+              name: config
+              readOnly: true
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: config
+          configMap:
+            name: nvidia-device-plugin-config

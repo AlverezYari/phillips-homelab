@@ -21,7 +21,11 @@ spec:
 
         nodeSelector:
           kubernetes.io/hostname: homelab-04
-        
+
+        # Run with the NVIDIA container runtime so /dev/nvidia* + libs are
+        # plumbed through, enabling NVENC/NVDEC for hardware transcoding.
+        runtimeClassName: nvidia
+
         persistence:
           config:
             enabled: true
@@ -48,9 +52,11 @@ spec:
           limits:
             memory: 8Gi
             cpu: 4000m
+            nvidia.com/gpu: 1
           requests:
             cpu: 2000m
             memory: 4Gi
+            nvidia.com/gpu: 1
         
         env:
           TZ: "America/Chicago"

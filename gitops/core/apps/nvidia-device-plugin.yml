@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nvidia-device-plugin
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  project: default
+  # Adopting the live install (drift item #4 in the cluster-drift-to-gitops
+  # memory). This PR also: (a) switches nodeSelector → nodeAffinity Exists
+  # (drift memory's other ask for this resource), and (b) introduces a
+  # time-slicing ConfigMap so the single RTX 2080 SUPER advertises as 4
+  # replicas — letting Ollama and Jellyfin (and future GPU consumers)
+  # share the card.
+  ignoreDifferences:
+    # Daemonset controller maintains the deprecated.daemonset.template.generation
+    # annotation, plus the kubectl-rollout-restart timestamp.
+    - group: apps
+      kind: DaemonSet
+      jsonPointers:
+        - /metadata/annotations
+        - /spec/template/metadata/annotations
+  source:
+    path: gitops/core/apps/nvidia-device-plugin
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - ServerSideDiff=true
