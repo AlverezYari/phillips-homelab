@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-device-plugin-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    version: v1
+    flags:
+      migStrategy: none
+    sharing:
+      timeSlicing:
+        # Advertise the single physical GPU as N "replicas" — k8s scheduler
+        # treats them as independent units, the NVIDIA runtime time-slices
+        # CUDA contexts between them. 4 is comfortable for our mixed workload
+        # (Ollama + Jellyfin + room for future GPU consumers); raise/lower
+        # as needed without disrupting existing workloads.
+        resources:
+          - name: nvidia.com/gpu
+            replicas: 4
