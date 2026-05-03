@@ -35,6 +35,13 @@ spec:
       kind: DaemonSet
       jsonPointers:
         - /spec/template/metadata/annotations
+    # ESO mutates these post-admission with defaults; matches atuin pattern.
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/refreshInterval
+        - /spec/target/deletionPolicy
+        - /spec/data
   source:
     path: gitops/core/apps/synology-csi
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
