@@ -69,6 +69,8 @@ spec:
               ADAPTER: memory
             session:
               PROVIDER: memory
+            service:
+              DISABLE_REGISTRATION: true
           additionalConfigFromEnvs:
             - name: GITEA__database__PASSWD
               valueFrom:
