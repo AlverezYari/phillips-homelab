@@ -1,0 +1,99 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: synology-csi-node
+  namespace: synology-csi
+spec:
+  selector:
+    matchLabels:
+      app: synology-csi-node
+  template:
+    metadata:
+      labels:
+        app: synology-csi-node
+    spec:
+      containers:
+      - args:
+        - --v=5
+        - --csi-address=$(ADDRESS)
+        - --kubelet-registration-path=$(REGISTRATION_PATH)
+        env:
+        - name: ADDRESS
+          value: /csi/csi.sock
+        - name: REGISTRATION_PATH
+          value: /var/lib/kubelet/plugins/csi.san.synology.com/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.3.0
+        imagePullPolicy: Always
+        name: csi-driver-registrar
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /csi
+          name: plugin-dir
+        - mountPath: /registration
+          name: registration-dir
+      - args:
+        - --nodeid=$(KUBE_NODE_NAME)
+        - --endpoint=$(CSI_ENDPOINT)
+        - --client-info
+        - /etc/synology/client-info.yml
+        - --log-level=info
+        env:
+        - name: CSI_ENDPOINT
+          value: unix://csi/csi.sock
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: ghcr.io/alverezyari/synology-csi:v1.2.0.2
+        imagePullPolicy: IfNotPresent
+        name: csi-plugin
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/kubelet
+          mountPropagation: Bidirectional
+          name: kubelet-dir
+        - mountPath: /csi
+          name: plugin-dir
+        - mountPath: /etc/synology
+          name: client-info
+          readOnly: true
+        - mountPath: /host
+          name: host-root
+        - mountPath: /dev
+          name: device-dir
+      hostNetwork: true
+      hostPID: true
+      serviceAccountName: csi-node-sa
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+        name: kubelet-dir
+      - hostPath:
+          path: /var/lib/kubelet/plugins/csi.san.synology.com/
+          type: DirectoryOrCreate
+        name: plugin-dir
+      - hostPath:
+          path: /var/lib/kubelet/plugins_registry
+          type: Directory
+        name: registration-dir
+      - name: client-info
+        secret:
+          secretName: client-info-secret
+      - hostPath:
+          path: /
+          type: Directory
+        name: host-root
+      - hostPath:
+          path: /dev
+          type: Directory
+        name: device-dir
