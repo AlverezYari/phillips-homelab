@@ -46,7 +46,7 @@ spec:
             type: ClusterIP
             port: 3000
           ssh:
-            type: ClusterIP
+            type: LoadBalancer
             port: 22
 
         ingress:
@@ -57,7 +57,11 @@ spec:
             server:
               ROOT_URL: https://code.phillips-homelab.net
               DOMAIN: code.phillips-homelab.net
-              DISABLE_SSH: true
+              DISABLE_SSH: false
+              START_SSH_SERVER: true
+              SSH_LISTEN_PORT: 2222
+              SSH_PORT: 22
+              SSH_DOMAIN: code.phillips-homelab.net
               OFFLINE_MODE: false
             database:
               DB_TYPE: postgres
