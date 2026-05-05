@@ -1,8 +1,36 @@
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
 metadata:
-  name: default-l2-announcement-policy
+  name: lan-2g5-announcement-policy
   namespace: kube-system
 spec:
   externalIPs: true
   loadBalancerIPs: true
+  nodeSelector:
+    matchExpressions:
+      - key: kubernetes.io/hostname
+        operator: In
+        values:
+          - homelab-02
+          - homelab-04
+  interfaces:
+    - "^enp5s0f3u2$"
+    - "^enp12s0$"
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: lan-1g-announcement-policy
+  namespace: kube-system
+spec:
+  externalIPs: true
+  loadBalancerIPs: true
+  nodeSelector:
+    matchExpressions:
+      - key: kubernetes.io/hostname
+        operator: In
+        values:
+          - homelab-01
+          - homelab-03
+  interfaces:
+    - "^eno1$"
