@@ -18,8 +18,6 @@ patches:
     file: patches/extraManifests.yml
   - name: metrics-server
     file: patches/metrics-server.yml
-  - name: nameservers
-    file: patches/nameservers.yml
 ---
 kind: ControlPlane
 machines:
@@ -93,6 +91,9 @@ kind: Machine
 name: 169b5237-8624-af49-8f83-98bd808f9e04
 install:
   disk: /dev/nvme0n1
+patches:
+  - name: nameservers-local
+    file: patches/nameservers-local.yml
 ---
 kind: Machine
 name: 76567b10-4884-4b1d-abc5-345a60522d43
