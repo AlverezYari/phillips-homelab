@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: varnish-vcl
+  namespace: tatl
+  labels:
+    app.kubernetes.io/name: varnish
+data:
+  default.vcl: |
+    vcl 4.1;
+
+    backend tatl {
+        .host = "tatl.tatl.svc.cluster.local";
+        .port = "8080";
+        .connect_timeout = 5s;
+        .first_byte_timeout = 30s;
+        .between_bytes_timeout = 10s;
+    }
+
+    sub vcl_recv {
+        set req.backend_hint = tatl;
+
+        if (req.http.Cookie ~ "(^|;\s*)(_session|session|auth|token|csrf|logged_in)=") {
+            return (pass);
+        }
+
+        unset req.http.Cookie;
+    }
+
+    sub vcl_backend_response {
+        # tatl's cacheControl shim emits "public, max-age=…" on cacheable paths.
+        # Strip Set-Cookie so the built-in VCL doesn't mark the response uncacheable
+        # (Rails attaches a CSRF Set-Cookie to every response).
+        if (beresp.http.Cache-Control ~ "public") {
+            unset beresp.http.Set-Cookie;
+        }
+    }
+
+    sub vcl_deliver {
+        if (obj.hits > 0) {
+            set resp.http.X-Cache = "HIT";
+            set resp.http.X-Cache-Hits = obj.hits;
+        } else {
+            set resp.http.X-Cache = "MISS";
+        }
+    }
