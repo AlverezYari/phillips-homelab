@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: varnish
+  namespace: tatl
+  labels:
+    app.kubernetes.io/name: varnish
+    app.kubernetes.io/component: http-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: varnish
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: varnish
+      annotations:
+        # Bump when default.vcl changes to force a rolling restart.
+        tatl.dev/vcl-hash: "v1"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: varnish
+          image: varnish:7.6-alpine
+          args:
+            - varnishd
+            - -F
+            - -f
+            - /etc/varnish/default.vcl
+            - -a
+            - "0.0.0.0:80"
+            - -s
+            - "malloc,256m"
+            - -p
+            - "default_ttl=600"
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: vcl
+              mountPath: /etc/varnish
+              readOnly: true
+            - name: workdir
+              mountPath: /var/lib/varnish
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: vcl
+          configMap:
+            name: varnish-vcl
+        - name: workdir
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

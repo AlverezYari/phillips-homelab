@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: varnish
+  namespace: tatl
+  labels:
+    app.kubernetes.io/name: varnish
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: varnish
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP

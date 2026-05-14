@@ -450,6 +450,6 @@ spec:
   - tatl.phillips-homelab.net
   rules:
   - backendRefs:
-    - name: tatl
+    - name: varnish
       namespace: tatl
-      port: 8080
+      port: 80
