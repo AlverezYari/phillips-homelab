@@ -31,7 +31,12 @@ data:
             return (pass);
         }
 
-        if (req.http.Cookie ~ "(^|;\s*)(_session|session|auth|token|csrf|logged_in)=") {
+        # Substring match (not anchored to cookie-name start) so Rails-style
+        # prefixed names like `_exchange_session=` get caught. The old anchored
+        # form only matched cookies whose NAME began with the marker, which
+        # missed every app-prefixed session cookie. Mirrors tatl's
+        # hasAuthCookie substring semantics.
+        if (req.http.Cookie ~ "(session|auth|token|csrf|logged_in)=") {
             return (pass);
         }
 
