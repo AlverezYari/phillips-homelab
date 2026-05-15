@@ -13,8 +13,11 @@ data:
         .host = "tatl.tatl.svc.cluster.local";
         .port = "8080";
         .connect_timeout = 5s;
-        .first_byte_timeout = 30s;
-        .between_bytes_timeout = 10s;
+        # Cold /xx/ pages with multiple LLM chunks can legitimately run
+        # 30-60s before tatl writes the first byte. Bumped from 30s so
+        # Varnish doesn't 503 a real-but-slow cold translation.
+        .first_byte_timeout = 90s;
+        .between_bytes_timeout = 30s;
     }
 
     sub vcl_recv {
