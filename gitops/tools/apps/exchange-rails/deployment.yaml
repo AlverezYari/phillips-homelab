@@ -32,6 +32,11 @@ spec:
               value: "1"
             - name: RAILS_SERVE_STATIC_FILES
               value: "1"
+            # Dev-only fixture key (same one previously hardcoded in the
+            # repo's Dockerfile). Rotate + move to ExternalSecret before
+            # anything resembling production.
+            - name: SECRET_KEY_BASE
+              value: "***REMOVED***"
             # DATABASE_URL composed from CNPG-published app secret.
             # CNPG creates `exchange-rails-pg-app` with these fields.
             - name: DATABASE_URL
