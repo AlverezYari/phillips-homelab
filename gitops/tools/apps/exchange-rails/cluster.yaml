@@ -1,0 +1,23 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: exchange-rails-pg
+  namespace: tatl
+spec:
+  instances: 1
+
+  storage:
+    storageClass: syno-iscsi-default
+    size: 10Gi
+
+  bootstrap:
+    initdb:
+      database: quanthub_on_rails_production
+      owner: quanthub_on_rails
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
