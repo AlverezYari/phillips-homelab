@@ -17,7 +17,7 @@ spec:
         app.kubernetes.io/name: varnish
       annotations:
         # Bump when default.vcl changes to force a rolling restart.
-        tatl.dev/vcl-hash: "v2"
+        tatl.dev/vcl-hash: "v3"
     spec:
       securityContext:
         runAsNonRoot: true

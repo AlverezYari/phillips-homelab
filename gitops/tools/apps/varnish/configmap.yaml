@@ -23,6 +23,14 @@ data:
     sub vcl_recv {
         set req.backend_hint = tatl;
 
+        # Auth endpoints: always pass, never touch cookies. Without this,
+        # the cookie-strip below kills CSRF on first GET /login, and the
+        # Set-Cookie strip in vcl_backend_response can kill the session
+        # cookie if Rails ever emits Cache-Control: public on these paths.
+        if (req.url ~ "^/(login|session|logout|sign_in|sign_out|users/sign_)") {
+            return (pass);
+        }
+
         if (req.http.Cookie ~ "(^|;\s*)(_session|session|auth|token|csrf|logged_in)=") {
             return (pass);
         }
