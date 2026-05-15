@@ -27,7 +27,7 @@ spec:
             - name: PORT
               value: "3000"
             - name: RAILS_ENV
-              value: production
+              value: prod_k8s
             - name: RAILS_LOG_TO_STDOUT
               value: "1"
             - name: RAILS_SERVE_STATIC_FILES
