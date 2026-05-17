@@ -27,7 +27,7 @@ data:
       - name: Tempo
         type: tempo
         uid: tempo
-        url: http://tempo.monitoring.svc:3100
+        url: http://tempo.monitoring.svc:3200
         access: proxy
         editable: false
         jsonData:
