@@ -1,0 +1,93 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: default
+  # Same drift-ignore pattern as loki.yml: the chart re-renders ConfigMap
+  # data and template-checksum annotations on each sync.
+  ignoreDifferences:
+  - group: ""
+    kind: ConfigMap
+    jsonPointers:
+    - /data
+  - group: apps
+    kind: StatefulSet
+    jsonPointers:
+    - /spec/template/metadata/annotations
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    targetRevision: 1.24.4
+    helm:
+      values: |
+        # grafana/tempo (single-binary). Reuses the existing
+        # garage-s3-credentials Secret that Loki already consumes -- one
+        # Garage key (loki-key) with RW access to both `chunks`/`ruler`
+        # (Loki) and `tempo-traces` (Tempo).
+        tempo:
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+          storage:
+            trace:
+              backend: s3
+              s3:
+                bucket: tempo-traces
+                endpoint: garage.garage.svc:3900
+                region: garage
+                insecure: true
+                forcepathstyle: true
+          retention: 336h  # 14 days
+          metricsGenerator:
+            enabled: false
+          extraEnv:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: garage-s3-credentials
+                  key: access_key_id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-s3-credentials
+                  key: secret_access_key
+
+        persistence:
+          enabled: true
+          storageClassName: syno-iscsi-default
+          size: 10Gi
+
+        replicas: 1
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+
+        service:
+          type: ClusterIP
+
+        serviceMonitor:
+          enabled: false
+
+        ingress:
+          enabled: false
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

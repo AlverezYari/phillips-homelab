@@ -24,3 +24,14 @@ data:
         editable: false
         jsonData:
           maxLines: 1000
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.monitoring.svc:3100
+        access: proxy
+        editable: false
+        jsonData:
+          nodeGraph:
+            enabled: true
+          serviceMap:
+            datasourceUid: prometheus

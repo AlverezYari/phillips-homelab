@@ -1,0 +1,124 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opentelemetry-collector
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: default
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/template/metadata/annotations
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.156.0
+    helm:
+      values: |
+        # Gateway-style collector: single Deployment that apps ship OTLP to.
+        # No agent DaemonSet in Phase 1 -- Vector still owns logs->Loki, and
+        # we only need a trace pipeline to start.
+        mode: deployment
+        replicaCount: 1
+
+        # Override the long default name (`{{release}}-opentelemetry-collector`)
+        # so apps can target `otel-collector.monitoring.svc:4317`.
+        fullnameOverride: otel-collector
+
+        image:
+          repository: otel/opentelemetry-collector-k8s
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+        # Use a clean config (don't merge with chart presets which assume
+        # tail-sampling / k8s-attrs we don't want yet).
+        presets:
+          logsCollection:
+            enabled: false
+          kubernetesAttributes:
+            enabled: false
+        config:
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+          processors:
+            batch:
+              # Tempo accepts batches; tune later from real volume.
+              send_batch_size: 1024
+              timeout: 5s
+            memory_limiter:
+              check_interval: 5s
+              limit_percentage: 80
+              spike_limit_percentage: 25
+          exporters:
+            otlp/tempo:
+              endpoint: tempo.monitoring.svc:4317
+              tls:
+                insecure: true
+            debug:
+              verbosity: basic
+          extensions:
+            health_check:
+              endpoint: 0.0.0.0:13133
+          service:
+            extensions: [health_check]
+            telemetry:
+              metrics:
+                level: basic
+            pipelines:
+              traces:
+                receivers: [otlp]
+                processors: [memory_limiter, batch]
+                exporters: [otlp/tempo]
+
+        # Expose OTLP via a ClusterIP service named `otel-collector`.
+        service:
+          enabled: true
+          type: ClusterIP
+        ports:
+          otlp:
+            enabled: true
+            containerPort: 4317
+            servicePort: 4317
+            protocol: TCP
+          otlp-http:
+            enabled: true
+            containerPort: 4318
+            servicePort: 4318
+            protocol: TCP
+          # Disable defaults we don't need.
+          jaeger-compact:
+            enabled: false
+          jaeger-thrift:
+            enabled: false
+          jaeger-grpc:
+            enabled: false
+          zipkin:
+            enabled: false
+          metrics:
+            enabled: false
+
+        serviceMonitor:
+          enabled: false
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
