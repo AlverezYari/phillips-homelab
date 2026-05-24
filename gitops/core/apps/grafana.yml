@@ -59,6 +59,10 @@ spec:
           type: pvc
           enabled: true
           size: 5Gi
+        service:
+          annotations:
+            tailscale.com/expose: "true"
+            tailscale.com/hostname: grafana
         sidecar:
           dashboards:
             enabled: true
