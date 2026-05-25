@@ -1,0 +1,13 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: tipoff-pg
+  namespace: tipoff
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: tipoff-pg
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

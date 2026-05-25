@@ -1,0 +1,23 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: tipoff-pg
+  namespace: tipoff
+spec:
+  instances: 1
+
+  storage:
+    storageClass: syno-iscsi-default
+    size: 20Gi
+
+  bootstrap:
+    initdb:
+      database: tipoff
+      owner: tipoff
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
