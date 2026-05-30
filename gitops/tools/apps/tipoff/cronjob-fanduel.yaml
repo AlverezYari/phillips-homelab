@@ -1,0 +1,139 @@
+# FanDuel game-lines ingest CronJob.
+#
+# FanDuel's sbapi is geo-fenced to licensed states, so this job (and
+# ONLY this job) egresses through a Tailscale exit node located in a
+# legal state. The isolation is deliberately narrow:
+#
+#   * A userspace `tailscaled` sidecar joins the tailnet and exposes a
+#     local SOCKS5 proxy pointed at the exit node.
+#   * The `feed` binary routes ONLY its FanDuel HTTP client through that
+#     proxy (FANDUEL_SOCKS5). Its Postgres connection and every other
+#     source keep dialing direct — the DB never leaves the cluster.
+#
+# So nothing else in the cluster knows the exit node exists. See
+# internal/ingest/fanduel/{client,socks5}.go.
+#
+# FanDuel is a primary source (the page carries full event identity), so
+# it has no ordering dependency on the pinnacle chain; it shares the */5
+# tick. concurrencyPolicy: Forbid + idempotent writes mean a missed or
+# overlapping tick self-heals.
+#
+# Prereqs (created out of band):
+#   * Secret `tipoff-fanduel-tsauth` key `authkey` — an EPHEMERAL,
+#     pre-authorized, tagged (tag:fanduel-egress) Tailscale auth key.
+#     Ephemeral so each 5-min run's node auto-reaps from the tailnet.
+#   * Tailnet ACL granting tag:fanduel-egress use of the exit node, and
+#     an approved exit node advertised as `fanduel-egress`.
+#
+# NOTE: native sidecars (initContainer with restartPolicy: Always) need
+# Kubernetes 1.28+ (GA in 1.29). The main container waits for the
+# sidecar's startupProbe to pass, so `feed` won't fire until the node
+# has joined the tailnet.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tipoff-ingest-fanduel
+  labels:
+    app.kubernetes.io/name: tipoff-ingest-fanduel
+    app.kubernetes.io/component: ingest
+    tipoff.io/source: fanduel
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 240
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: tipoff-ingest-fanduel
+            tipoff.io/source: fanduel
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            # tailscaled needs a writable state dir even with an
+            # ephemeral key; an emptyDir keeps the container's root fs
+            # otherwise untouched and is discarded with the pod.
+            - name: ts-state
+              emptyDir: {}
+          initContainers:
+            # Native sidecar: starts before `feed`, torn down after it.
+            - name: ts-exit
+              image: tailscale/tailscale:v1.78.1
+              restartPolicy: Always
+              env:
+                - name: TS_AUTHKEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: tipoff-fanduel-tsauth
+                      key: authkey
+                - name: TS_USERSPACE
+                  value: "true" # no NET_ADMIN / tun device required
+                - name: TS_AUTH_ONCE
+                  value: "true"
+                - name: TS_KUBE_SECRET
+                  value: "" # ephemeral key → don't persist state to a Secret
+                - name: TS_STATE_DIR
+                  value: /var/lib/tailscale
+                - name: TS_EXTRA_ARGS
+                  value: "--exit-node=fanduel-egress --socks5-server=127.0.0.1:1055 --hostname=tipoff-fanduel"
+              volumeMounts:
+                - name: ts-state
+                  mountPath: /var/lib/tailscale
+              startupProbe:
+                # Gate `feed` until the node has joined the tailnet (it
+                # only gets a 100.x address once authed). exit-node use is
+                # configured by --exit-node above.
+                exec:
+                  command: ["tailscale", "ip", "-4"]
+                periodSeconds: 2
+                failureThreshold: 30 # ~60s to come up
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+          containers:
+            - name: feed
+              image: tipoff # rewritten by kustomization.yaml
+              args: ["ingest", "fanduel"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: tipoff-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+                - name: FANDUEL_SOCKS5
+                  value: "127.0.0.1:1055" # the sidecar's SOCKS5 listener
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532 # distroless `nonroot` UID
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
