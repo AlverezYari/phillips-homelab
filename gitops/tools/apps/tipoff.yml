@@ -18,6 +18,19 @@ spec:
     path: gitops/tools/apps/tipoff
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
     targetRevision: main
+  # The Tailscale operator rewrites the fanduel-egress Service's
+  # spec.externalName to its proxy address after we create it. Without
+  # this, selfHeal would revert it to the placeholder every sync and
+  # break FanDuel egress. RespectIgnoreDifferences makes the sync apply
+  # honor the ignore (not just the diff view). See
+  # apps/tipoff/egress-fanduel.yaml.
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      name: fanduel-egress
+      namespace: tipoff
+      jsonPointers:
+        - /spec/externalName
   syncPolicy:
     automated:
       prune: true
@@ -26,3 +39,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - ServerSideDiff=true
+      - RespectIgnoreDifferences=true

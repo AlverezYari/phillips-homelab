@@ -1,0 +1,45 @@
+# Tailscale operator egress to the Chicago exit box.
+#
+# The FanDuel sbapi is geo-fenced, so its ingest must egress from a
+# legal state. Rather than run a tailscale sidecar inside the ingest pod
+# (fragile in a Job, and it kept the pod un-loggable), we use the
+# operator's cluster-egress: this ExternalName Service makes the operator
+# stand up a proxy that forwards cluster TCP to the tailnet device
+# fanduel-egress (the RackNerd box in Chicago, 100.119.129.103). A
+# microsocks SOCKS5 daemon runs on that box, bound to its tailnet IP at
+# :1055 (tailnet-only, never exposed to the box's public internet).
+#
+# The feed FanDuel client dials this Service's in-cluster DNS name
+# (fanduel-egress.tipoff.svc.cluster.local:1055) as its SOCKS5 proxy, so
+# only FanDuel traffic takes the Chicago path; Postgres + other sources
+# stay direct. The ingest pod is then a plain single container — it logs
+# to Loki like every other source.
+#
+# We target the device by its MagicDNS FQDN (tailnet-fqdn), matching the
+# proven egress pattern already running in this cluster (tatl/dev-rails)
+# on operator v1.90.9.
+#
+# IMPORTANT: the operator REWRITES spec.externalName below to the proxy's
+# in-cluster address after this Service is created. Argo's selfHeal would
+# otherwise revert that rewrite and break egress, so the tipoff Argo
+# Application (apps/tipoff.yml) ignoreDifferences this field plus
+# RespectIgnoreDifferences. Keep the two in sync.
+apiVersion: v1
+kind: Service
+metadata:
+  name: fanduel-egress
+  namespace: tipoff
+  labels:
+    app.kubernetes.io/name: fanduel-egress
+    app.kubernetes.io/component: egress
+    tipoff.io/source: fanduel
+  annotations:
+    tailscale.com/tailnet-fqdn: fanduel-egress.tail852f61.ts.net
+spec:
+  type: ExternalName
+  externalName: placeholder # operator rewrites this to the proxy address
+  ports:
+    - name: socks5
+      port: 1055
+      targetPort: 1055
+      protocol: TCP
