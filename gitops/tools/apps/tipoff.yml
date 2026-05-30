@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tipoff
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # After tipoff-db (wave 0) so the CNPG cluster + tipoff-pg-app secret
+    # exist before the migrate hook and workloads run.
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tipoff
+  project: default
+  source:
+    path: gitops/tools/apps/tipoff
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true

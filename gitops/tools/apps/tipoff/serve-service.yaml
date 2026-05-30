@@ -1,0 +1,23 @@
+# ClusterIP Service for the feed serve API.
+#
+# Reachable from the tailnet at http://tipoff:8080 (MagicDNS) via the
+# tailscale-operator proxy — no subnet router needed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tipoff-serve
+  labels:
+    app.kubernetes.io/name: tipoff-serve
+    app.kubernetes.io/component: api
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: tipoff
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: tipoff-serve
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,33 @@
+# tipoff application workload (the app side; the CNPG database lives in
+# the sibling tipoff-db app). Vendored from the tipoff repo's
+# deploy/base — this gitops copy is the source of truth for what runs in
+# the cluster. FanDuel ingest is intentionally not here yet; it lands in
+# a follow-up once its Tailscale exit-node egress is wired.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: tipoff
+
+resources:
+  - migrate-job.yaml
+  - cronjob-pinnacle.yaml
+  - cronjob-pinnacle-props.yaml
+  - cronjob-polymarket.yaml
+  - cronjob-novig.yaml
+  - cronjob-novig-props.yaml
+  - serve-deployment.yaml
+  - serve-service.yaml
+
+# Single point of override for the image tag. Bump this to deploy a new
+# build; Argo syncs it. (`feed migrate up` runs as a PreSync hook, so a
+# tag carrying new migrations applies them before the workloads roll.)
+images:
+  - name: tipoff
+    newName: zot.phillips-homelab.net/tipoff
+    newTag: props-8a85365
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: tipoff
+      app.kubernetes.io/managed-by: kustomize

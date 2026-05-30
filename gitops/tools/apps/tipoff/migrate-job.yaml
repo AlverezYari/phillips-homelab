@@ -1,0 +1,46 @@
+# Schema migration Job, run as an Argo CD PreSync hook.
+#
+# As a hook (rather than a plain Job) it re-runs on every sync and is
+# recreated before each run, so bumping the image to a tag with new
+# migrations applies them automatically — no manual delete+apply. The
+# CronJobs and serve Deployment depend on it having run; PreSync ordering
+# guarantees that within a sync. `feed migrate up` is idempotent.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tipoff-migrate
+  labels:
+    app.kubernetes.io/name: tipoff-migrate
+    app.kubernetes.io/component: migrate
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 120
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tipoff-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: tipoff # rewritten by kustomization.yaml
+          args: ["migrate", "up"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tipoff-pg-app
+                  key: uri
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault

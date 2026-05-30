@@ -1,0 +1,67 @@
+# Pinnacle player-points props CronJob.
+#
+# Walks the matchups list for type=special + units=Points +
+# special.category=Player Props and emits one line row per priced
+# Over/Under side per player. Depends on the game ingest having run
+# first because props attach to the pre-existing event row.
+#
+# Cadence: 1-min offset from the pinnacle game ingest (which runs at
+# minute 0,5,10,...) so the parent game event is in the db before
+# props look it up. On first deploy the first run will skip every
+# game (no parent events yet) and log it loudly — subsequent cycles
+# self-heal.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tipoff-ingest-pinnacle-props
+  labels:
+    app.kubernetes.io/name: tipoff-ingest-pinnacle-props
+    app.kubernetes.io/component: ingest
+    tipoff.io/source: pinnacle-props
+spec:
+  schedule: "1-59/5 * * * *"   # 1,6,11,...  1-min offset from pinnacle */5
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 240
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: tipoff-ingest-pinnacle-props
+            tipoff.io/source: pinnacle-props
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: feed
+              image: tipoff   # rewritten by kustomization.yaml
+              args: ["ingest", "pinnacle-props"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: tipoff-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
