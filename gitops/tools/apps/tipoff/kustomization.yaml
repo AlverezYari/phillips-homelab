@@ -23,7 +23,7 @@ resources:
 images:
   - name: tipoff
     newName: zot.phillips-homelab.net/tipoff
-    newTag: props-8a85365
+    newTag: e4cfb03
 
 labels:
   - includeSelectors: false
