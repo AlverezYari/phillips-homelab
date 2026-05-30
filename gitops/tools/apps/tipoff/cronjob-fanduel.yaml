@@ -55,6 +55,16 @@ spec:
             tipoff.io/source: fanduel
         spec:
           restartPolicy: OnFailure
+          securityContext:
+            # Namespace inherits the cluster-default `restricted` PSS.
+            # Userspace tailscale needs no root; fsGroup makes the
+            # emptyDir state dir group-writable by the non-root user.
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            fsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
           volumes:
             # tailscaled needs a writable state dir even with an
             # ephemeral key; an emptyDir keeps the container's root fs
@@ -95,6 +105,9 @@ spec:
                 failureThreshold: 30 # ~60s to come up
               securityContext:
                 allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
                 capabilities:
                   drop: ["ALL"]
                 seccompProfile:
