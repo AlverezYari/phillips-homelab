@@ -1,8 +1,12 @@
-# tipoff application workload (the app side; CNPG database is in the
-# sibling tipoff-db app). Vendored from the tipoff repo's deploy/base;
-# this gitops copy is the source of truth. FanDuel ingest egresses
-# through a Tailscale exit node via a userspace sidecar; its auth key
-# comes from externalsecret-fanduel-tsauth.yaml.
+# tipoff application workload (the app side; the CNPG database lives in
+# the sibling tipoff-db app). Vendored from the tipoff repo's
+# deploy/base — this gitops copy is the source of truth for what runs in
+# the cluster.
+#
+# FanDuel ingest egresses through the Chicago Tailscale exit box via the
+# operator's cluster-egress (egress-fanduel.yaml), not an in-pod sidecar,
+# so the ingest pod is a plain single container that logs to Loki like
+# every other source.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -16,10 +20,13 @@ resources:
   - cronjob-novig.yaml
   - cronjob-novig-props.yaml
   - cronjob-fanduel.yaml
-  - externalsecret-fanduel-tsauth.yaml
+  - egress-fanduel.yaml
   - serve-deployment.yaml
   - serve-service.yaml
 
+# Single point of override for the image tag. Bump this to deploy a new
+# build; Argo syncs it. (`feed migrate up` runs as a PreSync hook, so a
+# tag carrying new migrations applies them before the workloads roll.)
 images:
   - name: tipoff
     newName: zot.phillips-homelab.net/tipoff
