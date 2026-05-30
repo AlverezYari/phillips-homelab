@@ -1,0 +1,66 @@
+# Polymarket ingest CronJob.
+#
+# Polymarket depends on Pinnacle having populated the event table for
+# tonight's games (see internal/ingest/polymarket/ingest.go), so this
+# runs 2 minutes after each Pinnacle slot. The dependency is logged
+# loudly if missed but never crashes — Polymarket simply finds no work
+# and exits cleanly.
+#
+# Cadence matches Pinnacle. Polymarket markets move faster than
+# sportsbook lines on liquid playoff games, so this is the right
+# frequency for CLV-quality data.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tipoff-ingest-polymarket
+  labels:
+    app.kubernetes.io/name: tipoff-ingest-polymarket
+    app.kubernetes.io/component: ingest
+    tipoff.io/source: polymarket
+spec:
+  schedule: "2-59/5 * * * *"   # 2,7,12,17,... — 2 min offset from pinnacle's */5
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 240
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: tipoff-ingest-polymarket
+            tipoff.io/source: polymarket
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: feed
+              image: tipoff
+              args: ["ingest", "polymarket"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: tipoff-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault

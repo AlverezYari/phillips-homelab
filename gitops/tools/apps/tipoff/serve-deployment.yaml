@@ -1,0 +1,86 @@
+# HTTP API Deployment.
+#
+# Reads from Postgres, exposes /healthz, /readyz, /v1/events, /v1/lines/latest,
+# /v1/events/{id}/lines. Liveness uses /healthz (always 200 — only restart on
+# total brokenness); readiness uses /readyz (drops traffic when DB is wedged).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tipoff-serve
+  labels:
+    app.kubernetes.io/name: tipoff-serve
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tipoff-serve
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tipoff-serve
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+        - name: feed
+          image: tipoff
+          args: ["serve"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tipoff-pg-app
+                  key: uri
+            - name: HTTP_ADDR
+              value: ":8080"
+            - name: LOG_LEVEL
+              value: info
+          # startupProbe gives the pool generous time to warm up before
+          # readiness/liveness start applying. Avoids flapping during
+          # rollouts on slow first-connect / first-DB-handshake cycles.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30   # 60s total before giving up on startup
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
