@@ -39,6 +39,9 @@ metadata:
     tipoff.io/source: fanduel
 spec:
   schedule: "*/5 * * * *"
+  # Temporarily suspended while exit-node egress is verified. Flip to
+  # false (one-line PR) once a manual run is confirmed green via Loki.
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 5
@@ -91,7 +94,10 @@ spec:
                 - name: TS_STATE_DIR
                   value: /var/lib/tailscale
                 - name: TS_EXTRA_ARGS
-                  value: "--exit-node=fanduel-egress --socks5-server=127.0.0.1:1055 --hostname=tipoff-fanduel"
+                  # Exit node addressed by tailnet IP, not MagicDNS name:
+                  # hostname resolution isn't reliable at `up` time and a
+                  # failed --exit-node resolution aborts the sidecar.
+                  value: "--exit-node=100.119.129.103 --socks5-server=127.0.0.1:1055 --hostname=tipoff-fanduel"
               volumeMounts:
                 - name: ts-state
                   mountPath: /var/lib/tailscale
