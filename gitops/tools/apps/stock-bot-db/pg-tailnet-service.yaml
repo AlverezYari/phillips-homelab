@@ -1,0 +1,34 @@
+# Tailnet-exposed Postgres endpoint for dev access.
+#
+# CNPG already creates the stock-bot-pg-rw Service that routes to the
+# current primary, but that Service is owned/reconciled by the CNPG
+# operator — annotating it for the tailscale-operator would fight CNPG's
+# reconcile loop. So we stand up a separate plain ClusterIP Service that
+# selects the CNPG primary directly (cnpg.io/cluster + instanceRole:
+# primary) and carry the tailscale-operator expose annotations here. This
+# is the same operator-proxy mechanism tipoff's serve-service uses
+# (tailscale.com/expose + tailscale.com/hostname) — no subnet router.
+#
+# Result: a dev machine on the tailnet reaches Postgres at
+# stock-bot-pg:5432 (MagicDNS) via the operator proxy.
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock-bot-pg-tailnet
+  namespace: stock-bot
+  labels:
+    app.kubernetes.io/name: stock-bot-pg-tailnet
+    app.kubernetes.io/component: db
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: stock-bot-pg
+spec:
+  type: ClusterIP
+  selector:
+    cnpg.io/cluster: stock-bot-pg
+    cnpg.io/instanceRole: primary
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

@@ -1,0 +1,32 @@
+# stock-bot application workload (the app side; the CNPG database lives
+# in the sibling stock-bot-db app). Each command runs the same image with
+# a different arg: ingest pulls from upstream data sources on a cron,
+# serve exposes the HTTP API.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: stock-bot
+
+resources:
+  - migrate-job.yaml
+  - cronjob-quotes.yaml
+  - cronjob-news.yaml
+  - cronjob-edgar.yaml
+  - serve-deployment.yaml
+  - serve-service.yaml
+
+# Single point of override for the image tag. Bump newTag to deploy a new
+# build; Argo syncs it. (`migrate up` runs as a PreSync hook, so a tag
+# carrying new migrations applies them before the workloads roll.)
+# `latest` is a placeholder until the first image build — bump to a real
+# immutable tag after that.
+images:
+  - name: stock-bot
+    newName: zot.phillips-homelab.net/stock-bot
+    newTag: latest
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: stock-bot
+      app.kubernetes.io/managed-by: kustomize

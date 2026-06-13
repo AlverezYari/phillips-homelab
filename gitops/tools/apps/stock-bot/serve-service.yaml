@@ -1,0 +1,23 @@
+# ClusterIP Service for the serve API.
+#
+# Reachable from the tailnet at http://stock-bot:8080 (MagicDNS) via the
+# tailscale-operator proxy — no subnet router needed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock-bot-serve
+  labels:
+    app.kubernetes.io/name: stock-bot-serve
+    app.kubernetes.io/component: api
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: stock-bot
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: stock-bot-serve
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
