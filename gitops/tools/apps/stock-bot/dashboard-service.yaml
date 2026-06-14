@@ -1,0 +1,21 @@
+# ClusterIP Service for the Streamlit dashboard, exposed on the tailnet at
+# http://stock-bot-dash:8501 (MagicDNS) via the tailscale-operator proxy.
+apiVersion: v1
+kind: Service
+metadata:
+  name: stock-bot-dash
+  labels:
+    app.kubernetes.io/name: stock-bot-dash
+    app.kubernetes.io/component: dashboard
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: stock-bot-dash
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: stock-bot-dash
+  ports:
+    - name: http
+      port: 8501
+      targetPort: http
+      protocol: TCP
