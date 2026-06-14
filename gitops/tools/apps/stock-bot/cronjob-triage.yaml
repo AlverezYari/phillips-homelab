@@ -46,6 +46,11 @@ spec:
                   value: http://open-webui-ollama.tools.svc.cluster.local:11434/v1
                 - name: TRIAGE_MODEL
                   value: qwen2.5:7b
+                # Triage now fetches the primary-document lead for substantive
+                # filings (8-K/10-K/...), so it needs the EDGAR fair-access
+                # User-Agent like the edgar/ipo jobs — sec.gov 403s an empty UA.
+                - name: EDGAR_USER_AGENT
+                  value: "stock-bot/0.1 (admin@phillips-homelab.net)"
               resources:
                 requests:
                   cpu: 25m
