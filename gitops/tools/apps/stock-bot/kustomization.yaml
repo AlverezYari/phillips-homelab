@@ -12,6 +12,8 @@ resources:
   - cronjob-quotes.yaml
   - cronjob-news.yaml
   - cronjob-edgar.yaml
+  - cronjob-triage.yaml
+  - cronjob-ipo.yaml
   - serve-deployment.yaml
   - serve-service.yaml
 
@@ -23,7 +25,7 @@ resources:
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
-    newTag: latest
+    newTag: 2c968d5
 
 labels:
   - includeSelectors: false
