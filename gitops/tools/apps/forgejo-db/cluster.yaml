@@ -8,7 +8,7 @@ spec:
 
   storage:
     storageClass: syno-iscsi-default
-    size: 10Gi
+    size: 30Gi
 
   bootstrap:
     initdb:
