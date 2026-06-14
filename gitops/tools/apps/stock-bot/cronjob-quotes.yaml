@@ -12,6 +12,9 @@ metadata:
     app.kubernetes.io/component: ingest
     stock-bot.io/source: quotes
 spec:
+  # SUSPENDED: Alpaca creds not yet provisioned (stock-bot-secrets ExternalSecret
+  # deferred). Un-suspend once an Alpaca paper API key is in 1Password.
+  suspend: true
   schedule: "0 22 * * 1-5"   # 22:00 UTC weekdays — after US market close
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
