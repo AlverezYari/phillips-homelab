@@ -153,6 +153,20 @@ spec:
   - group: ""
     kind: Service
 ---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-stock-bot-service
+  namespace: stock-bot
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -249,6 +263,14 @@ spec:
       certificateRefs:
       - kind: Secret
         name: tatl-tls
+  - name: https-12
+    protocol: HTTPS
+    port: 443
+    hostname: stockbot.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: stockbot-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -453,3 +475,21 @@ spec:
     - name: varnish
       namespace: tatl
       port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-12
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-12
+    namespace: gateways
+  hostnames:
+  - stockbot.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: stock-bot-dash
+      namespace: stock-bot
+      port: 8501
