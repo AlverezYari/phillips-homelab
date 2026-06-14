@@ -1,0 +1,71 @@
+# Digest CronJob.
+#
+# Rolls up new material events + IPO matches since the last digest, stores it,
+# and (if DIGEST_NTFY_URL is set) pushes it to a notification topic. Runs daily
+# after the morning triage/ipo cycles have populated.
+#
+# Deterministic — no LLM call here (the per-event reading happened in triage),
+# so no Ollama env and a short deadline.
+#
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: stock-bot-digest
+  labels:
+    app.kubernetes.io/name: stock-bot-digest
+    app.kubernetes.io/component: digest
+spec:
+  schedule: "0 7 * * *"   # daily at 07:00, after the 06:00 ipo + morning triage
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: stock-bot-digest
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: digest
+              image: stock-bot
+              args: ["digest"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: stock-bot-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+                - name: DIGEST_PERIOD
+                  value: daily
+                - name: DIGEST_LOOKBACK_HOURS
+                  value: "24"
+                # Optional delivery: set to an ntfy/webhook topic URL to push the
+                # digest. Unset = store in the digests table only. If the topic
+                # is private, source this from an ExternalSecret instead.
+                # - name: DIGEST_NTFY_URL
+                #   value: https://ntfy.phillips-homelab.net/stock-bot
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault

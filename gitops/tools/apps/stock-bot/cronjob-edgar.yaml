@@ -1,0 +1,62 @@
+# EDGAR ingest CronJob.
+#
+# Polls SEC EDGAR every 30 minutes for new filings. SEC requires a
+# descriptive User-Agent with a contact address on every request; that's
+# a plain env value (not a secret), adjust the contact as needed.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: stock-bot-ingest-edgar
+  labels:
+    app.kubernetes.io/name: stock-bot-ingest-edgar
+    app.kubernetes.io/component: ingest
+    stock-bot.io/source: edgar
+spec:
+  schedule: "*/30 * * * *"   # every 30 minutes
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 240
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: stock-bot-ingest-edgar
+            stock-bot.io/source: edgar
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: feed
+              image: stock-bot
+              args: ["ingest", "edgar"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: stock-bot-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+                - name: EDGAR_USER_AGENT
+                  value: "stock-bot/0.1 (admin@phillips-homelab.net)"
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
