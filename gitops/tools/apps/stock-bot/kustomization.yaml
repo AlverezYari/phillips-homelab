@@ -17,16 +17,21 @@ resources:
   - cronjob-digest.yaml
   - serve-deployment.yaml
   - serve-service.yaml
+  - dashboard-deployment.yaml
+  - dashboard-service.yaml
 
-# Single point of override for the image tag. Bump newTag to deploy a new
+# Single point of override for the image tags. Bump newTag to deploy a new
 # build; Argo syncs it. (`migrate up` runs as a PreSync hook, so a tag
 # carrying new migrations applies them before the workloads roll.)
-# `latest` is a placeholder until the first image build — bump to a real
-# immutable tag after that.
+# The scout image (Go) runs the cronjobs + serve API; stock-bot-dash (Python)
+# is the Streamlit dashboard, versioned independently.
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
     newTag: 2bab22e
+  - name: stock-bot-dash
+    newName: zot.phillips-homelab.net/stock-bot-dash
+    newTag: ffde963
 
 labels:
   - includeSelectors: false
