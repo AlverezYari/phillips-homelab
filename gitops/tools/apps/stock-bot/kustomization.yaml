@@ -26,7 +26,7 @@ resources:
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
-    newTag: 2c968d5
+    newTag: 8b8a1c0
 
 labels:
   - includeSelectors: false

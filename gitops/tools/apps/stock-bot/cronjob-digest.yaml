@@ -7,10 +7,6 @@
 # Deterministic — no LLM call here (the per-event reading happened in triage),
 # so no Ollama env and a short deadline.
 #
-# SUSPENDED: the `digest` subcommand ships in a later image than the one
-# currently pinned (it's in stock-bot PR #2). Flip `suspend: false` once an
-# image carrying `scout digest` is deployed. Mirrors the tipoff pattern of
-# staging a cronjob with suspend until verified.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -19,7 +15,6 @@ metadata:
     app.kubernetes.io/name: stock-bot-digest
     app.kubernetes.io/component: digest
 spec:
-  suspend: true
   schedule: "0 7 * * *"   # daily at 07:00, after the 06:00 ipo + morning triage
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
