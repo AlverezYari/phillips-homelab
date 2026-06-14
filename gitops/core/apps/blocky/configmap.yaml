@@ -48,6 +48,7 @@ data:
         blocky.phillips-homelab.net: 192.168.10.211
         code.phillips-homelab.net: 192.168.10.211
         tatl.phillips-homelab.net: 192.168.10.211
+        stockbot.phillips-homelab.net: 192.168.10.211
         # Synology NAS
         nas.phillips-homelab.net: 192.168.10.195
 
