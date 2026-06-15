@@ -17,6 +17,7 @@ resources:
   - cronjob-digest.yaml
   - cronjob-holdings.yaml
   - snaptrade-externalsecret.yaml
+  - alpaca-externalsecret.yaml
   - serve-deployment.yaml
   - serve-service.yaml
   - dashboard-deployment.yaml
