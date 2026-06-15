@@ -54,6 +54,14 @@ spec:
           - name: OLLAMA_BASE_URL
             value: "http://openwebui-ollama:11434"
 
+        # Pipelines subchart deploys a Deployment backed by an RWO PVC. Force
+        # Recreate so its rollout doesn't deadlock on a multi-attach when the
+        # new pod schedules onto a different node than the old one.
+        pipelines:
+          enabled: true
+          strategy:
+            type: Recreate
+
         ollama:
           enabled: true
           replicaCount: 1
