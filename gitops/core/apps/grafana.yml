@@ -53,6 +53,12 @@ spec:
             root_url: https://monitoring.phillips-homelab.net
         grafanaAgent:
           logLevel: warn
+        # RWO PVC: a single iSCSI volume can only attach to one node. With the
+        # chart default RollingUpdate, the new pod is created before the old is
+        # removed and deadlocks waiting for the volume (multi-attach). Recreate
+        # terminates the old pod first so the volume is free for the new one.
+        deploymentStrategy:
+          type: Recreate
         ingress:
           enabled: false
         persistence:
