@@ -1,0 +1,31 @@
+# Read-only access for the dashboard pod to report real CronJob/Job status.
+# Scoped to the stock-bot namespace, get/list on batch resources only.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stock-bot-dash
+  namespace: stock-bot
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: stock-bot-dash-jobs-reader
+  namespace: stock-bot
+rules:
+  - apiGroups: ["batch"]
+    resources: ["cronjobs", "jobs"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: stock-bot-dash-jobs-reader
+  namespace: stock-bot
+subjects:
+  - kind: ServiceAccount
+    name: stock-bot-dash
+    namespace: stock-bot
+roleRef:
+  kind: Role
+  name: stock-bot-dash-jobs-reader
+  apiGroup: rbac.authorization.k8s.io
