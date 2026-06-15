@@ -65,6 +65,11 @@ spec:
           type: pvc
           enabled: true
           size: 5Gi
+          # Must match the live bound PVC. The PVC was created via the cluster
+          # default StorageClass, so its storageClassName is syno-iscsi-default;
+          # leaving this unset makes the chart render it null, and ArgoCD then
+          # tries to patch the (immutable) field on every sync -> sync fails.
+          storageClassName: syno-iscsi-default
         service:
           annotations:
             tailscale.com/expose: "true"
