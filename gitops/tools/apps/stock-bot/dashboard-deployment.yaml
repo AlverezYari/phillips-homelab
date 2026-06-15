@@ -26,6 +26,7 @@ spec:
         app.kubernetes.io/name: stock-bot-dash
         app.kubernetes.io/component: dashboard
     spec:
+      serviceAccountName: stock-bot-dash
       containers:
         - name: dash
           image: stock-bot-dash
@@ -38,6 +39,10 @@ spec:
                 secretKeyRef:
                   name: stock-bot-pg-app
                   key: uri
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           startupProbe:
             httpGet:
               path: /_stcore/health
