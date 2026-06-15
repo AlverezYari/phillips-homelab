@@ -20,7 +20,10 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 1
-      activeDeadlineSeconds: 1800   # LLM calls are slow on one GPU
+      # 60 min: screening sends large prospectus prompts to the shared GPU;
+      # under contention some calls hit the client timeout, so give the run
+      # headroom rather than getting killed mid-screen (was 1800).
+      activeDeadlineSeconds: 3600
       ttlSecondsAfterFinished: 3600
       template:
         metadata:
