@@ -34,7 +34,7 @@ images:
     newTag: 829131b
   - name: stock-bot-dash
     newName: zot.phillips-homelab.net/stock-bot-dash
-    newTag: f6363a1
+    newTag: f1fc9e5
 
 labels:
   - includeSelectors: false
