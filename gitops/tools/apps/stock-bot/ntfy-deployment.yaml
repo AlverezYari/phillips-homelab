@@ -1,0 +1,79 @@
+# Self-hosted ntfy — the notification bus for stock-bot (daily digest now,
+# job-failure alerts via Alertmanager later). In-cluster publishers POST to
+# http://ntfy.stock-bot.svc/<topic>; subscribers reach it over the tailnet.
+# Cache is ephemeral (emptyDir): real-time delivery doesn't need persistence.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ntfy
+  namespace: stock-bot
+  labels:
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/component: notifications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ntfy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ntfy
+        app.kubernetes.io/component: notifications
+    spec:
+      securityContext:
+        fsGroup: 65532
+      containers:
+        - name: ntfy
+          image: docker.io/binwiederhier/ntfy:v2.11.0
+          args: ["serve"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: NTFY_BASE_URL
+              value: "http://ntfy"
+            - name: NTFY_LISTEN_HTTP
+              value: ":8080"
+            - name: NTFY_CACHE_FILE
+              value: "/var/cache/ntfy/cache.db"
+            - name: NTFY_CACHE_DURATION
+              value: "24h"
+            - name: NTFY_BEHIND_PROXY
+              value: "true"
+            # Lets the iOS app receive instant push for a self-hosted server.
+            - name: NTFY_UPSTREAM_BASE_URL
+              value: "https://ntfy.sh"
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/ntfy
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: cache
+          emptyDir: {}

@@ -1,0 +1,22 @@
+# ntfy service, exposed on the tailnet (http://ntfy via MagicDNS) so the
+# ntfy phone app can subscribe. In-cluster publishers use the ClusterIP DNS
+# name directly (ntfy.stock-bot.svc.cluster.local).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy
+  namespace: stock-bot
+  labels:
+    app.kubernetes.io/name: ntfy
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: ntfy
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ntfy
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
