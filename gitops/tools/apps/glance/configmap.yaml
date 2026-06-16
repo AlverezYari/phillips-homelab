@@ -34,6 +34,8 @@ data:
                     url: https://phillips-homelab.omni.siderolabs.io/
                   - title: Blocky
                     url: https://blocky.phillips-homelab.net
+                  - title: Forgejo
+                    url: https://code.phillips-homelab.net
                   - title: Home Assistant
                     url: https://home-assistant.phillips-homelab.net
                   - title: Jellyfin
@@ -42,6 +44,8 @@ data:
                     url: https://files.phillips-homelab.net
                   - title: OpenWebUI
                     url: https://openwebui.phillips-homelab.net
+                  - title: Stockbot
+                    url: https://stockbot.phillips-homelab.net
 
               - type: weather
                 location: Vestavia Hills, Alabama, United States
@@ -62,6 +66,10 @@ data:
                         url: https://phillips-homelab.omni.siderolabs.io/
                       - title: Blocky
                         url: https://blocky.phillips-homelab.net
+                      - title: Forgejo
+                        url: https://code.phillips-homelab.net
+                      - title: Tracing (Tempo)
+                        url: https://monitoring.phillips-homelab.net/explore
                   - title: Apps
                     links:
                       - title: Home Assistant
@@ -72,6 +80,8 @@ data:
                         url: https://files.phillips-homelab.net
                       - title: OpenWebUI
                         url: https://openwebui.phillips-homelab.net
+                      - title: Stockbot
+                        url: https://stockbot.phillips-homelab.net
 
               - type: hacker-news
                 limit: 15
