@@ -32,7 +32,11 @@ spec:
               value: "1"
             - name: RAILS_SERVE_STATIC_FILES
               value: "1"
-            - name: RAILS_SECRET_KEY_BASE
+            # Rails reads ENV["SECRET_KEY_BASE"] (no RAILS_ prefix); naming it
+            # RAILS_SECRET_KEY_BASE makes Rails fail boot with "Missing
+            # secret_key_base for 'prod_k8s'". Value still comes from the
+            # ExternalSecret-backed secret.
+            - name: SECRET_KEY_BASE
               valueFrom:
                 secretKeyRef:
                   name: exchange-rails-secrets
