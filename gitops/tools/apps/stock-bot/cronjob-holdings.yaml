@@ -1,9 +1,9 @@
 # Holdings ingest CronJob.
 #
-# Pulls brokerage positions from SnapTrade once a day, mirrors them into the
-# positions table, and augments the watchlist with held tickers (reason
-# 'robinhood') so EDGAR -> triage track what's actually owned. Runs before the
-# 06:00 ipo / 07:00 digest jobs so new holdings are picked up the same morning.
+# Pulls brokerage positions from SnapTrade hourly during US market hours,
+# mirrors them into the positions table, and augments the watchlist with held
+# tickers (reason 'robinhood') so EDGAR -> triage track what's actually owned.
+# Hourly keeps positions + P&L on the dashboard fresh while the market's open.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/component: ingest
     stock-bot.io/source: holdings
 spec:
-  schedule: "0 5 * * *"   # daily at 05:00
+  schedule: "0 13-21 * * 1-5"   # hourly, ~09:00-17:00 ET, weekdays
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 5
