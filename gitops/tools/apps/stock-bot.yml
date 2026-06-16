@@ -18,6 +18,17 @@ spec:
     path: gitops/tools/apps/stock-bot
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
     targetRevision: main
+  # ESO mutates ExternalSecrets post-admission (defaults on data/refreshInterval/
+  # deletionPolicy). With ServerSideApply that drift made Argo try to force-replace
+  # them — "--force cannot be used with --server-side" — wedging the sync. Ignore
+  # those fields (matches the synology-csi app's ESO handling).
+  ignoreDifferences:
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/refreshInterval
+        - /spec/target/deletionPolicy
+        - /spec/data
   syncPolicy:
     automated:
       prune: true
