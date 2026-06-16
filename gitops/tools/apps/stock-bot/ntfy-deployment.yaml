@@ -41,6 +41,10 @@ spec:
               value: "24h"
             - name: NTFY_BEHIND_PROXY
               value: "true"
+            # Digest bodies are full markdown roll-ups (tens of KB); default cap
+            # is 4KB, which 400s the POST. Raise it.
+            - name: NTFY_MESSAGE_SIZE_LIMIT
+              value: "131072"
             # Lets the iOS app receive instant push for a self-hosted server.
             - name: NTFY_UPSTREAM_BASE_URL
               value: "https://ntfy.sh"
