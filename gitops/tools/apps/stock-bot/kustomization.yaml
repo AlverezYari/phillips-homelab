@@ -25,6 +25,7 @@ resources:
   - dashboard-rbac.yaml
   - ntfy-deployment.yaml
   - ntfy-service.yaml
+  - ntfy-ingress.yaml
 
 # Single point of override for the image tags. Bump newTag to deploy a new
 # build; Argo syncs it. (`migrate up` runs as a PreSync hook, so a tag
