@@ -47,11 +47,9 @@ spec:
                   value: daily
                 - name: DIGEST_LOOKBACK_HOURS
                   value: "24"
-                # Optional delivery: set to an ntfy/webhook topic URL to push the
-                # digest. Unset = store in the digests table only. If the topic
-                # is private, source this from an ExternalSecret instead.
-                # - name: DIGEST_NTFY_URL
-                #   value: https://ntfy.phillips-homelab.net/stock-bot
+                # Push the digest to the in-cluster ntfy on the "stock-bot" topic.
+                - name: DIGEST_NTFY_URL
+                  value: http://ntfy.stock-bot.svc.cluster.local/stock-bot
               resources:
                 requests:
                   cpu: 25m
