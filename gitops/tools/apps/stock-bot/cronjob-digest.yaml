@@ -50,6 +50,9 @@ spec:
                 # Push the digest to the in-cluster ntfy on the "stock-bot" topic.
                 - name: DIGEST_NTFY_URL
                   value: http://ntfy.stock-bot.svc.cluster.local/stock-bot
+                # Tap-to-open target for the push notification.
+                - name: DIGEST_DASHBOARD_URL
+                  value: https://stockbot.phillips-homelab.net
               resources:
                 requests:
                   cpu: 25m
