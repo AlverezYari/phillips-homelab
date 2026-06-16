@@ -1,9 +1,9 @@
 <h1 align="center" style="margin-top: 0px;">Phillips Homelab</h1>
 
-<p align="center">2026 Edition</p>
+<p align="center">2026 Updated Edition</p>
 
 <p align="center" style="margin-bottom: 0px !important;">
-    <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab 2026" width="300" align="center">
+    <img src="https://raw.githubusercontent.com/alverezyari/phillips-homelab/main/img/homelab.png" alt="Phillips Homelab — 2026 Updated Edition" width="300" align="center">
 </p>
 
 ## Intro & Overview
