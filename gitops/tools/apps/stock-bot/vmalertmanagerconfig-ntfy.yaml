@@ -1,8 +1,8 @@
-# Route stock-bot alerts to ntfy. The webhook POSTs the Alertmanager payload
-# to the ntfy topic; ntfy reads the notification title/priority/tags from the
-# URL query params (the body carries the alert JSON detail). vmalertmanager
-# selects all VMAlertmanagerConfigs by default, so this merges into the running
-# vmstack Alertmanager without editing its helm config.
+# Route stock-bot alerts to the serve API's /alerthook, which formats the
+# Alertmanager payload into a readable ntfy message (clean title + bullets,
+# firing/resolved priority+tags) — instead of dumping raw webhook JSON to ntfy.
+# vmalertmanager selects all VMAlertmanagerConfigs by default, so this merges
+# into the running vmstack Alertmanager without editing its helm config.
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlertmanagerConfig
 metadata:
@@ -20,5 +20,5 @@ spec:
   receivers:
     - name: ntfy
       webhook_configs:
-        - url: "http://ntfy.stock-bot.svc.cluster.local/stock-bot?title=stock-bot+alert&priority=high&tags=rotating_light"
+        - url: "http://stock-bot-serve.stock-bot.svc.cluster.local:8080/alerthook"
           send_resolved: true

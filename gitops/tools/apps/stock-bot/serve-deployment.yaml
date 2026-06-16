@@ -43,6 +43,9 @@ spec:
               value: ":8080"
             - name: LOG_LEVEL
               value: info
+            # /alerthook formats Alertmanager webhooks and posts them here.
+            - name: ALERT_NTFY_URL
+              value: http://ntfy.stock-bot.svc.cluster.local/stock-bot
           # startupProbe gives the pool generous time to warm up before
           # readiness/liveness start applying. Avoids flapping during
           # rollouts on slow first-connect / first-DB-handshake cycles.
