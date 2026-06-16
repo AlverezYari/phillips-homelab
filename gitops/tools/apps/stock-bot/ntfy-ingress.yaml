@@ -1,0 +1,18 @@
+# Tailnet HTTPS for ntfy via the tailscale operator (matches the atuin
+# pattern). Serves https://ntfy.<tailnet>.ts.net with a tailnet-issued cert,
+# so the ntfy app can subscribe over TLS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ntfy
+  namespace: stock-bot
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: ntfy
+      port:
+        number: 80
+  tls:
+    - hosts:
+        - ntfy

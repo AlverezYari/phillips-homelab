@@ -32,7 +32,7 @@ spec:
               containerPort: 8080
           env:
             - name: NTFY_BASE_URL
-              value: "http://ntfy"
+              value: "https://ntfy.tail852f61.ts.net"
             - name: NTFY_LISTEN_HTTP
               value: ":8080"
             - name: NTFY_CACHE_FILE
