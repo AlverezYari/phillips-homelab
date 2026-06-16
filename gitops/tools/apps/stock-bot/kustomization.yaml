@@ -26,6 +26,8 @@ resources:
   - ntfy-deployment.yaml
   - ntfy-service.yaml
   - ntfy-ingress.yaml
+  - vmrule-jobs.yaml
+  - vmalertmanagerconfig-ntfy.yaml
 
 # Single point of override for the image tags. Bump newTag to deploy a new
 # build; Argo syncs it. (`migrate up` runs as a PreSync hook, so a tag
