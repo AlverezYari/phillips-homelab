@@ -1,0 +1,23 @@
+# Alert when a stock-bot scheduled job (cronjob-created) fails. A failed Job
+# sets kube_job_status_failed=1 until it's GC'd (ttlSecondsAfterFinished),
+# so this fires shortly after a bad run and resolves when the job is cleaned
+# up / the next run succeeds. Scoped to stock-bot-* names so ad-hoc manual
+# jobs don't trip it. vmalert selects all VMRules by default.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: stock-bot-jobs
+  namespace: stock-bot
+spec:
+  groups:
+    - name: stock-bot.jobs
+      rules:
+        - alert: StockBotJobFailed
+          expr: kube_job_status_failed{namespace="stock-bot", job_name=~"stock-bot-.*"} > 0
+          for: 2m
+          labels:
+            severity: warning
+            app: stock-bot
+          annotations:
+            summary: "stock-bot job failed: {{ $labels.job_name }}"
+            description: "Job {{ $labels.job_name }} in namespace stock-bot has {{ $value }} failed pod(s)."
