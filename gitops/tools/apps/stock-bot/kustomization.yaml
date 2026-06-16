@@ -37,10 +37,10 @@ resources:
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
-    newTag: 24c4b12
+    newTag: 4200077
   - name: stock-bot-dash
     newName: zot.phillips-homelab.net/stock-bot-dash
-    newTag: a5fe46a
+    newTag: 4200077
 
 labels:
   - includeSelectors: false
