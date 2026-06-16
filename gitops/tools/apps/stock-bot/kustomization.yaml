@@ -35,7 +35,7 @@ resources:
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
-    newTag: 829131b
+    newTag: 323a8d0
   - name: stock-bot-dash
     newName: zot.phillips-homelab.net/stock-bot-dash
     newTag: a5fe46a
