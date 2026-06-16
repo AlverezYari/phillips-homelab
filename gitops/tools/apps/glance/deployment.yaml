@@ -5,6 +5,10 @@ metadata:
   namespace: glance
   labels:
     app: glance
+  annotations:
+    # Reloader restarts this Deployment when glance-config changes. Required
+    # because the config is mounted via subPath, which K8s never auto-updates.
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   selector:
