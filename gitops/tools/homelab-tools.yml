@@ -1,0 +1,25 @@
+# Self-managed app-of-apps for tools. Lives inside the path it watches
+# (gitops/tools, non-recursive), alongside tool-apps.yml, so once adopted it
+# reconciles itself — no manual sync needed. The tool *children* are managed
+# one level down by tool-apps (gitops/tools/apps), which already auto-syncs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homelab-tools
+  namespace: argocd
+spec:
+  destination:
+    namespace: argocd
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: gitops/tools
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
