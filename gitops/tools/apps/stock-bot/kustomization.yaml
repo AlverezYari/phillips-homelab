@@ -37,7 +37,7 @@ resources:
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
-    newTag: "4200077"
+    newTag: "ad51dca"
   - name: stock-bot-dash
     newName: zot.phillips-homelab.net/stock-bot-dash
     newTag: "4200077"
