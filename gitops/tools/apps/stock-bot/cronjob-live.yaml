@@ -1,0 +1,75 @@
+# Live-quote ingest CronJob.
+#
+# Pulls the latest trade for every held ticker from Alpaca and upserts it into
+# live_quotes, so the dashboard prices the portfolio off live intraday trades
+# instead of the prior close that SnapTrade reports. Runs every 2 minutes
+# during US market hours, weekdays — matching the dashboard's 2-minute cache,
+# so refreshing faster would not change what's shown. One batched Alpaca call
+# per run keeps it cheap. APCA_* creds come from the stock-bot-secrets
+# ExternalSecret (alpaca-externalsecret.yaml, sourced from 1Password).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: stock-bot-ingest-live
+  labels:
+    app.kubernetes.io/name: stock-bot-ingest-live
+    app.kubernetes.io/component: ingest
+    stock-bot.io/source: live
+spec:
+  suspend: false
+  schedule: "*/2 13-21 * * 1-5"   # every 2 min, ~09:00-17:00 ET, weekdays
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: stock-bot-ingest-live
+            stock-bot.io/source: live
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: feed
+              image: stock-bot
+              args: ["ingest", "live"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: stock-bot-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+                - name: APCA_API_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: stock-bot-secrets
+                      key: alpaca_api_key
+                - name: APCA_API_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: stock-bot-secrets
+                      key: alpaca_secret_key
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault

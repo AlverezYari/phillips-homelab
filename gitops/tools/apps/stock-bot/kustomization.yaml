@@ -10,6 +10,7 @@ namespace: stock-bot
 resources:
   - migrate-job.yaml
   - cronjob-quotes.yaml
+  - cronjob-live.yaml
   - cronjob-news.yaml
   - cronjob-edgar.yaml
   - cronjob-triage.yaml
@@ -37,10 +38,10 @@ resources:
 images:
   - name: stock-bot
     newName: zot.phillips-homelab.net/stock-bot
-    newTag: "ad51dca"
+    newTag: "a92262b"
   - name: stock-bot-dash
     newName: zot.phillips-homelab.net/stock-bot-dash
-    newTag: "4200077"
+    newTag: "a92262b"
 
 labels:
   - includeSelectors: false
