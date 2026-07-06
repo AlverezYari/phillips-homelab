@@ -79,6 +79,8 @@ patches:
     file: patches/nvidia-modules.yml
   - name: gvisor-userns
     file: patches/gvisor-userns.yml
+  - name: local-path-mounts
+    file: patches/local-path-mounts.yml
 systemExtensions:
   - siderolabs/amd-ucode
   # runsc runtime for agent-sandbox isolation (gvisor RuntimeClass);

@@ -1,0 +1,59 @@
+# Additive holes through the agent-sandbox default policy (which blocks all
+# RFC1918 but allows public internet). Union semantics: sandbox pods get
+# world + these cluster services; non-sandbox pods in loops (nats, bridge)
+# get default-deny egress except these rules.
+# Known deviation from the brief: public egress can't be narrowed to
+# api.anthropic.com while the controller's per-template policy allows all
+# world traffic — revisit when upstream makes it customizable.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: loops-egress
+  namespace: loops
+spec:
+  endpointSelector: {}
+  egress:
+  # cluster DNS (sandbox pods run dnsPolicy None by default; loop pods set
+  # ClusterFirst — verified empirically in Phase 4)
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+  # Forgejo HTTP (git clone/push over http with token, API)
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: forgejo
+        app.kubernetes.io/name: forgejo
+    toPorts:
+    - ports:
+      - port: "3000"
+        protocol: TCP
+  # NATS (loop event bus)
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: loops
+        app.kubernetes.io/name: nats
+    toPorts:
+    - ports:
+      - port: "4222"
+        protocol: TCP
+  # ntfy (bridge -> phone notifications, existing stock-bot instance)
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: stock-bot
+        app.kubernetes.io/name: ntfy
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+  # public internet (mirrors the agent-sandbox default for the non-sandbox
+  # pods this CNP also selects; sandbox pods already have it via the
+  # controller's NetworkPolicy)
+  - toEntities:
+    - world

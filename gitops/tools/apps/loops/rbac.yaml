@@ -1,0 +1,34 @@
+# SA mounted by loop sandbox pods; the harness patches the
+# loop.phillips.dev/state label on its own Sandbox CR. Nothing else.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loop-runner
+  namespace: loops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: loop-runner
+  namespace: loops
+rules:
+- apiGroups: ["agents.x-k8s.io"]
+  resources: ["sandboxes"]
+  verbs: ["get", "list", "watch", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: loop-runner
+  namespace: loops
+subjects:
+- kind: ServiceAccount
+  name: loop-runner
+  namespace: loops
+roleRef:
+  kind: Role
+  name: loop-runner
+  apiGroup: rbac.authorization.k8s.io

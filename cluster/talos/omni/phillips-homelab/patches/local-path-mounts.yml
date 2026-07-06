@@ -1,0 +1,13 @@
+# Bind-mounts the local-path-provisioner data dir into the kubelet's mount
+# namespace so nvme-scratch PVCs (loop /workspace scratch) work on this node.
+# Kubelet config change: applies with a kubelet restart, no reboot.
+machine:
+  kubelet:
+    extraMounts:
+      - destination: /var/local-path-provisioner
+        type: bind
+        source: /var/local-path-provisioner
+        options:
+          - bind
+          - rshared
+          - rw

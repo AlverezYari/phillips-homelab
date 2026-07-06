@@ -1,0 +1,41 @@
+# nodePathMap lists ONLY homelab-04 (no DEFAULT_PATH_FOR_NON_LISTED_NODES):
+# nvme-scratch PVCs can bind nowhere else, by design. The backing path is a
+# Talos kubelet extraMount (cluster/talos/.../patches/local-path-mounts.yml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-path-config
+  namespace: local-path-storage
+data:
+  config.json: |-
+    {
+      "nodePathMap": [
+        {
+          "node": "homelab-04",
+          "paths": ["/var/local-path-provisioner"]
+        }
+      ]
+    }
+  setup: |-
+    #!/bin/sh
+    set -eu
+    mkdir -m 0777 -p "$VOL_DIR"
+  teardown: |-
+    #!/bin/sh
+    set -eu
+    rm -rf "$VOL_DIR"
+  helperPod.yaml: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: helper-pod
+    spec:
+      priorityClassName: system-node-critical
+      tolerations:
+        - key: node.kubernetes.io/disk-pressure
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: helper-pod
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
