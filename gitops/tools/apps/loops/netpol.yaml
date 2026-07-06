@@ -52,6 +52,10 @@ spec:
     - ports:
       - port: "80"
         protocol: TCP
+  # kube-apiserver: the harness patches loop.phillips.dev/state on its own
+  # Sandbox CR (scoped by the loop-runner Role)
+  - toEntities:
+    - kube-apiserver
   # public internet (mirrors the agent-sandbox default for the non-sandbox
   # pods this CNP also selects; sandbox pods already have it via the
   # controller's NetworkPolicy)

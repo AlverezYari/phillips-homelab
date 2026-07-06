@@ -6,3 +6,4 @@ resources:
 - rbac.yaml
 - loop-secrets.yaml
 - netpol.yaml
+- nats-ntfy-bridge.yaml
