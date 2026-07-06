@@ -8,7 +8,7 @@
 FROM golang:1.24-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git make jq curl ca-certificates ripgrep \
+      git make jq curl ca-certificates ripgrep unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # claude CLI (native installer drops it in ~/.local/bin; promote to PATH)
@@ -16,11 +16,11 @@ RUN curl -fsSL https://claude.ai/install.sh | bash && \
     install -m 0755 /root/.local/bin/claude /usr/local/bin/claude && \
     rm -rf /root/.local
 
-# nats CLI
+# nats CLI (releases ship zips)
 RUN NATS_CLI_VERSION=0.4.0 && \
-    curl -fsSL "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/nats-${NATS_CLI_VERSION}-linux-amd64.tar.gz" \
-      | tar -xz -C /tmp && \
-    install -m 0755 /tmp/nats-*/nats /usr/local/bin/nats && rm -rf /tmp/nats-*
+    curl -fsSL -o /tmp/nats.zip "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/nats-${NATS_CLI_VERSION}-linux-amd64.zip" && \
+    unzip -q /tmp/nats.zip -d /tmp/natscli && \
+    install -m 0755 /tmp/natscli/nats-*/nats /usr/local/bin/nats && rm -rf /tmp/nats.zip /tmp/natscli
 
 # kubectl (only used to patch the loop's own Sandbox state label)
 RUN KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" && \
