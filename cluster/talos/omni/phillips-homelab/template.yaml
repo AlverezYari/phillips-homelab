@@ -79,6 +79,9 @@ patches:
     file: patches/nvidia-modules.yml
 systemExtensions:
   - siderolabs/amd-ucode
+  # runsc runtime for agent-sandbox isolation (gvisor RuntimeClass);
+  # applying this reboots homelab-04
+  - siderolabs/gvisor
   - siderolabs/intel-ice-firmware
   - siderolabs/iscsi-tools
   - siderolabs/nut-client

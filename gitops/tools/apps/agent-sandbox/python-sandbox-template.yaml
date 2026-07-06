@@ -1,0 +1,43 @@
+# Starter template based on upstream's python-sandbox-template.yaml, pinned to
+# the GPU box. Sandboxes claim against this via SandboxClaim or the Python SDK.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: python
+  namespace: sandboxes
+spec:
+  podTemplate:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: homelab-04
+      # Flip on after the gVisor extension lands on homelab-04:
+      # runtimeClassName: gvisor
+      containers:
+      - name: python-runtime
+        # Upstream's example runtime image; no release-tagged build exists yet
+        # (tracked upstream), so this is the mutable staging tag they document.
+        image: us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox:latest-main
+        ports:
+        - containerPort: 8888
+        readinessProbe:
+          httpGet:
+            path: "/"
+            port: 8888
+          initialDelaySeconds: 0
+          periodSeconds: 1
+        livenessProbe:
+          httpGet:
+            path: "/"
+            port: 8888
+          initialDelaySeconds: 2
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+            ephemeral-storage: "1Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+            ephemeral-storage: "20Gi"
+      restartPolicy: "OnFailure"
