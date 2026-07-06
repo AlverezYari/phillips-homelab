@@ -1,0 +1,58 @@
+# Per-loop Sandbox manifest. The conductor instantiates this per loop:
+#   LOOP=myloop REPO=loop-bot/myrepo envsubst < loop-sandbox.yaml | kubectl apply -f -
+# then uploads the SPEC:
+#   kubectl -n loops cp SPEC.md ${LOOP}:/workspace/SPEC.md
+# (Direct Sandbox, no warm pool: per-loop env like REPO_URL must be set at
+# pod creation, and Pro rate limits mean one loop at a time anyway.)
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: ${LOOP}
+  namespace: loops
+  labels:
+    loop.phillips.dev/state: starting
+spec:
+  shutdownPolicy: Retain
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: nvme-scratch
+      resources:
+        requests:
+          storage: 10Gi
+  podTemplate:
+    spec:
+      runtimeClassName: gvisor
+      serviceAccountName: loop-runner
+      dnsPolicy: ClusterFirst
+      nodeSelector:
+        kubernetes.io/hostname: homelab-04
+      restartPolicy: OnFailure
+      containers:
+      - name: loop
+        image: zot.phillips-homelab.net/loop-dev:10e6542
+        envFrom:
+        - secretRef:
+            name: loop-secrets
+        env:
+        - name: LOOP_NAME
+          value: ${LOOP}
+        - name: REPO_URL
+          value: http://forgejo-http.forgejo.svc.cluster.local:3000/${REPO}.git
+        - name: MEMORY_URL
+          value: http://forgejo-http.forgejo.svc.cluster.local:3000/loop-bot/memory.git
+        - name: MAX_ITER
+          value: "${MAX_ITER}"
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+            ephemeral-storage: 2Gi
+          limits:
+            cpu: "4"
+            memory: 6Gi
