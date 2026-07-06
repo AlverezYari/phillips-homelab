@@ -105,9 +105,12 @@ PROMPT='You are one iteration of an autonomous coding loop. Read /workspace/SPEC
 # ---- iteration loop --------------------------------------------------------
 ensure_inbox_consumer
 set_state running
-iter=0
+# iteration budget survives container restarts (the workspace is a PVC)
+iter=$(cat "$WS/.iter-count" 2>/dev/null || echo 0)
+[ "$iter" -gt 0 ] && log "resuming at iteration $((iter+1)) after restart"
 while [ "$iter" -lt "$MAX_ITER" ]; do
   iter=$((iter+1))
+  echo "$iter" > "$WS/.iter-count"
   log "=== iteration ${iter}/${MAX_ITER} ==="
   drain_inbox
 
@@ -164,7 +167,28 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
   fi
   if [ -f "$WS/.loop-blocked" ]; then
     npub done "{\"iter\":${iter},\"blocked\":true,\"summary\":$(jq -Rs . < "$WS/.loop-blocked")}"
-    set_state blocked; term "blocked after ${iter} iterations"; exit 2
+    set_state blocked
+    # Wait in-process instead of exiting: exit 2 + restartPolicy OnFailure
+    # crashloops, and each relaunch burns prompts re-assessing state. Inbox
+    # polling costs nothing. Exit 2 only after the decision timeout.
+    log "blocked; polling inbox for operator answers"
+    waited=0
+    while :; do
+      if [ "$waited" -ge "${BLOCKED_TIMEOUT:-172800}" ]; then
+        term "blocked after ${iter} iterations; no answer in $((waited/3600))h"
+        exit 2
+      fi
+      sleep "${BLOCKED_POLL:-120}"; waited=$((waited + ${BLOCKED_POLL:-120}))
+      before=$(ls "$WS/.inbox" 2>/dev/null | wc -l)
+      drain_inbox
+      after=$(ls "$WS/.inbox" 2>/dev/null | wc -l)
+      if [ "$after" -gt "$before" ]; then
+        log "operator answer received after ${waited}s; resuming"
+        rm -f "$WS/.loop-blocked"
+        set_state running
+        break
+      fi
+    done
   fi
 done
 
