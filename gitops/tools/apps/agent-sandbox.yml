@@ -12,6 +12,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: agent-sandbox-system
   project: default
+  # The controller stamps a ref-hash label on SandboxTemplates it manages
+  ignoreDifferences:
+  - group: extensions.agents.x-k8s.io
+    kind: SandboxTemplate
+    jsonPointers:
+    - /metadata/labels/agents.x-k8s.io~1sandbox-template-ref-hash
   source:
     path: gitops/tools/apps/agent-sandbox
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
