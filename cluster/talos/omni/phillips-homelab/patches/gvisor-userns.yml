@@ -1,0 +1,7 @@
+# gVisor's runsc gofer clones into fresh user namespaces; Talos disables
+# them by default (user.max_user_namespaces=0), which surfaces as the
+# misleading "fork/exec /proc/self/exe: no space left on device".
+# Value per Talos user-namespace docs. Scoped to the gpu worker only.
+machine:
+  sysctls:
+    user.max_user_namespaces: "11255"
