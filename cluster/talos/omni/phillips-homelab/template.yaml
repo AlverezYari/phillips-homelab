@@ -77,6 +77,8 @@ patches:
           disk: /dev/nvme0n1
   - name: nvidia-modules
     file: patches/nvidia-modules.yml
+  - name: gvisor-userns
+    file: patches/gvisor-userns.yml
 systemExtensions:
   - siderolabs/amd-ucode
   # runsc runtime for agent-sandbox isolation (gvisor RuntimeClass);
