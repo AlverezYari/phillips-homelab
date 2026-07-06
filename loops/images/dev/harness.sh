@@ -16,8 +16,11 @@ set -uo pipefail
 
 : "${LOOP_NAME:?LOOP_NAME required (sandbox name)}"
 : "${REPO_URL:?REPO_URL required (Forgejo clone URL, no creds)}"
-: "${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY required}"
+: "${CLAUDE_CODE_OAUTH_TOKEN:?CLAUDE_CODE_OAUTH_TOKEN required (claude setup-token)}"
 : "${FORGEJO_TOKEN:?FORGEJO_TOKEN required}"
+# Pro-subscription auth: an API key would take precedence over the OAuth
+# token and break auth if both are set.
+unset ANTHROPIC_API_KEY
 BRANCH="${BRANCH:-loop/${LOOP_NAME}}"
 MAX_ITER="${MAX_ITER:-30}"
 GATE_CMD="${GATE_CMD:-make build test lint}"
@@ -105,6 +108,21 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
     > "$WS/.iter-${iter}.log" 2>&1
   agent_rc=$?
   log "agent exited rc=${agent_rc} ($(wc -l < "$WS/.iter-${iter}.log") log lines)"
+
+  # Pro-plan rate limiting: iterations draw from the shared 5h prompt window.
+  # Back off without burning budget; give up after too many in a row.
+  if [ "$agent_rc" -ne 0 ] && grep -qiE 'rate.?limit|usage limit|limit (reached|exceeded)' "$WS/.iter-${iter}.log"; then
+    rl_count=$(( ${rl_count:-0} + 1 ))
+    if [ "$rl_count" -ge "${RATE_LIMIT_MAX_BACKOFFS:-8}" ]; then
+      npub done "{\"iter\":${iter},\"exhausted\":true,\"reason\":\"rate-limited\"}"
+      set_state blocked; term "persistent rate limiting"; exit 3
+    fi
+    iter=$((iter-1))
+    log "rate limited (${rl_count}); sleeping ${RATE_LIMIT_BACKOFF:-900}s, iteration not counted"
+    sleep "${RATE_LIMIT_BACKOFF:-900}"
+    continue
+  fi
+  rl_count=0
 
   relay_decisions
 
