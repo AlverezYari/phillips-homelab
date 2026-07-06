@@ -10,8 +10,7 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: homelab-04
-      # Flip on after the gVisor extension lands on homelab-04:
-      # runtimeClassName: gvisor
+      runtimeClassName: gvisor
       containers:
       - name: python-runtime
         # Upstream's example runtime image; no release-tagged build exists yet

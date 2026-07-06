@@ -27,13 +27,16 @@ runtimes). Pinned to **v0.5.0** (first release with `v1beta1` APIs).
    (drop the Deployment from manifest.yaml; keep the header comments).
 3. `kubectl kustomize gitops/tools/apps/agent-sandbox | kubectl apply --dry-run=server -f -`
 
-## gVisor isolation (pending)
+## gVisor isolation
 
-`cluster/talos/omni/phillips-homelab/template.yaml` stages `siderolabs/gvisor`
-on the gpu Workers block. It takes effect on the next
-`omnictl cluster template sync` **which reboots homelab-04** (Jellyfin /
-Open WebUI blip). After that, uncomment `runtimeClassName: gvisor` in
-`python-sandbox-template.yaml`. Until then sandboxes run under plain runc.
+The `siderolabs/gvisor` system extension is installed on homelab-04 (via the
+gpu Workers block in `cluster/talos/omni/phillips-homelab/template.yaml`;
+extension changes there apply via `omnictl cluster template sync`, which
+reboots the node). The `python` SandboxTemplate runs sandboxes under the
+`gvisor` RuntimeClass. To verify a pod is actually sandboxed, `uname -r`
+inside it reports gVisor's emulated kernel, not the Talos host kernel.
+Keep GPU workloads on the `nvidia` RuntimeClass — gvisor and nvidia coexist
+on the node but a single pod can't use both.
 
 ## Smoke test
 
