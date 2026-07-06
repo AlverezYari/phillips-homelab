@@ -78,8 +78,9 @@ if [ ! -f "$WS/SPEC.md" ]; then
 fi
 
 git config --global credential.helper store
+FORGEJO_SCHEME=$(echo "$REPO_URL" | sed -E 's#^(https?)://.*#\1#')
 FORGEJO_HOST=$(echo "$REPO_URL" | sed -E 's#^https?://([^/]+)/.*#\1#')
-echo "https://loop-bot:${FORGEJO_TOKEN}@${FORGEJO_HOST}" > ~/.git-credentials
+echo "${FORGEJO_SCHEME}://loop-bot:${FORGEJO_TOKEN}@${FORGEJO_HOST}" > ~/.git-credentials
 git config --global user.name "loop-bot"
 git config --global user.email "loop-bot@phillips-homelab.net"
 
