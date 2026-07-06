@@ -1,0 +1,30 @@
+# Hard fleet backstop per the loop-rig brief: quota caps the namespace no
+# matter what the conductor does. ~8 concurrent loops at the LimitRange
+# defaults, with headroom for NATS + the bridge.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: loops-quota
+  namespace: loops
+spec:
+  hard:
+    requests.cpu: "24"
+    requests.memory: 48Gi
+    limits.cpu: "32"
+    limits.memory: 56Gi
+    persistentvolumeclaims: "16"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: loops-defaults
+  namespace: loops
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: 500m
+      memory: 1Gi
+    default:
+      cpu: "2"
+      memory: 4Gi
