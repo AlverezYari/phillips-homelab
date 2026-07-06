@@ -19,6 +19,7 @@ spec:
         image: us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox:latest-main
         ports:
         - containerPort: 8888
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: "/"
