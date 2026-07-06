@@ -44,11 +44,18 @@ set_state() { # running|blocked|done — best-effort
     >/dev/null 2>&1 || log "WARN state label patch failed ($1)"
 }
 
+ensure_inbox_consumer() { # durable pull consumer: answers persist in the
+  # LOOPS stream even when published mid-iteration, drained at iteration start
+  nats --server "$NATS_URL" consumer add LOOPS "inbox-${LOOP_NAME}" \
+    --filter "loops.${LOOP_NAME}.inbox" --pull --deliver all --ack explicit \
+    --defaults >/dev/null 2>&1 || true
+}
+
 drain_inbox() { # answers published to loops.<name>.inbox land in .inbox/
   mkdir -p "$WS/.inbox"
   local n=0
-  while msg=$(nats --server "$NATS_URL" sub "loops.${LOOP_NAME}.inbox" \
-      --raw --count 1 --timeout 2s 2>/dev/null) && [ -n "$msg" ]; do
+  while msg=$(timeout 5 nats --server "$NATS_URL" consumer next LOOPS \
+      "inbox-${LOOP_NAME}" --raw 2>/dev/null) && [ -n "$msg" ]; do
     n=$((n+1))
     echo "$msg" > "$WS/.inbox/$(date -u +%s)-$n.json"
   done
@@ -96,6 +103,7 @@ fi
 PROMPT='You are one iteration of an autonomous coding loop. Read /workspace/SPEC.md (the task, checkboxes, guardrails) and /workspace/PROGRESS.md (state so far), and check /workspace/.inbox/ for operator answers to earlier decisions. Then do exactly ONE thing: the next unchecked SPEC item. Work in /workspace/repo. Follow SPEC guardrails strictly. If an item is blocked after 3 distinct attempts (see PROGRESS), write a decision file to /workspace/decisions/NNN-slug.json (fields: question, context, options[2-3], recommendation, risk) and move to the next item. Update PROGRESS.md: what you did, gate expectations, what is next, any BLOCKED items. If ALL items are done, create /workspace/.loop-done containing a one-paragraph summary. If ALL remaining items are BLOCKED, create /workspace/.loop-blocked with a summary. Never write secrets to logs or files. Do not run git push (the harness pushes). Consult /workspace/memory/ (gotchas, conventions) if present.'
 
 # ---- iteration loop --------------------------------------------------------
+ensure_inbox_consumer
 set_state running
 iter=0
 while [ "$iter" -lt "$MAX_ITER" ]; do
