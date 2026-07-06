@@ -1,4 +1,8 @@
+# privileged PSA: the provisioner's helper pods mount hostPath (the whole
+# point) and Talos enforces baseline cluster-wide by default.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: local-path-storage
+  labels:
+    pod-security.kubernetes.io/enforce: privileged

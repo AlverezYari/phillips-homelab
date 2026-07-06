@@ -1,0 +1,83 @@
+# Relays loop events from NATS to the existing ntfy instance (stock-bot ns,
+# already routed to Casey's phone via ntfy.tail852f61.ts.net). One container
+# per subject so a dead subscription restarts independently.
+# Convention: harness publishes single-line JSON payloads.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-ntfy-bridge
+  namespace: loops
+data:
+  bridge.sh: |
+    #!/bin/sh
+    set -eu
+    SUBJECT="$1"; TITLE="$2"; PRIORITY="${3:-default}"
+    NATS_URL="nats://loop:${NATS_PASSWORD}@nats.loops.svc.cluster.local:4222"
+    echo "bridge: subscribing to ${SUBJECT}"
+    nats --server "$NATS_URL" sub "$SUBJECT" --raw | while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      echo "bridge: relaying ${SUBJECT}: ${line}"
+      curl -s -m 10 -H "Title: ${TITLE}" -H "Priority: ${PRIORITY}" \
+        -d "${line}" "http://ntfy.stock-bot.svc.cluster.local/loops" || true
+    done
+    echo "bridge: subscription ${SUBJECT} ended" >&2
+    exit 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats-ntfy-bridge
+  namespace: loops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nats-ntfy-bridge
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nats-ntfy-bridge
+    spec:
+      containers:
+      - name: decisions
+        image: natsio/nats-box:0.18.0
+        command: ["/bin/sh", "/opt/bridge/bridge.sh", "loops.*.decisions", "Loop decision needed", "high"]
+        env:
+        - name: NATS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: loop-secrets
+              key: NATS_PASSWORD
+        volumeMounts:
+        - name: bridge
+          mountPath: /opt/bridge
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      - name: done
+        image: natsio/nats-box:0.18.0
+        command: ["/bin/sh", "/opt/bridge/bridge.sh", "loops.*.done", "Loop finished", "default"]
+        env:
+        - name: NATS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: loop-secrets
+              key: NATS_PASSWORD
+        volumeMounts:
+        - name: bridge
+          mountPath: /opt/bridge
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      volumes:
+      - name: bridge
+        configMap:
+          name: nats-ntfy-bridge
