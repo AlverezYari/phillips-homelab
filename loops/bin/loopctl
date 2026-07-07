@@ -15,6 +15,11 @@ set -euo pipefail
 
 NS=loops
 REVIEWER=cphillips-homelab
+NTFY_URL=${NTFY_URL:-https://ntfy.tail852f61.ts.net/loops}
+
+ping_phone() { # best-effort lifecycle notification (tailnet ntfy)
+  curl -s -m 5 -H "Title: $1" -H "Tags: $2" -d "$3" "$NTFY_URL" >/dev/null 2>&1 || true
+}
 FJO_API=http://forgejo-http.forgejo.svc.cluster.local:3000/api/v1
 REPO_ROOT=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/Documents/Projects/phillips-homelab")
 TEMPLATE="$REPO_ROOT/loops/templates/loop-sandbox.yaml"
@@ -81,6 +86,7 @@ EOF
     sleep 3; i=$((i+1)); [ $i -gt 60 ] && die "harness did not start iterating within 3m — check: loopctl logs $name"
   done
   echo "loop '$name' running against $repo (budget $max_iter). Watch: loopctl logs $name -f"
+  ping_phone "Loop spawned: $name" "arrow_forward" "$repo, budget $max_iter iterations. Decisions and completion will ping here."
 }
 
 cmd_status() {
@@ -158,6 +164,7 @@ fi" \
   kubectl -n "$NS" delete sandbox "$name" && echo "sandbox deleted"
   sleep 5
   kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1 && echo "WARNING: PVC workspace-$name still present" || echo "PVC cleaned up"
+  ping_phone "Loop reaped: $name" "package" "Sandbox deleted; PR (if any) is review-requested in FJO."
 }
 
 cmd=${1:-help}; shift || true
