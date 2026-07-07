@@ -79,6 +79,13 @@ spec:
             enabled: true
             label: grafana_dashboard
             labelValue: true
+          # the grafana-datasources CM predates this but was never consumed;
+          # datasources had been hand-created in the UI (and so couldn't get
+          # the Loki X-Scope-OrgID header from git)
+          datasources:
+            enabled: true
+            label: grafana_datasource
+            labelValue: "true"
   syncPolicy:
     automated: {}
     syncOptions:
