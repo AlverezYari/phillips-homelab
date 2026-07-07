@@ -8,81 +8,420 @@ metadata:
 data:
   loop-rig.json: |
     {
-      "annotations": {"list": []},
+      "annotations": {
+        "list": []
+      },
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
       "id": null,
       "links": [],
-      "tags": ["loops"],
+      "tags": [
+        "loops"
+      ],
       "title": "Loop Rig Fleet",
       "uid": "loop-rig-fleet",
       "timezone": "browser",
-      "time": {"from": "now-6h", "to": "now"},
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
       "refresh": "30s",
       "schemaVersion": 39,
       "panels": [
         {
-          "type": "stat", "title": "Active loops",
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
-          "targets": [{"expr": "count(kube_pod_container_status_running{namespace=\"loops\", container=\"loop\"} == 1) or vector(0)", "instant": true}],
-          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "text", "value": null}]}}},
-          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+          "type": "stat",
+          "title": "Loops running now",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "count(kube_pod_container_status_running{namespace=\"loops\", container=\"loop\"} == 1) or vector(0)",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
         },
         {
-          "type": "stat", "title": "CPU quota used",
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
-          "targets": [{"expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"hard\"})", "instant": true}],
-          "fieldConfig": {"defaults": {"unit": "percent", "decimals": 0, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
-          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+          "type": "bargauge",
+          "title": "Iteration progress (per loop)",
+          "description": "Current iteration per loop, from harness log lines (=== iteration N/M ===). Budget M is in the SPEC; bars reset when a loop is reaped.",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 4,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "max by (pod) (last_over_time({namespace=\"loops\"} |= \"=== iteration\" | regexp `iteration (?P<iter>[0-9]+)/(?P<budget>[0-9]+)` | unwrap iter [$__range]))",
+              "refId": "A",
+              "legendFormat": "{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "blue",
+                    "value": null
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "showUnfilled": true
+          }
         },
         {
-          "type": "stat", "title": "Memory quota used",
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
-          "targets": [{"expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"hard\"})", "instant": true}],
-          "fieldConfig": {"defaults": {"unit": "percent", "decimals": 0, "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
-          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+          "type": "stat",
+          "title": "CPU quota used",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"hard\"})",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 0,
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
         },
         {
-          "type": "stat", "title": "Workspace PVCs",
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
-          "targets": [{"expr": "kube_resourcequota{namespace=\"loops\", resource=\"persistentvolumeclaims\", type=\"used\"}", "instant": true}],
-          "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "text", "value": null}, {"color": "yellow", "value": 12}, {"color": "red", "value": 15}]}}},
-          "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}}
+          "type": "stat",
+          "title": "Memory quota used",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 16,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"hard\"})",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 0,
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
         },
         {
-          "type": "timeseries", "title": "CPU by pod (loops ns)",
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 4},
-          "targets": [{"expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"loops\", container!=\"\"}[5m]))", "legendFormat": "{{pod}}"}],
-          "fieldConfig": {"defaults": {"unit": "cores", "custom": {"lineWidth": 2, "fillOpacity": 8, "pointSize": 1, "showPoints": "never"}, "color": {"mode": "palette-classic"}}},
-          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}}
+          "type": "stat",
+          "title": "Workspace PVCs",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "kube_resourcequota{namespace=\"loops\", resource=\"persistentvolumeclaims\", type=\"used\"}",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 12
+                  },
+                  {
+                    "color": "red",
+                    "value": 15
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
         },
         {
-          "type": "timeseries", "title": "Memory by pod (loops ns)",
-          "datasource": {"type": "prometheus", "uid": "prometheus"},
-          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 4},
-          "targets": [{"expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"loops\", container!=\"\"})", "legendFormat": "{{pod}}"}],
-          "fieldConfig": {"defaults": {"unit": "bytes", "custom": {"lineWidth": 2, "fillOpacity": 8, "pointSize": 1, "showPoints": "never"}, "color": {"mode": "palette-classic"}}},
-          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}}
+          "type": "timeseries",
+          "title": "CPU by pod (loops ns)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 4
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"loops\", container!=\"\"}[5m]))",
+              "legendFormat": "{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 8,
+                "pointSize": 1,
+                "showPoints": "never"
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            }
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
         },
         {
-          "type": "logs", "title": "Harness events (iterations, gates, state)",
-          "datasource": {"type": "loki", "uid": "loki"},
-          "gridPos": {"h": 10, "w": 12, "x": 0, "y": 13},
-          "targets": [{"expr": "{namespace=\"loops\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"", "refId": "A"}],
-          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true}
+          "type": "timeseries",
+          "title": "Memory by pod (loops ns)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 4
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"loops\", container!=\"\"})",
+              "legendFormat": "{{pod}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 8,
+                "pointSize": 1,
+                "showPoints": "never"
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            }
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
         },
         {
-          "type": "logs", "title": "Trouble (gate RED, failures, rate limits, bridge errors)",
-          "datasource": {"type": "loki", "uid": "loki"},
-          "gridPos": {"h": 10, "w": 12, "x": 12, "y": 13},
-          "targets": [{"expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN\" | json | line_format \"{{.pod_name}} | {{.message}}\"", "refId": "A"}],
-          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true}
+          "type": "logs",
+          "title": "Harness events (iterations, gates, state)",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"loops\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none",
+            "enableLogDetails": true
+          }
+        },
+        {
+          "type": "logs",
+          "title": "Trouble (gate RED, failures, rate limits, bridge errors)",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 12,
+            "y": 13
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none",
+            "enableLogDetails": true
+          }
         }
       ]
     }
