@@ -74,14 +74,14 @@ data:
           "type": "logs", "title": "Harness events (iterations, gates, state)",
           "datasource": {"type": "loki", "uid": "loki"},
           "gridPos": {"h": 10, "w": 12, "x": 0, "y": 13},
-          "targets": [{"expr": "{namespace=\"loops\"} |= \"[harness\"", "refId": "A"}],
+          "targets": [{"expr": "{namespace=\"loops\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"", "refId": "A"}],
           "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true}
         },
         {
           "type": "logs", "title": "Trouble (gate RED, failures, rate limits, bridge errors)",
           "datasource": {"type": "loki", "uid": "loki"},
           "gridPos": {"h": 10, "w": 12, "x": 12, "y": 13},
-          "targets": [{"expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN\"", "refId": "A"}],
+          "targets": [{"expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN\" | json | line_format \"{{.pod_name}} | {{.message}}\"", "refId": "A"}],
           "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true}
         }
       ]
