@@ -17,8 +17,10 @@ data:
     nats --server "$NATS_URL" sub "$SUBJECT" --raw | while IFS= read -r line; do
       [ -z "$line" ] && continue
       echo "bridge: relaying ${SUBJECT}: ${line}"
-      curl -s -m 10 -H "Title: ${TITLE}" -H "Priority: ${PRIORITY}" \
-        -d "${line}" "http://ntfy.stock-bot.svc.cluster.local/loops" || true
+      status=$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
+        -H "Title: ${TITLE}" -H "Priority: ${PRIORITY}" \
+        -d "${line}" "http://ntfy.stock-bot.svc.cluster.local/loops" || echo curl-fail)
+      [ "$status" = "200" ] || echo "bridge: ntfy POST FAILED status=${status}"
     done
     echo "bridge: subscription ${SUBJECT} ended" >&2
     exit 1

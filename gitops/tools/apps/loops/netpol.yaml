@@ -43,14 +43,16 @@ spec:
     - ports:
       - port: "4222"
         protocol: TCP
-  # ntfy (bridge -> phone notifications, existing stock-bot instance)
+  # ntfy (bridge -> phone notifications, existing stock-bot instance).
+  # Cilium matches the POD port post-DNAT: the service is 80 but the
+  # container listens on 8080 (NTFY_LISTEN_HTTP).
   - toEndpoints:
     - matchLabels:
         k8s:io.kubernetes.pod.namespace: stock-bot
         app.kubernetes.io/name: ntfy
     toPorts:
     - ports:
-      - port: "80"
+      - port: "8080"
         protocol: TCP
   # kube-apiserver: the harness patches loop.phillips.dev/state on its own
   # Sandbox CR (scoped by the loop-runner Role)
