@@ -5,7 +5,7 @@
 #     --frontend dockerfile.v0 \
 #     --local context=loops/images/dev --local dockerfile=loops/images/dev \
 #     --output type=image,name=zot.phillips-homelab.net/loop-dev:$(git rev-parse --short HEAD),push=true
-FROM golang:1.24-bookworm
+FROM golang:1.25-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git make jq curl ca-certificates ripgrep unzip \
