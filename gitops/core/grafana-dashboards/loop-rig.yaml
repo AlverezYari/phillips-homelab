@@ -28,6 +28,28 @@ data:
       },
       "refresh": "1m",
       "schemaVersion": 39,
+      "templating": {
+        "list": [
+          {
+            "name": "loop",
+            "label": "Loop",
+            "type": "query",
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            },
+            "query": "label_values({namespace=\"loops\"}, pod)",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".+",
+            "multi": false,
+            "current": {
+              "text": "All",
+              "value": "$__all"
+            }
+          }
+        ]
+      },
       "panels": [
         {
           "type": "stat",
@@ -75,8 +97,8 @@ data:
         },
         {
           "type": "bargauge",
-          "title": "Iteration progress (per loop)",
-          "description": "Current iteration per loop, from harness log lines (=== iteration N/M ===). Budget M is in the SPEC. Reaped loops age out of this panel within ~2h.",
+          "title": "Iteration budget used (per loop)",
+          "description": "iteration N / budget M, from harness log lines (=== iteration N/M ===). 100% = loop is on its final funded iteration. Yellow from 80%: reap or expect .loop-done/.loop-blocked soon. Reaped loops age out within ~2h. Filter with the Loop picker above.",
           "datasource": {
             "type": "loki",
             "uid": "loki"
@@ -89,22 +111,31 @@ data:
           },
           "targets": [
             {
-              "expr": "max by (pod) (last_over_time({namespace=\"loops\"} |= \"=== iteration\" | regexp `iteration (?P<iter>[0-9]+)/(?P<budget>[0-9]+)` | unwrap iter [$__range]))",
+              "expr": "max by (pod) (last_over_time({namespace=\"loops\", pod=~\"$loop\"} |= \"=== iteration\" | regexp `iteration (?P<iter>[0-9]+)/(?P<budget>[0-9]+)` | unwrap iter [$__range])) / max by (pod) (last_over_time({namespace=\"loops\", pod=~\"$loop\"} |= \"=== iteration\" | regexp `iteration (?P<iter>[0-9]+)/(?P<budget>[0-9]+)` | unwrap budget [$__range]))",
               "refId": "A",
               "legendFormat": "{{pod}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "short",
+              "unit": "percentunit",
               "decimals": 0,
               "min": 0,
+              "max": 1,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
                     "color": "blue",
                     "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.8
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.95
                   }
                 ]
               }
@@ -227,7 +258,7 @@ data:
           },
           "targets": [
             {
-              "expr": "{namespace=\"loops\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "expr": "{namespace=\"loops\", pod=~\"$loop\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
               "refId": "A",
               "maxLines": 200
             }
@@ -257,7 +288,7 @@ data:
           },
           "targets": [
             {
-              "expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN|blocked;|relayed decision|operator answer\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "expr": "{namespace=\"loops\", pod=~\"$loop\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN|blocked;|relayed decision|operator answer\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
               "refId": "A",
               "maxLines": 200
             }
@@ -286,7 +317,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"loops\", container!=\"\"}[5m]))",
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"loops\", container!=\"\", pod=~\"$loop\"}[5m]))",
               "legendFormat": "{{pod}}"
             }
           ],
@@ -330,7 +361,7 @@ data:
           },
           "targets": [
             {
-              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"loops\", container!=\"\"})",
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"loops\", container!=\"\", pod=~\"$loop\"})",
               "legendFormat": "{{pod}}"
             }
           ],
