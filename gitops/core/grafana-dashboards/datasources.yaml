@@ -22,8 +22,13 @@ data:
         url: http://loki-gateway:80
         access: proxy
         editable: false
+        # Vector ships logs with tenant_id "1"; without the matching
+        # X-Scope-OrgID header every query returns "no org id".
         jsonData:
           maxLines: 1000
+          httpHeaderName1: X-Scope-OrgID
+        secureJsonData:
+          httpHeaderValue1: "1"
       - name: Tempo
         type: tempo
         uid: tempo
