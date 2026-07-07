@@ -76,14 +76,14 @@ data:
         {
           "type": "bargauge",
           "title": "Iteration progress (per loop)",
-          "description": "Current iteration per loop, from harness log lines (=== iteration N/M ===). Budget M is in the SPEC; bars reset when a loop is reaped.",
+          "description": "Current iteration per loop, from harness log lines (=== iteration N/M ===). Budget M is in the SPEC. Reaped loops age out of this panel within ~2h.",
           "datasource": {
             "type": "loki",
             "uid": "loki"
           },
           "gridPos": {
             "h": 4,
-            "w": 8,
+            "w": 10,
             "x": 4,
             "y": 0
           },
@@ -120,167 +120,156 @@ data:
             },
             "showUnfilled": true
           },
-          "timeFrom": "6h"
+          "timeFrom": "2h"
         },
         {
           "type": "stat",
-          "title": "CPU quota used",
+          "title": "Loop CPU (live)",
+          "description": "Actual CPU burn of loop containers right now. Each loop may burst to 4 cores; mostly idles while waiting on the Claude API.",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
-            "w": 4,
-            "x": 12,
+            "w": 5,
+            "x": 14,
             "y": 0
           },
           "targets": [
             {
-              "expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"hard\"})",
-              "instant": true
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"loops\", container=\"loop\"}[5m])) or vector(0)",
+              "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percent",
-              "decimals": 0,
-              "min": 0,
-              "max": 100,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 70
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              }
-            }
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ]
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "title": "Memory quota used",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 16,
-            "y": 0
-          },
-          "targets": [
-            {
-              "expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"hard\"})",
-              "instant": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "decimals": 0,
-              "min": 0,
-              "max": 100,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 70
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              }
-            }
-          },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ]
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "title": "Workspace PVCs",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 20,
-            "y": 0
-          },
-          "targets": [
-            {
-              "expr": "kube_resourcequota{namespace=\"loops\", resource=\"persistentvolumeclaims\", type=\"used\"}",
-              "instant": true
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "decimals": 0,
+              "unit": "cores",
+              "decimals": 2,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
                     "color": "text",
                     "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 12
-                  },
-                  {
-                    "color": "red",
-                    "value": 15
                   }
                 ]
               }
             }
           },
           "options": {
-            "colorMode": "value",
-            "graphMode": "none",
+            "colorMode": "none",
+            "graphMode": "area",
             "reduceOptions": {
               "calcs": [
                 "lastNotNull"
               ]
             }
           }
+        },
+        {
+          "type": "stat",
+          "title": "Loop memory (live)",
+          "description": "Actual working-set memory of loop containers right now (limit 6Gi per loop).",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 5,
+            "x": 19,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"loops\", container=\"loop\"}) or vector(0)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "text",
+                    "value": null
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "none",
+            "graphMode": "area",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
+          }
+        },
+        {
+          "type": "logs",
+          "title": "Harness events (iterations, gates, state)",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 0,
+            "y": 4
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"loops\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "refId": "A",
+              "maxLines": 200
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none",
+            "enableLogDetails": true
+          },
+          "timeFrom": "1h"
+        },
+        {
+          "type": "logs",
+          "title": "Needs attention (gate RED, failures, rate limits, blocks, decisions)",
+          "description": "Anything here means the rig wants an operator: red gates, crashes, rate limits, BLOCKED items, decisions filed, or answers arriving.",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 12,
+            "y": 4
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN|blocked;|relayed decision|operator answer\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "refId": "A",
+              "maxLines": 200
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none",
+            "enableLogDetails": true
+          },
+          "timeFrom": "1h"
         },
         {
           "type": "timeseries",
@@ -290,10 +279,10 @@ data:
             "uid": "prometheus"
           },
           "gridPos": {
-            "h": 9,
-            "w": 12,
+            "h": 8,
+            "w": 8,
             "x": 0,
-            "y": 4
+            "y": 14
           },
           "targets": [
             {
@@ -334,10 +323,10 @@ data:
             "uid": "prometheus"
           },
           "gridPos": {
-            "h": 9,
-            "w": 12,
-            "x": 12,
-            "y": 4
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 14
           },
           "targets": [
             {
@@ -371,62 +360,74 @@ data:
           }
         },
         {
-          "type": "logs",
-          "title": "Harness events (iterations, gates, state)",
+          "type": "bargauge",
+          "title": "Fleet capacity committed (vs quota)",
+          "description": "Reservations (pod requests) against the loops-namespace ResourceQuota — moves when pods are added/removed, NOT with load. Each loop commits 1 CPU / 2Gi / 1 PVC; the NATS+bridge infra floor is ~5%. Live burn is in the panels to the left.",
           "datasource": {
-            "type": "loki",
-            "uid": "loki"
+            "type": "prometheus",
+            "uid": "prometheus"
           },
           "gridPos": {
-            "h": 10,
-            "w": 12,
-            "x": 0,
-            "y": 13
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 14
           },
           "targets": [
             {
-              "expr": "{namespace=\"loops\"} |= \"[harness\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
+              "expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.cpu\", type=\"hard\"})",
               "refId": "A",
-              "maxLines": 200
-            }
-          ],
-          "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "dedupStrategy": "none",
-            "enableLogDetails": true
-          },
-          "timeFrom": "1h"
-        },
-        {
-          "type": "logs",
-          "title": "Trouble (gate RED, failures, rate limits, bridge errors)",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 10,
-            "w": 12,
-            "x": 12,
-            "y": 13
-          },
-          "targets": [
+              "instant": true,
+              "legendFormat": "CPU reserved"
+            },
             {
-              "expr": "{namespace=\"loops\"} |~ \"gate RED|FAILED|fatal|rate limit|WARN\" | json | line_format \"{{.pod_name}} | {{.message}}\"",
-              "refId": "A",
-              "maxLines": 200
+              "expr": "100 * max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"used\"}) / max(kube_resourcequota{namespace=\"loops\", resource=\"requests.memory\", type=\"hard\"})",
+              "refId": "B",
+              "instant": true,
+              "legendFormat": "Memory reserved"
+            },
+            {
+              "expr": "100 * (count(kube_persistentvolumeclaim_info{namespace=\"loops\", persistentvolumeclaim=~\"workspace-.+\"}) or vector(0)) / max(kube_resourcequota{namespace=\"loops\", resource=\"persistentvolumeclaims\", type=\"hard\"})",
+              "refId": "C",
+              "instant": true,
+              "legendFormat": "Workspace PVCs"
             }
           ],
-          "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "dedupStrategy": "none",
-            "enableLogDetails": true
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 0,
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              }
+            }
           },
-          "timeFrom": "1h"
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "showUnfilled": true
+          }
         }
       ],
       "timepicker": {
