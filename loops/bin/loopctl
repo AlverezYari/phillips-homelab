@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# loopctl — conductor verbs for the loop rig. Deterministic single commands
+# so the conductor never improvises multi-step kubectl.
+#
+#   loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG]
+#   loopctl status [name]
+#   loopctl logs <name> [-f]
+#   loopctl answer <name> <json-or-text>
+#   loopctl pause <name> | resume <name>
+#   loopctl reap <name> [--no-pr]
+#
+# Secrets never touch the laptop: FJO/NATS calls run in short-lived helper
+# pods that read the loop-secrets Secret in-cluster.
+set -euo pipefail
+
+NS=loops
+REVIEWER=cphillips-homelab
+FJO_API=http://forgejo-http.forgejo.svc.cluster.local:3000/api/v1
+REPO_ROOT=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/Documents/Projects/phillips-homelab")
+TEMPLATE="$REPO_ROOT/loops/templates/loop-sandbox.yaml"
+
+die() { echo "loopctl: $*" >&2; exit 1; }
+
+image_from_template() { grep -oE 'zot\.phillips-homelab\.net/loop-dev:[a-z0-9]+' "$TEMPLATE" | head -1; }
+
+# Run $2 (bash script text) in a short-lived in-cluster pod named loopctl-$1-*
+# with loop-secrets in env. Prints the pod's logs. Optional $3 = extra pod
+# spec YAML lines (e.g. a PVC volume), $4 = extra container YAML lines.
+helper_pod() {
+  local verb=$1 script=$2 extra_spec=${3:-} extra_container=${4:-}
+  local pod="loopctl-${verb}-$RANDOM"
+  {
+    echo "apiVersion: v1"
+    echo "kind: Pod"
+    echo "metadata:"
+    echo "  name: ${pod}"
+    echo "  namespace: ${NS}"
+    echo "spec:"
+    echo "  restartPolicy: Never"
+    echo "  nodeSelector: {kubernetes.io/hostname: homelab-04}"
+    [ -n "$extra_spec" ] && printf '%s\n' "$extra_spec"
+    echo "  containers:"
+    echo "  - name: c"
+    echo "    image: $(image_from_template)"
+    echo "    envFrom: [{secretRef: {name: loop-secrets}}]"
+    [ -n "$extra_container" ] && printf '%s\n' "$extra_container"
+    echo "    command: [bash, -c, $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$script")]"
+  } | kubectl apply -f - >/dev/null
+  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout=180s >/dev/null 2>&1 \
+    || { kubectl -n "$NS" logs "$pod" 2>/dev/null; kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1; die "helper pod $verb failed"; }
+  kubectl -n "$NS" logs "$pod" 2>/dev/null
+  kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1
+}
+
+cmd_spawn() {
+  local name=${1:?usage: loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG]}
+  local repo=${2:?owner/repo required}; shift 2
+  local spec="" max_iter=15 image=""
+  while [ $# -gt 0 ]; do case $1 in
+    --spec) spec=$2; shift 2;; --max-iter) max_iter=$2; shift 2;; --image) image=$2; shift 2;;
+    *) die "unknown flag $1";;
+  esac; done
+  [ -f "$spec" ] || die "--spec <file> required and must exist"
+  kubectl -n "$NS" get sandbox "$name" >/dev/null 2>&1 && die "sandbox '$name' already exists (reap it first)"
+
+  LOOP=$name REPO=$repo MAX_ITER=$max_iter python3 - "$TEMPLATE" <<'EOF' | kubectl apply -f - >/dev/null
+import os, re, sys
+t = open(sys.argv[1]).read()
+print(re.sub(r'\$\{(\w+)\}', lambda m: os.environ[m.group(1)], t))
+EOF
+  if [ -n "$image" ]; then
+    kubectl -n "$NS" patch sandbox "$name" --type=json \
+      -p "[{\"op\":\"replace\",\"path\":\"/spec/podTemplate/spec/containers/0/image\",\"value\":\"zot.phillips-homelab.net/loop-dev:${image}\"}]" >/dev/null
+  fi
+  echo "spawned sandbox/$name; waiting for pod..."
+  kubectl -n "$NS" wait --for=condition=Ready "pod/$name" --timeout=300s >/dev/null
+  kubectl -n "$NS" cp "$spec" "$name:/workspace/SPEC.md" >/dev/null 2>&1
+  echo "SPEC uploaded; waiting for iteration 1..."
+  local i=0
+  until kubectl -n "$NS" exec "$name" -- test -f /workspace/.iter-count 2>/dev/null; do
+    sleep 3; i=$((i+1)); [ $i -gt 60 ] && die "harness did not start iterating within 3m — check: loopctl logs $name"
+  done
+  echo "loop '$name' running against $repo (budget $max_iter). Watch: loopctl logs $name -f"
+}
+
+cmd_status() {
+  local name=${1:-}
+  if [ -z "$name" ]; then
+    echo "SANDBOX      STATE       POD-PHASE   AGE"
+    kubectl -n "$NS" get sandboxes -o json 2>/dev/null | python3 -c "
+import json,sys,datetime
+now = datetime.datetime.now(datetime.timezone.utc)
+items = json.load(sys.stdin).get('items', [])
+if not items: print('(no loops)'); sys.exit()
+for s in items:
+    n = s['metadata']['name']
+    st = s['metadata'].get('labels', {}).get('loop.phillips.dev/state', '?')
+    created = datetime.datetime.fromisoformat(s['metadata']['creationTimestamp'].replace('Z','+00:00'))
+    age = str(now - created).split('.')[0]
+    print(f'{n:<12} {st:<11} {\"-\":<11} {age}')"
+    kubectl -n "$NS" get pods -o wide 2>/dev/null | grep -vE 'loopctl-|nats|bridge' | tail -n +2 || true
+    return
+  fi
+  echo "=== sandbox/$name"
+  kubectl -n "$NS" get sandbox "$name" -o jsonpath='state={.metadata.labels.loop\.phillips\.dev/state} mode={.spec.operatingMode}{"\n"}' 2>/dev/null || { echo "(no such sandbox)"; return; }
+  kubectl -n "$NS" get pod "$name" -o wide 2>/dev/null | tail -1 || true
+  echo "=== PROGRESS (tail)"
+  kubectl -n "$NS" exec "$name" -- sh -c 'echo "iteration: $(cat /workspace/.iter-count 2>/dev/null)/$MAX_ITER"; tail -20 /workspace/PROGRESS.md 2>/dev/null; ls /workspace/decisions/*.json 2>/dev/null | sed "s/^/UNRELAYED DECISION: /"' 2>/dev/null \
+    || echo "(pod not exec-able — completed or suspended)"
+  echo "=== PR (likely): https://code.phillips-homelab.net/loop-bot/*/pulls — branch loop/$name"
+}
+
+cmd_logs() {
+  local name=${1:?usage: loopctl logs <name> [-f]}
+  shift || true
+  kubectl -n "$NS" logs "$name" "$@" --tail=50
+}
+
+cmd_answer() {
+  local name=${1:?usage: loopctl answer <name> <json-or-text>}
+  local msg=${2:?message required}
+  echo "$msg" | jq -e . >/dev/null 2>&1 || msg=$(jq -cn --arg a "$msg" '{answer: $a, by: "conductor"}')
+  helper_pod answer "nats --server \"nats://loop:\${NATS_PASSWORD}@nats.loops.svc.cluster.local:4222\" pub 'loops.${name}.inbox' '$(printf %s "$msg" | sed "s/'/'\\\\''/g")' && echo 'answer published to loops.${name}.inbox'"
+}
+
+cmd_pause()  { kubectl -n "$NS" patch sandbox "${1:?name}" --type=merge -p '{"spec":{"operatingMode":"Suspended"}}' && echo "paused (PVC retained)"; }
+cmd_resume() { kubectl -n "$NS" patch sandbox "${1:?name}" --type=merge -p '{"spec":{"operatingMode":"Running"}}' && echo "resumed"; }
+
+cmd_reap() {
+  local name=${1:?usage: loopctl reap <name> [--no-pr]}
+  local nopr=${2:-}
+  if [ "$nopr" != "--no-pr" ] && kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1; then
+    local repo
+    repo=$(kubectl -n "$NS" get sandbox "$name" -o jsonpath='{.spec.podTemplate.spec.containers[0].env[?(@.name=="REPO_URL")].value}' \
+      | sed -E 's#.*/([^/]+/[^/]+)\.git#\1#')
+    [ -n "$repo" ] || die "cannot derive repo from sandbox env"
+    helper_pod reap "
+F=$FJO_API
+BODY=\$( [ -f /ws/PR.md ] && cat /ws/PR.md || cat /ws/.loop-done 2>/dev/null || echo 'loop reaped' )
+PAYLOAD=\$(jq -n --arg b \"\$BODY\" '{title: \"loop(${name})\", head: \"loop/${name}\", base: \"main\", body: \$b}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) idx=\$(jq -r .number /tmp/r); echo \"PR filed: \$(jq -r .html_url /tmp/r)\";;
+  409) echo 'PR already exists for branch'; idx=\$(curl -s \"\$F/repos/${repo}/pulls?state=open\" -H \"Authorization: token \${FORGEJO_TOKEN}\" | jq -r '.[] | select(.head.ref==\"loop/${name}\") | .number' | head -1);;
+  *) echo \"PR create failed: \$code\"; head -c 200 /tmp/r; idx='';;
+esac
+if [ -n \"\$idx\" ]; then
+  jq -n --arg p \"\$(cat /ws/PROGRESS.md 2>/dev/null || echo none)\" '{body: (\"## Final PROGRESS (forensics)\n\n\" + \$p)}' \
+    | curl -s -o /dev/null -X POST \"\$F/repos/${repo}/issues/\$idx/comments\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d @-
+  curl -s -o /dev/null -X POST \"\$F/repos/${repo}/pulls/\$idx/requested_reviewers\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"reviewers\":[\"$REVIEWER\"]}'
+  echo 'PROGRESS attached as comment; review requested from $REVIEWER'
+fi" \
+      "  volumes:
+  - name: ws
+    persistentVolumeClaim: {claimName: workspace-$name}" \
+      "    volumeMounts: [{name: ws, mountPath: /ws}]"
+  fi
+  kubectl -n "$NS" delete sandbox "$name" && echo "sandbox deleted"
+  sleep 5
+  kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1 && echo "WARNING: PVC workspace-$name still present" || echo "PVC cleaned up"
+}
+
+cmd=${1:-help}; shift || true
+case $cmd in
+  spawn) cmd_spawn "$@";;
+  status) cmd_status "$@";;
+  logs) cmd_logs "$@";;
+  answer) cmd_answer "$@";;
+  pause) cmd_pause "$@";;
+  resume) cmd_resume "$@";;
+  reap) cmd_reap "$@";;
+  *) sed -n '2,12p' "$0";;
+esac
