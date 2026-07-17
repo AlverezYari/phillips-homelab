@@ -1,0 +1,23 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: tycho-pg
+  namespace: tycho
+spec:
+  instances: 1
+
+  storage:
+    storageClass: syno-iscsi-default
+    size: 10Gi
+
+  bootstrap:
+    initdb:
+      database: tycho
+      owner: tycho
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
