@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tychofleet
+  namespace: tychofleet
+  labels:
+    app: tychofleet
+spec:
+  replicas: 1
+  # Single SQLite writer — same constraint as light-the-ham.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tychofleet
+  template:
+    metadata:
+      labels:
+        app: tychofleet
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: zot.phillips-homelab.net/tychofleet:e9f245f
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 4321
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "4321"
+            - name: DATABASE_PATH
+              value: /data/tychofleet.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 4321
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4321
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tychofleet-data

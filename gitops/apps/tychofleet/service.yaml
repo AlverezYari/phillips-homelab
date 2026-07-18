@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tychofleet
+  namespace: tychofleet
+  labels:
+    app: tychofleet
+spec:
+  selector:
+    app: tychofleet
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4321
+      protocol: TCP
+  type: ClusterIP
