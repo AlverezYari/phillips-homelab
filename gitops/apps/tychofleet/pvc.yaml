@@ -1,0 +1,15 @@
+# syno-iscsi-default (Retain, network-attached) rather than nvme-scratch:
+# this PVC is the only copy of the waitlist DB until the litestream
+# phase-2 sidecar lands, and nvme-scratch is node-local with Delete reclaim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tychofleet-data
+  namespace: tychofleet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 1Gi

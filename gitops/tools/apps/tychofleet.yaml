@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tychofleet
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    path: gitops/apps/tychofleet
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tychofleet
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
