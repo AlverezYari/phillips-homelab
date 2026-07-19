@@ -33,6 +33,17 @@ spec:
 
         replicaCount: 1
 
+        # Node has ~32Gi RAM and load is modest — give the app real headroom
+        # so it isn't BestEffort/first-to-throttle under contention. No CPU
+        # limit on purpose (requests guarantee scheduling; a limit only adds
+        # throttling for a git workload that's bursty by nature).
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            memory: 2Gi
+
         persistence:
           enabled: true
           create: true
