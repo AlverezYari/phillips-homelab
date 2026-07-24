@@ -24,7 +24,15 @@ loops/bin/loopctl logs <name> [-f]  # harness stdout
 loops/bin/loopctl answer <name> '<json-or-text>'  # -> loops.<name>.inbox (durable)
 loops/bin/loopctl pause <name> / resume <name>    # Suspended keeps the PVC
 loops/bin/loopctl reap <name> [--no-pr]  # PR (PR.md body + PROGRESS comment + review request) then delete
+loops/bin/loopctl pr <owner/repo> <branch> [title...]  # file a PR for ANY branch (fix/docs too, not just loop/*)
+loops/bin/loopctl merge <owner/repo> <pr#>             # merge a PR — the conductor's landing verb
 ```
+
+`pr`/`merge` exist so the conductor never improvises raw token curls
+(added 2026-07-24 after a night of exactly that): the FJO token stays
+in-cluster, same invariant as every other verb. Casey's approval for a
+merge is his instruction in-session; branch protection does not gate
+loop-bot's API merges.
 
 ## Conductor session start
 
