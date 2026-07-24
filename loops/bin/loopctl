@@ -8,6 +8,8 @@
 #   loopctl answer <name> <json-or-text>
 #   loopctl pause <name> | resume <name>
 #   loopctl reap <name> [--no-pr]
+#   loopctl pr <owner/repo> <branch> [title...]
+#   loopctl merge <owner/repo> <pr#>
 #
 # Secrets never touch the laptop: FJO/NATS calls run in short-lived helper
 # pods that read the loop-secrets Secret in-cluster.
@@ -167,6 +169,35 @@ fi" \
   ping_phone "Loop reaped: $name" "package" "Sandbox deleted; PR (if any) is review-requested in FJO."
 }
 
+# pr/merge: the conductor's landing verbs. reap files a PR only for a
+# loop's own branch on its way out; these work for ANY branch/PR (fix
+# branches, docs branches, a reaped loop's PR after review), so the
+# conductor never has to improvise raw token curls — the FJO token
+# stays in-cluster, same invariant as every other verb.
+cmd_pr() {
+  local repo=${1:?usage: loopctl pr <owner/repo> <branch> [title...]}
+  local branch=${2:?branch required}; shift 2
+  local title=${*:-$branch}
+  helper_pod pr "
+F=$FJO_API
+PAYLOAD=\$(jq -n --arg t \"$title\" --arg h \"$branch\" '{title: \$t, head: \$h, base: \"main\", body: \"Filed by loopctl pr.\"}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) echo \"PR #\$(jq -r .number /tmp/r) filed: \$(jq -r .html_url /tmp/r)\";;
+  409) idx=\$(curl -s \"\$F/repos/${repo}/pulls?state=open\" -H \"Authorization: token \${FORGEJO_TOKEN}\" | jq -r '.[] | select(.head.ref==\"${branch}\") | .number' | head -1); echo \"PR already exists: #\$idx\";;
+  *) echo \"PR create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
+esac"
+}
+
+cmd_merge() {
+  local repo=${1:?usage: loopctl merge <owner/repo> <pr#>}
+  local idx=${2:?PR number required}
+  helper_pod merge "
+F=$FJO_API
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls/${idx}/merge\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"Do\":\"merge\"}')
+if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge failed: \$code\"; head -c 300 /tmp/r; exit 1; fi"
+}
+
 cmd=${1:-help}; shift || true
 case $cmd in
   spawn) cmd_spawn "$@";;
@@ -176,5 +207,7 @@ case $cmd in
   pause) cmd_pause "$@";;
   resume) cmd_resume "$@";;
   reap) cmd_reap "$@";;
-  *) sed -n '2,12p' "$0";;
+  pr) cmd_pr "$@";;
+  merge) cmd_merge "$@";;
+  *) sed -n '2,14p' "$0";;
 esac
