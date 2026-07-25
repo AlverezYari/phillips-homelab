@@ -8,7 +8,7 @@
 FROM golang:1.25-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      git make jq curl ca-certificates ripgrep unzip \
+      git make jq curl ca-certificates ripgrep unzip fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # claude CLI (native installer drops it in ~/.local/bin; promote to PATH)
