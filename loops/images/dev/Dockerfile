@@ -22,6 +22,17 @@ RUN NATS_CLI_VERSION=0.4.0 && \
     unzip -q /tmp/nats.zip -d /tmp/natscli && \
     install -m 0755 /tmp/natscli/nats-*/nats /usr/local/bin/nats && rm -rf /tmp/nats.zip /tmp/natscli
 
+# Node 20 + pnpm, for JS/TS repos (tychofleet) whose gate runs pnpm via
+# make. Baked into the image rather than downloaded per-loop into the
+# /workspace PVC: a fresh sandbox must be able to pass the gate on
+# iteration 1 with no network luck involved (the fleetorg loop burned 3
+# iterations discovering this the hard way). corepack pins pnpm to
+# whatever each repo's package.json packageManager field declares.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/* && \
+    corepack enable
+
 # kubectl (only used to patch the loop's own Sandbox state label)
 RUN KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" && \
     curl -fsSL -o /usr/local/bin/kubectl \
@@ -29,7 +40,8 @@ RUN KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" && \
     chmod 0755 /usr/local/bin/kubectl
 
 RUN useradd -m -u 1000 -s /bin/bash loop && mkdir -p /workspace && chown loop:loop /workspace
-COPY --chmod=0755 harness.sh /usr/local/bin/harness.sh
+COPY harness.sh /usr/local/bin/harness.sh
+RUN chmod 0755 /usr/local/bin/harness.sh
 USER loop
 ENV HOME=/home/loop
 WORKDIR /workspace
