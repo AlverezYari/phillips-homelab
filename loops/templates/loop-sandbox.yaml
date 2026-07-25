@@ -32,7 +32,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: loop
-        image: zot.phillips-homelab.net/loop-dev:429a681
+        image: zot.phillips-homelab.net/loop-dev:6570b1b
         envFrom:
         - secretRef:
             name: loop-secrets
