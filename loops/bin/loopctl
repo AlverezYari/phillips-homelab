@@ -157,6 +157,22 @@ if [ -n \"\$idx\" ]; then
     | curl -s -o /dev/null -X POST \"\$F/repos/${repo}/issues/\$idx/comments\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d @-
   curl -s -o /dev/null -X POST \"\$F/repos/${repo}/pulls/\$idx/requested_reviewers\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"reviewers\":[\"$REVIEWER\"]}'
   echo 'PROGRESS attached as comment; review requested from $REVIEWER'
+  # Visual confirmations: UI loops drop PNGs in /workspace/renders/
+  # (SPEC contract, added after a restyle shipped green gates but was
+  # visually broken). Upload each as a PR attachment and embed them in
+  # one comment so review OPENS with pictures next to the diff.
+  if ls /ws/renders/*.png >/dev/null 2>&1; then
+    IMGS=''
+    for f in /ws/renders/*.png; do
+      url=\$(curl -s -X POST \"\$F/repos/${repo}/issues/\$idx/assets?name=\$(basename \"\$f\")\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -F \"attachment=@\$f\" | jq -r '.browser_download_url // empty')
+      [ -n \"\$url\" ] && IMGS=\"\$IMGS![\$(basename \"\$f\")](\$url)\n\n\"
+    done
+    if [ -n \"\$IMGS\" ]; then
+      jq -n --arg b \"\$(printf '## Visual confirmations\n\n%b' \"\$IMGS\")\" '{body: \$b}' \
+        | curl -s -o /dev/null -X POST \"\$F/repos/${repo}/issues/\$idx/comments\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d @-
+      echo 'visual confirmations attached'
+    fi
+  fi
 fi" \
       "  volumes:
   - name: ws
