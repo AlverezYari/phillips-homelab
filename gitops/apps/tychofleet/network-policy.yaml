@@ -1,6 +1,6 @@
-# v0 lockdown: ingress only from the Cloudflare tunnel, egress DNS only
-# (the app makes no outbound calls). Litestream phase 2 will need an
-# egress rule to garage:3900 like lighttheham's.
+# Lockdown: ingress only from the Cloudflare tunnel; egress DNS plus
+# SMTP submission (Fastmail, magic-link mail). Litestream phase 3 will
+# need an egress rule to garage:3900 like lighttheham's.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -28,4 +28,13 @@ spec:
             - port: "53"
               protocol: UDP
             - port: "53"
+              protocol: TCP
+    # smtp.fastmail.com submission. Port-scoped world egress rather than
+    # toFQDNs — nothing in the cluster uses the Cilium DNS proxy yet and
+    # this deploy is the wrong place to introduce it.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "587"
               protocol: TCP

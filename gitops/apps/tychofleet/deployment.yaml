@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: app
-          image: zot.phillips-homelab.net/tychofleet:937aca8
+          image: zot.phillips-homelab.net/tychofleet:c8329c6
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -41,6 +41,18 @@ spec:
               value: "4321"
             - name: DATABASE_PATH
               value: /data/tychofleet.db
+            - name: SMTP_HOST
+              value: smtp.fastmail.com
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              value: admin@tychofleet.com
+            - name: SMTP_FROM
+              value: admin@tychofleet.com
+          # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN
+          envFrom:
+            - secretRef:
+                name: tychofleet-config
           volumeMounts:
             - name: data
               mountPath: /data
