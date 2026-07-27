@@ -45,8 +45,10 @@ spec:
               value: smtp.fastmail.com
             - name: SMTP_PORT
               value: "587"
+            # Fastmail SMTP AUTH needs the account login, not the sending
+            # identity — admin@tychofleet.com is an alias and 535s.
             - name: SMTP_USER
-              value: admin@tychofleet.com
+              value: devs@lighttheham.com
             - name: SMTP_FROM
               value: admin@tychofleet.com
           # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN
