@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: seestar-proxy
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: seestar-proxy
+spec:
+  # LoadBalancer so scopetui on the LAN can reach control without a
+  # port-forward; in-cluster consumers use the DNS name.
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: seestar-proxy
+  ports:
+    - name: control
+      port: 4700
+      targetPort: control
+    - name: imaging
+      port: 4800
+      targetPort: imaging
+    - name: dashboard
+      port: 4090
+      targetPort: dashboard

@@ -1,0 +1,25 @@
+# LoadBalancer Service exposing tycho.agent.v1.Agent (ADR 0004's gRPC
+# control API, AGENT_API_ADDR :9090) to LAN clients — scopetui phase 2
+# today, the operator later. Separate from service.yaml (the headless
+# Service the StatefulSet itself requires): that one is cluster-internal
+# by design, this one is deliberately reachable off-cluster.
+#
+# Stewardship (ADR 0004) is enforced by the agent process itself, not
+# by this Service — TYCHO_GRANTS/AGENT_API_TOKEN (statefulset.yaml)
+# gate what a LAN client can do once it connects.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tycho-agent-api
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-agent
+    app.kubernetes.io/part-of: tycho
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: tycho-agent
+  ports:
+    - name: agent-api
+      port: 9090
+      targetPort: agent-api

@@ -1,0 +1,111 @@
+# tycho-gateway Deployment.
+#
+# Assumptions the operator should confirm/adjust before applying (SPEC:
+# real-infra integration is validated by the operator, not this loop):
+#   - Runs in the `tycho` namespace. Garage runs in the `garage`
+#     namespace (bucket `tycho`, key `tycho-key`), NATS in `loops` —
+#     both reachable cross-namespace by the DNS names below. Garage
+#     requires region `garage` or it 400s (gateway defaults S3_REGION
+#     accordingly; set explicitly here anyway).
+#   - CNPG cluster is named `tycho-pg` in the `tycho` namespace, so its
+#     generated app-user secret is `tycho-pg-app` (CNPG's own naming
+#     convention: `<cluster-name>-app`, containing an `uri` key) —
+#     rename the secretKeyRef below if the real cluster is named
+#     differently. Not provisioned yet as of this writing.
+#   - `tycho-config` is the ESO-managed secret (ExternalSecret synced
+#     from 1Password by the homelab GitOps repo): S3_ACCESS_KEY_ID,
+#     S3_SECRET_ACCESS_KEY, SOURCE_AUTH_TOKEN (plus IDENTITY_TOKEN for
+#     the agent and see_start_pem for the fleet key). This manifest
+#     only references keys in it, never inlines values.
+#   - `image` points at the registry `make images`/`make push` (repo
+#     root Makefile) and `.forgejo/workflows/ci.yml`'s tag-triggered
+#     job publish to (`REGISTRY ?= zot.phillips-homelab.net`). The tag
+#     below is a placeholder — pin it via this directory's
+#     `kustomization.yaml` `images[].newTag` (set to a real `make
+#     images`/CI build's tag, e.g. a git short sha) before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tycho-gateway
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-gateway
+    app.kubernetes.io/part-of: tycho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tycho-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tycho-gateway
+    spec:
+      # Satisfies PodSecurity "restricted" (warnings observed on first
+      # deploy; the namespace may enforce it later).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: zot.phillips-homelab.net/tycho-gateway:latest # pin via kustomization.yaml images[].newTag — see comment above
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: LISTEN_ADDR
+              value: ":8080"
+            - name: S3_ENDPOINT
+              value: "http://garage.garage.svc.cluster.local:3900"
+            - name: S3_REGION
+              value: "garage"
+            - name: S3_BUCKET
+              value: "tycho"
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-config
+                  key: S3_ACCESS_KEY_ID
+            - name: S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-config
+                  key: S3_SECRET_ACCESS_KEY
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-pg-app
+                  key: uri
+            - name: NATS_URL
+              valueFrom:
+                secretKeyRef:
+                  # Credentialed URL (nats://user:pass@host). Currently the
+                  # loops NATS `loop` user, hand-minted for the POC smoke
+                  # test — a dedicated tycho NATS user delivered via
+                  # tycho-config is queued as the durable fix (issue #29).
+                  name: tycho-nats
+                  key: NATS_URL
+            - name: SOURCE_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-config
+                  key: SOURCE_AUTH_TOKEN
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15

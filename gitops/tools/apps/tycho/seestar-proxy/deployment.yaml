@@ -1,0 +1,50 @@
+# seestar-proxy: TCP multiplexer in front of the scope's :4700 control
+# socket (github.com/astrophotograph/seestar-proxy, MIT, run from the
+# upstream release binary wrapped in a scratch image).
+#
+# Why: the firmware limits which clients get real control (master-cli /
+# verified-client arbitration — docs/seestar-fleet-context.md §8), so
+# every tycho tool sharing ONE upstream connection through this proxy
+# sidesteps the contention: the proxy is the scope's single control
+# client; agent, scopetui, and future tooling all connect here instead.
+# HTTP :80 file retrieval is NOT proxied — the agent still fetches FITS
+# from the scope directly (SCOPE_HOST vs SCOPE_CONTROL_HOST).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seestar-proxy
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: seestar-proxy
+    app.kubernetes.io/part-of: tycho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: seestar-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: seestar-proxy
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: proxy
+          image: zot.phillips-homelab.net/seestar-proxy:latest # pinned via kustomization.yaml
+          args: ["--upstream", "10.20.20.53"] # S30 Pro home-LAN IP; travel-router setup will change this
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: control
+              containerPort: 4700
+            - name: imaging
+              containerPort: 4800
+            - name: dashboard
+              containerPort: 4090

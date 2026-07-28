@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+images:
+  # Pin to a real build before applying: set newTag to a tag `make
+  # images`/`make push` (or .forgejo/workflows/ci.yml's tag-triggered
+  # job) actually published, e.g. a git short sha.
+  - name: zot.phillips-homelab.net/tycho-gateway
+    newTag: "f29f094"

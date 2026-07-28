@@ -1,5 +1,25 @@
+# Tycho operator stack, adopted from hand-applied state 2026-07-28.
+# Workload manifests are vendored from loop-bot/tycho deploy/ @ e21ee60;
+# image tags there matched the live cluster exactly at adoption time
+# (kubectl diff was empty). Re-vendor from that repo when bumping.
+# The tycho namespace is NOT here: it is owned by the tycho-db app.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: tycho
 resources:
-- namespace.yaml
 - externalsecret.yaml
+- operator
+- gateway
+- scorer
+- seestar-proxy
+- agent
+patches:
+# If ArgoCD ever prunes a CRD it takes every custom resource with it —
+# here, every ImagingSession record of every night's capture. Never
+# auto-prune them.
+- target:
+    kind: CustomResourceDefinition
+  patch: |-
+    - op: add
+      path: /metadata/annotations/argocd.argoproj.io~1sync-options
+      value: Prune=false
