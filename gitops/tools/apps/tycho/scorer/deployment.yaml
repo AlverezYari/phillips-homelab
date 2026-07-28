@@ -1,0 +1,98 @@
+# tycho-scorer Deployment.
+#
+# No Service/probes here, unlike tycho-gateway/tycho-agent/
+# tycho-operator: tycho-scorer is a pure JetStream pull consumer with
+# no HTTP server (see scorer/src/tycho_scorer/service.py — it opens no
+# listening port), so there's nothing for a readinessProbe/livenessProbe
+# to hit. Liveness in practice is "the pull loop is still fetching",
+# which Kubernetes can't observe without adding a health endpoint the
+# code doesn't have; revisit if that becomes a real operability gap.
+#
+# Assumptions the operator should confirm/adjust before applying (SPEC:
+# real-infra integration is validated by the operator, not this loop):
+#   - Runs in the `tycho` namespace, alongside tycho-gateway/
+#     tycho-agent/tycho-operator.
+#   - CNPG cluster `tycho-pg` in the `tycho` namespace has produced its
+#     `tycho-pg-app` secret (CNPG's `<cluster-name>-app` convention,
+#     `uri` key) — same secret the gateway already reads
+#     (deploy/gateway/deployment.yaml). The `score` table it writes to
+#     is created by the gateway's own migration
+#     (gateway/internal/catalog/migrations/0001_init.sql); the scorer
+#     is a second writer against it, not a second schema owner (see
+#     scorer/src/tycho_scorer/catalog.py's docstring).
+#   - `tycho-nats` is the same hand-minted NATS credential secret
+#     (`NATS_URL` key) tycho-gateway/tycho-operator already use — see
+#     their manifests' own notes that a dedicated tycho NATS user is
+#     the queued durable fix (issue #29).
+#   - `tycho-scorer-s3` is a hand-minted Secret (from tycho-config's
+#     Garage values, same values as tycho-combine-s3 — see
+#     deploy/operator/README.md's Combine Job template section) with
+#     keys S3_ENDPOINT, S3_REGION, S3_BUCKET, AWS_ACCESS_KEY_ID,
+#     AWS_SECRET_ACCESS_KEY, consumed via `envFrom` exactly like the
+#     operator's combine Job template consumes
+#     `COMBINE_S3_SECRET_NAME` — a separate K8s object from
+#     tycho-combine-s3 (SPEC: this loop doesn't touch combine/), same
+#     key names inside it, per scorer/src/tycho_scorer/service.py's
+#     env-contract docstring. Not provisioned by this manifest set.
+#   - `image` points at the registry `make images`/`make push` (repo
+#     root Makefile) and `.forgejo/workflows/ci.yml`'s tag-triggered
+#     job publish to (`REGISTRY ?= zot.phillips-homelab.net`). The tag
+#     below is a placeholder — pin it via this directory's
+#     `kustomization.yaml` `images[].newTag` (set to a real `make
+#     images`/CI build's tag, e.g. a git short sha) before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tycho-scorer
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-scorer
+    app.kubernetes.io/part-of: tycho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tycho-scorer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tycho-scorer
+    spec:
+      # Satisfies PodSecurity "restricted", matching
+      # gateway/agent/operator.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: scorer
+          image: zot.phillips-homelab.net/tycho-scorer:latest # pin via kustomization.yaml images[].newTag — see comment above
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          envFrom:
+            # S3_ENDPOINT, S3_REGION, S3_BUCKET, AWS_ACCESS_KEY_ID,
+            # AWS_SECRET_ACCESS_KEY — same key names combine's Job
+            # contract documents (docs/adr/0003-combine-engine.md),
+            # dumped as env vars the same way the operator's combine
+            # Job template consumes COMBINE_S3_SECRET_NAME.
+            - secretRef:
+                name: tycho-scorer-s3
+          env:
+            - name: NATS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-nats
+                  key: NATS_URL
+            - name: POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-pg-app
+                  key: uri
+            # TYCHO_SCORER_MAX_DELIVER/TYCHO_SCORER_DURABLE are
+            # optional (defaults 5, "tycho-scorer" —
+            # scorer/src/tycho_scorer/service.py) and deliberately
+            # left unset here: no reason yet to override either.

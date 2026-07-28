@@ -1,0 +1,58 @@
+# tycho-operator RBAC.
+#
+# ClusterRole is generated from the +kubebuilder:rbac markers in
+# operator/main.go — regenerate with:
+#
+#   controller-gen rbac:roleName=tycho-operator paths=./operator/... \
+#     output:rbac:dir=/tmp/rbacgen
+#
+# and copy the resulting role.yaml's `rules:` back in here (the
+# ClusterRoleBinding/ServiceAccount below are hand-maintained, not
+# generated).
+#
+# Cluster-scoped (not a Role) because Seestar/ImagingSession are
+# namespaced but the operator is meant to run as a single
+# cluster-wide instance watching one namespace's worth of CRs today
+# with room to watch more without an RBAC change later.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tycho-operator
+  namespace: tycho
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tycho-operator
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["fleet.tycho.dev"]
+    resources: ["imagingsessions", "seestars", "targetmasters", "fleetmasters"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["fleet.tycho.dev"]
+    resources: ["imagingsessions/status", "seestars/status", "targetmasters/status", "fleetmasters/status"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tycho-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tycho-operator
+subjects:
+  - kind: ServiceAccount
+    name: tycho-operator
+    namespace: tycho

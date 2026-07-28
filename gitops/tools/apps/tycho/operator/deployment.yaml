@@ -1,0 +1,144 @@
+# tycho-operator Deployment.
+#
+# tycho5 items 2-5: Seestar status controller (NATS_URL,
+# SEESTAR_STALE_AFTER), session-close consumer + combine Job spawn
+# (SESSION_QUIESCENCE_TIMEOUT, COMBINE_IMAGE, COMBINE_S3_SECRET_NAME,
+# COMBINE_SCRATCH_SIZE), ntfy notifications (NTFY_URL, optional). tycho12
+# (issue #32 tier 2) adds the weather poller (WEATHER_ENABLED,
+# WEATHER_POLL_INTERVAL, WEATHER_USABLE_THRESHOLD_PERCENT) — see this
+# directory's README for the manual per-Seestar site-coordinate step
+# it depends on. See operator/main.go's loadConfig for the current,
+# authoritative env var list, and this directory's README for the
+# combine Job template's container contract (env vars the image
+# COMBINE_IMAGE points at must honor).
+#
+# COMBINE_IMAGE below points at a real, pushed image and is bumped by
+# hand whenever combine/ changes in a way a running cluster needs. It
+# is not tracked by kustomization.yaml images[], because it names the
+# image the operator writes into Job specs rather than an image the
+# operator itself runs.
+#
+# Assumptions the operator should confirm/adjust before applying (SPEC:
+# real-infra integration is validated by the operator, not this loop):
+#   - Runs in the `tycho` namespace, alongside tycho-gateway and
+#     tycho-agent (deploy/gateway/, deploy/agent/).
+#   - Single replica: the operator does not need HA for this loop's
+#     scope (leader election is wired but off by default via
+#     LEADER_ELECT; flip it on and raise replicas together if that
+#     changes).
+#   - `image` points at the registry `make images`/`make push` (repo
+#     root Makefile) and `.forgejo/workflows/ci.yml`'s tag-triggered
+#     job publish to (`REGISTRY ?= zot.phillips-homelab.net`). The tag
+#     below is a placeholder — pin it via this directory's
+#     `kustomization.yaml` `images[].newTag` (set to a real `make
+#     images`/CI build's tag, e.g. a git short sha) before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tycho-operator
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-operator
+    app.kubernetes.io/part-of: tycho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tycho-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tycho-operator
+    spec:
+      serviceAccountName: tycho-operator
+      # Satisfies PodSecurity "restricted", matching gateway/agent.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: operator
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          image: zot.phillips-homelab.net/tycho-operator:latest # pin via kustomization.yaml images[].newTag — see comment above
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: health
+              containerPort: 8081
+          env:
+            - name: METRICS_ADDR
+              value: ":8080"
+            - name: HEALTH_PROBE_ADDR
+              value: ":8081"
+            - name: LEADER_ELECT
+              value: "false"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NATS_URL
+              valueFrom:
+                secretKeyRef:
+                  # Credentialed URL — loops NATS requires auth; same
+                  # borrowed secret as the gateway until issue #29 lands.
+                  name: tycho-nats
+                  key: NATS_URL
+            # SEESTAR_STALE_AFTER is optional (default 3m, ~3x
+            # tycho-agent's default 60s heartbeat interval); set
+            # explicitly here so cluster behavior doesn't silently
+            # follow whatever operator/main.go's default happens to be.
+            - name: SEESTAR_STALE_AFTER
+              value: "3m"
+            # SESSION_QUIESCENCE_TIMEOUT is optional (default 5m, per
+            # BRIEF.md's "quiescence timeout ~5 min" fallback).
+            - name: SESSION_QUIESCENCE_TIMEOUT
+              value: "5m"
+            # COMBINE_IMAGE/COMBINE_S3_SECRET_NAME are required — the
+            # operator fails closed at startup without them. See the
+            # placeholder-image note above.
+            - name: COMBINE_IMAGE
+              value: "zot.phillips-homelab.net/tycho-combine:9bb5cce" # PRs #96/#97: partition before load, and combinability is RGB-and-solved
+            - name: COMBINE_S3_SECRET_NAME
+              value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
+            # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the
+            # emptyDir size limit for the combine Job's scratch volume.
+            - name: COMBINE_SCRATCH_SIZE
+              value: "10Gi"
+            # NTFY_URL is optional: a full ntfy topic URL for
+            # best-effort session-close/combine-result notifications.
+            # Unset (the default — no value here) disables
+            # notifications entirely; there's no real topic to point at
+            # yet, so it's deliberately left unset rather than set to a
+            # placeholder that would silently start posting somewhere.
+            # - name: NTFY_URL
+            #   value: "https://ntfy.sh/your-topic-here"
+            # WEATHER_ENABLED is the tier-2 sky-conditions kill-switch
+            # (default true); flip to "false" to disable Open-Meteo
+            # polling entirely without a rollout.
+            - name: WEATHER_ENABLED
+              value: "true"
+            # WEATHER_POLL_INTERVAL is optional (default 30m).
+            - name: WEATHER_POLL_INTERVAL
+              value: "30m"
+            # WEATHER_USABLE_THRESHOLD_PERCENT is optional (default
+            # 40): status.sky.usable is true when cloud cover is below
+            # this percentage.
+            - name: WEATHER_USABLE_THRESHOLD_PERCENT
+              value: "40"
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 15

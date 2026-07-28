@@ -1,0 +1,194 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: targetmasters.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: TargetMaster
+    listKind: TargetMasterList
+    plural: targetmasters
+    shortNames:
+    - tmaster
+    singular: targetmaster
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.sourceID
+      name: Source
+      type: string
+    - jsonPath: .spec.target
+      name: Target
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.combinedSessionIDs
+      name: Sessions
+      type: string
+    - jsonPath: .status.actualCombinedSessionIDs
+      name: Actual
+      type: string
+    - jsonPath: .status.revision
+      name: Revision
+      type: integer
+    - jsonPath: .status.masterJobRef.name
+      name: Job
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          TargetMaster is the cross-night depth-combine of one (source,
+          target)'s per-session results (tycho16, #49): whenever a session's
+          own combine succeeds and its target has >=2 nights of combinable
+          data, the operator spawns/refreshes this target's master combine
+          Job, deepening masters/{target}/master.fit night over night instead
+          of leaving per-session stacks siloed.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              TargetMasterSpec identifies the (source, target) a master combines
+              across all of that target's combinable per-session results. No
+              filter component: v0 combines every filter state for a target into
+              one master.
+            properties:
+              sourceID:
+                description: SourceID is the owning Seestar's tycho-agent source id.
+                minLength: 1
+                type: string
+              target:
+                description: |-
+                  Target is the target-slug shared by every contributing session's
+                  ImagingSessionSpec.Target (internal/targetmaster.SlugFromSessionID).
+                minLength: 1
+                type: string
+            required:
+            - sourceID
+            - target
+            type: object
+          status:
+            description: |-
+              TargetMasterStatus tracks the latest master combine Job's progress
+              and which sessions it covers.
+            properties:
+              actualCombinedSessionIDs:
+                description: |-
+                  ActualCombinedSessionIDs is the oldest-first SessionID list the
+                  current Revision's master Job ACTUALLY combined, per its
+                  completion report (job.py's TYCHO_TERMINATION_MESSAGE_PATH JSON,
+                  read off the Job's Pod termination message -- the operator's only
+                  ground-truth channel, since it has no S3 access). This is what the
+                  ntfy "N nights deep" wording and the tycho.job.master.succeeded
+                  event's nights/session_ids report -- CombinedSessionIDs must not
+                  be used for those (SPEC review H3, #57). Falls back to
+                  CombinedSessionIDs (spawn-time intent) when an older combine image
+                  predating the completion report, or a GC'd Pod, leaves no report
+                  to read -- best-effort, not a hard requirement, so a missing
+                  report degrades reporting instead of failing the combine.
+                items:
+                  type: string
+                type: array
+              combinedSessionIDs:
+                description: |-
+                  CombinedSessionIDs is the oldest-first ImagingSessionSpec.SessionID
+                  list the current Revision's master Job was ASKED to combine
+                  (targetmaster.CombinableSessions' result at spawn time). Used only
+                  to detect growth (a new night became combinable) versus a true
+                  duplicate trigger (no growth -- dedupe, no new revision) --
+                  spawn-time intent, not a claim about what actually landed in
+                  master.fit. See ActualCombinedSessionIDs for that (SPEC review H3,
+                  #57): a session reaching Done is no guarantee its result is
+                  RGB-combinable (combine_controller.markDone sets Done from k8s Job
+                  success alone, the operator has no S3 access to check frame kind),
+                  so the master Job can silently drop one of these sessions.
+                items:
+                  type: string
+                type: array
+              droppedSessionIDs:
+                description: |-
+                  DroppedSessionIDs is the subset of CombinedSessionIDs the current
+                  Revision's master Job excluded from the actual combine (frame-kind
+                  mismatch -- an all-mono session result, v0 policy issue #45), per
+                  the same completion report as ActualCombinedSessionIDs. Empty when
+                  nothing was dropped or no report was available.
+                items:
+                  type: string
+                type: array
+              masterCompletedAt:
+                description: |-
+                  MasterCompletedAt is when the current Revision's master Job
+                  finished (success or failure).
+                format: date-time
+                type: string
+              masterJobRef:
+                description: MasterJobRef names the k8s Job spawned for the current Revision.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              masterStartedAt:
+                description: MasterStartedAt is when the current Revision's master Job was created.
+                format: date-time
+                type: string
+              phase:
+                description: Phase is the master's current lifecycle state.
+                enum:
+                - Combining
+                - Done
+                - Failed
+                type: string
+              resultKey:
+                description: |-
+                  ResultKey is the Garage object key the current Revision's master
+                  Job writes the combined output to
+                  (masters/{target}/master.fit, schemas/object-layout.md).
+                type: string
+              revision:
+                description: |-
+                  Revision is the master combine Job revision MasterJobRef
+                  currently names: 1 for the first master Job (spawned once a
+                  target reaches 2 combinable nights), 2+ for a recombine spawned
+                  because a further night's session became combinable after an
+                  earlier revision already completed. Part of the Job's name
+                  (master-<target> for revision 1, master-<target>-r2 for revision
+                  2, ...), mirroring ImagingSessionStatus.Revision (#33).
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,202 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: seestars.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: Seestar
+    listKind: SeestarList
+    plural: seestars
+    shortNames:
+    - ss
+    singular: seestar
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.sourceID
+      name: Source
+      type: string
+    - jsonPath: .status.connected
+      name: Connected
+      type: boolean
+    - jsonPath: .status.verified
+      name: Verified
+      type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .status.sky.summary
+      name: SKY
+      type: string
+    - jsonPath: .status.model
+      name: Model
+      type: string
+    - jsonPath: .status.lastSeen
+      name: LastSeen
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Seestar is the fleet-inventory record for one physical Seestar
+          telescope, keyed by its tycho-agent source id.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SeestarSpec describes a single fleet member (one physical
+              Seestar).
+            properties:
+              displayName:
+                description: |-
+                  DisplayName is an optional human-friendly name shown alongside
+                  SourceID in tooling and notifications.
+                type: string
+              site:
+                description: |-
+                  Site is an optional label for the scope's physical location
+                  (e.g. a site/backyard name), informational only.
+                type: string
+              siteLatitude:
+                description: |-
+                  SiteLatitude is the site's latitude in decimal degrees, used by
+                  the weather controller to query Open-Meteo for sky conditions
+                  (issue #32 tier 2). Optional and settable now; the operator may
+                  also learn it from a future agent API, so treat this as
+                  best-known-so-far rather than necessarily authoritative. Both
+                  SiteLatitude and SiteLongitude must be set for weather polling
+                  to happen for this Seestar.
+                maximum: 90
+                minimum: -90
+                type: number
+              siteLongitude:
+                description: |-
+                  SiteLongitude is the site's longitude in decimal degrees. See
+                  SiteLatitude.
+                maximum: 180
+                minimum: -180
+                type: number
+              sourceID:
+                description: |-
+                  SourceID is the tycho-agent source identity for this scope, as
+                  used in tycho.source.* / tycho.session.* event envelopes and in
+                  the Garage object layout (tycho-source-{id}/...). Immutable in
+                  practice: identifies which agent this CR tracks.
+                minLength: 1
+                type: string
+            required:
+            - sourceID
+            type: object
+          status:
+            description: |-
+              SeestarStatus reports what the operator has last observed about a
+              Seestar from tycho.source.registered / tycho.source.heartbeat events.
+            properties:
+              battery:
+                description: Battery is the last reported battery level (percent),
+                  when known.
+                format: int32
+                type: integer
+              connected:
+                description: |-
+                  Connected is true while heartbeats keep arriving within the
+                  staleness threshold; false once it's timed out.
+                type: boolean
+              firmware:
+                description: Firmware is the scope's reported firmware version, when
+                  known.
+                type: string
+              lastSeen:
+                description: |-
+                  LastSeen is the timestamp of the most recently processed
+                  registered/heartbeat event for this source.
+                format: date-time
+                type: string
+              model:
+                description: Model is the scope's reported hardware model.
+                type: string
+              ready:
+                description: |-
+                  Ready mirrors Verified && Connected, computed by the controller
+                  on every reconcile so it can be surfaced as a printer column
+                  without a client evaluating both fields itself.
+                type: boolean
+              sky:
+                description: |-
+                  Sky is the site's most recently polled cloud cover, populated by
+                  the weather controller once this Seestar has both SiteLatitude
+                  and SiteLongitude set (issue #32 tier 2). Zero value until the
+                  first successful poll.
+                properties:
+                  bestHourAt:
+                    description: BestHourAt is the hour BestHourCloudCoverPercent
+                      applies to.
+                    format: date-time
+                    type: string
+                  bestHourCloudCoverPercent:
+                    description: |-
+                      BestHourCloudCoverPercent is the lowest cloud cover percentage
+                      forecast within the next 6 hours, when known.
+                    format: int32
+                    type: integer
+                  cloudCoverPercent:
+                    description: |-
+                      CloudCoverPercent is the current cloud cover percentage (0-100)
+                      at the site, from the most recent successful poll.
+                    format: int32
+                    type: integer
+                  fetchedAt:
+                    description: |-
+                      FetchedAt is when CloudCoverPercent was last successfully
+                      fetched. A FetchedAt that stops advancing while the Seestar
+                      stays reconciled means recent polls are failing (fail-soft):
+                      the last known-good reading is kept and shown.
+                    format: date-time
+                    type: string
+                  summary:
+                    description: |-
+                      Summary is a compact human-readable rendering of the current
+                      reading for the SKY printer column, e.g. "19% ✓" / "87% ✗".
+                      Computed by the controller alongside the other fields so the
+                      printer column doesn't need string formatting in JSONPath.
+                    type: string
+                  usable:
+                    description: |-
+                      Usable reports whether CloudCoverPercent is below the
+                      configured usability threshold (WEATHER_USABLE_THRESHOLD_PERCENT,
+                      default 40). False if no reading has been taken yet.
+                    type: boolean
+                type: object
+              verified:
+                description: |-
+                  Verified reflects that the agent completed the ZWO auth
+                  handshake and successfully registered with the gateway.
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

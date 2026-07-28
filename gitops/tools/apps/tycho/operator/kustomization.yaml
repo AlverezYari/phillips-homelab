@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - fleet.tycho.dev_seestars.yaml
+  - fleet.tycho.dev_imagingsessions.yaml
+  - fleet.tycho.dev_targetmasters.yaml
+  - fleet.tycho.dev_fleetmasters.yaml
+  - rbac.yaml
+  - deployment.yaml
+images:
+  # Pin to a real build before applying: set newTag to a tag `make
+  # images`/`make push` (or .forgejo/workflows/ci.yml's tag-triggered
+  # job) actually published, e.g. a git short sha.
+  - name: zot.phillips-homelab.net/tycho-operator
+    newTag: "d8ae6fa"

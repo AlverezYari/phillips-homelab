@@ -1,0 +1,150 @@
+# tycho-agent StatefulSet.
+#
+# StatefulSet (not Deployment) because the buffer directory must be
+# PVC-backed and survive pod restarts (SPEC: "files survive restarts
+# and re-enter the queue") — volumeClaimTemplates gives the single
+# replica a stable PVC that isn't torn down on rollout the way a bare
+# Deployment + PVC would be.
+#
+# Assumptions the operator should confirm/adjust before applying (SPEC:
+# real-infra integration is validated by the operator, not this loop):
+#   - Runs in the `tycho` namespace, alongside tycho-gateway
+#     (deploy/gateway/).
+#   - One replica per physical Seestar (SPEC scopes discovery to a
+#     static IP — no mDNS/scan this loop), so SCOPE_HOST and SOURCE_ID
+#     below are placeholders the operator sets per scope; deploying a
+#     second scope means copying this manifest set with a new name,
+#     SCOPE_HOST and SOURCE_ID.
+#   - `tycho-config` is the ESO-managed secret in the `tycho` namespace
+#     (ExternalSecret synced from 1Password by the homelab GitOps repo,
+#     not created here). Key `see_start_pem` holds the shared fleet
+#     interop RSA private key (PKCS#1 or PKCS#8 PEM — see
+#     agent/internal/zwo.LoadPrivateKey). It is mounted as a file and
+#     referenced by path (KEY_PATH), never placed in an env var — SPEC:
+#     "the fleet interop key must never appear in the repo in any form"
+#     and, by the same logic, never in a pod's env/logs either.
+#   - `tycho-config` also carries `IDENTITY_TOKEN` (the bearer token
+#     this source presents to tycho-gateway's register/heartbeat —
+#     identical by construction to the gateway's SOURCE_AUTH_TOKEN,
+#     same 1Password field), so no separate agent secret is needed.
+#   - `image` points at the registry `make images`/`make push` (repo
+#     root Makefile) and `.forgejo/workflows/ci.yml`'s tag-triggered
+#     job publish to (`REGISTRY ?= zot.phillips-homelab.net`). The tag
+#     below is a placeholder — pin it via this directory's
+#     `kustomization.yaml` `images[].newTag` (set to a real `make
+#     images`/CI build's tag, e.g. a git short sha) before applying.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tycho-agent
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-agent
+    app.kubernetes.io/part-of: tycho
+spec:
+  serviceName: tycho-agent
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tycho-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tycho-agent
+    spec:
+      # Satisfies PodSecurity "restricted"; fsGroup makes the PVC-backed
+      # buffer writable by the scratch image's non-root user (without it,
+      # mkdir on the root-owned ext4 volume fails with EACCES — hit live
+      # on first deploy).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent
+          image: zot.phillips-homelab.net/tycho-agent:latest # pin via kustomization.yaml images[].newTag — see comment above
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: health
+              containerPort: 8090
+            - name: agent-api
+              containerPort: 9090
+          env:
+            - name: SCOPE_HOST
+              value: "10.20.20.53" # S30 Pro on the home LAN (travel-router setup later will change this)
+            - name: SCOPE_CONTROL_HOST
+              # Control rides through seestar-proxy (one shared upstream
+              # connection for all tooling — see deploy/seestar-proxy/);
+              # HTTP :80 FITS retrieval stays direct via SCOPE_HOST.
+              value: "seestar-proxy.tycho.svc.cluster.local"
+            - name: KEY_PATH
+              value: /etc/tycho-agent/fleet-key/fleet-key.pem
+            - name: GATEWAY_URL
+              value: "http://tycho-gateway.tycho.svc.cluster.local"
+            - name: GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-config
+                  key: IDENTITY_TOKEN
+            - name: BUFFER_DIR
+              value: /var/lib/tycho-agent/buffer
+            - name: SOURCE_ID
+              value: "seestar-1" # placeholder — unique per agent instance/scope
+            - name: HEALTH_ADDR
+              value: ":8090"
+            - name: TYCHO_SITE_TZ
+              value: "America/Chicago" # backyard site tz; unset defaults to UTC (logged warning) per SPEC #21
+            - name: SESSION_SETTLE_SECONDS
+              value: "300" # manifest (re)writes only once a session is quiet this long; issue #33
+            - name: TYCHO_GRANTS
+              # ADR 0004 stewardship: the owner-granted capability tiers
+              # for the control API (AGENT_API_ADDR :9090, service-api.yaml).
+              # status,events,settings for the POC; "dispatch"/"debug" stay
+              # withheld until there's a real owner UI to grant them from.
+              value: "status,events,settings"
+            # AGENT_API_TOKEN (bearer token the control API requires in an
+            # `authorization: Bearer <token>` header) is deliberately unset
+            # here: no 1Password field for it exists in tycho-config yet.
+            # service-api.yaml's LoadBalancer puts the control API on the
+            # LAN, so set this (secretKeyRef, same pattern as GATEWAY_TOKEN
+            # above) before applying outside a trusted network — unset
+            # serves it unauthenticated and logs a loud startup warning.
+          volumeMounts:
+            - name: fleet-key
+              mountPath: /etc/tycho-agent/fleet-key
+              readOnly: true
+            - name: buffer
+              mountPath: /var/lib/tycho-agent/buffer
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: fleet-key
+          secret:
+            secretName: tycho-config
+            items:
+              - key: see_start_pem
+                path: fleet-key.pem
+  volumeClaimTemplates:
+    - metadata:
+        name: buffer
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

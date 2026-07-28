@@ -1,0 +1,22 @@
+# Headless Service governing the StatefulSet (required: StatefulSet's
+# spec.serviceName must name one). Not a load-balanced/ClusterIP
+# service for other pods to call — the agent is southbound-only and has
+# no API of its own — this exists purely so the StatefulSet controller
+# has a governing Service, per k8s convention. /healthz and /readyz
+# stay reachable directly at the pod IP for kubelet probes without it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tycho-agent
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-agent
+    app.kubernetes.io/part-of: tycho
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: tycho-agent
+  ports:
+    - name: health
+      port: 8090
+      targetPort: health

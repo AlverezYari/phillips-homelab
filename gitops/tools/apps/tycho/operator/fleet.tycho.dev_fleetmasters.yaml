@@ -1,0 +1,214 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: fleetmasters.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: FleetMaster
+    listKind: FleetMasterList
+    plural: fleetmasters
+    shortNames:
+    - fmaster
+    singular: fleetmaster
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.target
+      name: Target
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.combinedSessionIDs
+      name: Sessions
+      type: string
+    - jsonPath: .status.revision
+      name: Revision
+      type: integer
+    - jsonPath: .status.masterJobRef.name
+      name: Job
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          FleetMaster is the cross-source depth-combine of one target's
+          per-session results across every (or an allow-listed subset of)
+          contributing source: the fleet's whole reason to exist is pooling
+          frames from *different* scopes shooting the *same* target into one
+          deeper integration, rather than leaving TargetMaster's per-source
+          nightly stacks siloed by scope. Declared explicitly by creating this
+          CR (unlike TargetMaster, which the operator auto-creates once a
+          source's own target reaches 2 combinable nights), since cross-source
+          pooling is an explicit opt-in.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              FleetMasterSpec declares one target as fleet-pooled: every source's
+              combinable sessions for Target (not just one source's, unlike
+              TargetMaster) are combined into a single cross-source master.
+            properties:
+              sourceAllowList:
+                description: |-
+                  SourceAllowList restricts which sources' sessions may contribute
+                  to this fleet master. Empty (the default) means every source --
+                  the common case for "pool the whole fleet on this target".
+                items:
+                  type: string
+                type: array
+              target:
+                description: |-
+                  Target is the target-slug shared by every contributing session's
+                  ImagingSessionSpec.Target (internal/targetmaster.SlugFromSessionID),
+                  same derivation TargetMasterSpec.Target uses.
+                minLength: 1
+                type: string
+            required:
+            - target
+            type: object
+          status:
+            description: |-
+              FleetMasterStatus tracks the latest cross-source combine Job's
+              progress, which sessions it covers, and which sources contributed.
+            properties:
+              actualCombinedSessionIDs:
+                description: |-
+                  ActualCombinedSessionIDs is the oldest-first SessionID list the
+                  current Revision's Job ACTUALLY combined, per its completion
+                  report. Falls back to CombinedSessionIDs when no report is
+                  available. Mirrors TargetMasterStatus.ActualCombinedSessionIDs.
+                items:
+                  type: string
+                type: array
+              combinedSessionIDs:
+                description: |-
+                  CombinedSessionIDs is the oldest-first ImagingSessionSpec.SessionID
+                  list the current Revision's Job was ASKED to combine, spanning
+                  every contributing source -- spawn-time intent, mirrors
+                  TargetMasterStatus.CombinedSessionIDs.
+                items:
+                  type: string
+                type: array
+              contributingSources:
+                description: |-
+                  ContributingSources is the spawn-time per-source breakdown of
+                  CombinedSessionIDs (SPEC: "honest provenance" -- contributing
+                  sources + per-source frame counts must be visible here, not
+                  collapsed into a single total), oldest-contributing-source-first
+                  by SourceID.
+                items:
+                  description: |-
+                    FleetMasterSourceContribution records one source's contribution to a
+                    fleet master's combined input set -- the per-source breakdown a
+                    single pooled total would otherwise hide.
+                  properties:
+                    frameCount:
+                      description: |-
+                        FrameCount is the sum of ImagingSessionStatus.SubCount across
+                        that source's contributing sessions -- the closest v0 has to a
+                        "how many subs did this source contribute" figure, since the
+                        operator has no S3 access to read frame counts out of the
+                        combined result itself.
+                      format: int32
+                      type: integer
+                    sessionCount:
+                      description: |-
+                        SessionCount is how many of that source's combinable sessions
+                        were folded into the current Revision.
+                      format: int32
+                      type: integer
+                    sourceID:
+                      description: SourceID is the contributing Seestar's tycho-agent source id.
+                      type: string
+                  required:
+                  - frameCount
+                  - sessionCount
+                  - sourceID
+                  type: object
+                type: array
+              droppedSessionIDs:
+                description: |-
+                  DroppedSessionIDs is the subset of CombinedSessionIDs the current
+                  Revision's Job excluded from the actual combine (frame-kind
+                  mismatch), per the same completion report.
+                items:
+                  type: string
+                type: array
+              masterCompletedAt:
+                description: |-
+                  MasterCompletedAt is when the current Revision's Job finished
+                  (success or failure).
+                format: date-time
+                type: string
+              masterJobRef:
+                description: MasterJobRef names the k8s Job spawned for the current Revision.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              masterStartedAt:
+                description: MasterStartedAt is when the current Revision's Job was created.
+                format: date-time
+                type: string
+              phase:
+                description: Phase is the fleet master's current lifecycle state.
+                enum:
+                - Combining
+                - Done
+                - Failed
+                type: string
+              resultKey:
+                description: |-
+                  ResultKey is the Garage object key the current Revision's Job
+                  writes the combined output to (fleet-masters/{target}/master.fit,
+                  schemas/object-layout.md's "Fleet masters (cross-source)"
+                  section -- deliberately not rooted under any single source's
+                  tycho-source-{id}/ prefix, since the result belongs to no one
+                  source).
+                type: string
+              revision:
+                description: |-
+                  Revision is the fleet combine Job revision MasterJobRef currently
+                  names: 1 for the first Job, 2+ for a recombine spawned because
+                  further sessions became combinable after an earlier revision
+                  already completed. Mirrors TargetMasterStatus.Revision.
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

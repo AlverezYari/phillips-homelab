@@ -1,0 +1,235 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: imagingsessions.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: ImagingSession
+    listKind: ImagingSessionList
+    plural: imagingsessions
+    shortNames:
+    - imsess
+    singular: imagingsession
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.sourceID
+      name: Source
+      type: string
+    - jsonPath: .spec.sessionID
+      name: Session
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.closeReason
+      name: CloseReason
+      type: string
+    - jsonPath: .status.subCount
+      name: Subs
+      type: integer
+    - jsonPath: .status.combineJobRef.name
+      name: Job
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ImagingSession is one observing-night session for one Seestar,
+          tracked from open through combine-job completion.
+
+          CaptureProgram and Observation are reserved for fleet scheduling
+          (BRIEF.md) and are deliberately not implemented here.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              ImagingSessionSpec identifies one observing-night session and where
+              its objects live in Garage.
+            properties:
+              objectPrefix:
+                description: |-
+                  ObjectPrefix is the Garage key prefix for this session's objects
+                  (schemas/object-layout.md), e.g.
+                  "tycho-source-{id}/sessions/{sessionID}/".
+                minLength: 1
+                type: string
+              sessionID:
+                description: |-
+                  SessionID is the session identity used in event envelopes and
+                  the object layout (sessions/{sessionID}/...).
+                minLength: 1
+                type: string
+              sourceID:
+                description: SourceID is the owning Seestar's tycho-agent source id.
+                minLength: 1
+                type: string
+              target:
+                description: |-
+                  Target is this session's target slug: the human-facing path
+                  component used in a target master's location
+                  (masters/{target-slug}/, schemas/object-layout.md) and CR names.
+                  Session grouping and matching itself is decided by sky position,
+                  not by this string (docs/ATTRIBUTION.md, "Target identity is
+                  matched by name, not by sky position") -- see
+                  internal/targetmaster.CombinableSessions and .ResolveTargetSlug,
+                  which choose Target deterministically from TargetRADeg/
+                  TargetDecDeg when available, falling back to a name-derived slug
+                  (SlugFromSessionID) otherwise.
+                type: string
+              targetDecDeg:
+                description: |-
+                  TargetRADeg and TargetDecDeg are this session's target sky
+                  position in degrees (ICRS-like RA/Dec), forwarded from the
+                  session's manifest.json target block
+                  (schemas/manifest.schema.json) via the tycho.session.closed
+                  event's optional target_ra_deg/target_dec_deg fields
+                  (schemas/tycho.session.closed.schema.json) at session-close
+                  time -- the operator has no S3 access to read manifest.json
+                  directly (SPEC guardrail), so the closing event is the only
+                  route a position can reach it by. Both are nil together for a
+                  session whose close event didn't carry one: a quiescence-timeout
+                  close never reads a manifest at all, and an older or malformed
+                  manifest may lack a usable target block.
+                  internal/targetmaster falls back to Target-slug matching for
+                  such a session rather than dropping it from its target's
+                  grouping (docs/ATTRIBUTION.md's "fall back to name grouping"
+                  guardrail).
+                type: number
+              targetRADeg:
+                description: |-
+                  TargetRADeg and TargetDecDeg are this session's target sky
+                  position in degrees (ICRS-like RA/Dec), forwarded from the
+                  session's manifest.json target block
+                  (schemas/manifest.schema.json) via the tycho.session.closed
+                  event's optional target_ra_deg/target_dec_deg fields
+                  (schemas/tycho.session.closed.schema.json) at session-close
+                  time -- the operator has no S3 access to read manifest.json
+                  directly (SPEC guardrail), so the closing event is the only
+                  route a position can reach it by. Both are nil together for a
+                  session whose close event didn't carry one: a quiescence-timeout
+                  close never reads a manifest at all, and an older or malformed
+                  manifest may lack a usable target block.
+                  internal/targetmaster falls back to Target-slug matching for
+                  such a session rather than dropping it from its target's
+                  grouping (docs/ATTRIBUTION.md's "fall back to name grouping"
+                  guardrail).
+                type: number
+            required:
+            - objectPrefix
+            - sessionID
+            - sourceID
+            type: object
+          status:
+            description: |-
+              ImagingSessionStatus tracks close detection and the resulting
+              combine Job.
+            properties:
+              closeReason:
+                description: |-
+                  CloseReason records how the session's close was detected, once
+                  closed.
+                enum:
+                - clean
+                - quiescence
+                type: string
+              closedAt:
+                description: |-
+                  ClosedAt is when the session was detected closed (clean or
+                  quiescence).
+                format: date-time
+                type: string
+              combineCompletedAt:
+                description: |-
+                  CombineCompletedAt is when the combine Job finished (success or
+                  failure).
+                format: date-time
+                type: string
+              combineJobRef:
+                description: |-
+                  CombineJobRef names the k8s Job spawned to combine this
+                  session's subs, once one has been created.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              combineStartedAt:
+                description: CombineStartedAt is when the combine Job was created.
+                format: date-time
+                type: string
+              combinedSubCount:
+                description: |-
+                  CombinedSubCount is the sub_count Revision's combine Job was
+                  spawned to combine. Compared against a later close event's
+                  sub_count to detect the session growing past what the latest
+                  revision covered.
+                format: int32
+                type: integer
+              phase:
+                description: Phase is the session's current lifecycle state.
+                enum:
+                - Open
+                - Closed
+                - Combining
+                - Done
+                - Failed
+                type: string
+              resultKeys:
+                description: |-
+                  ResultKeys lists the Garage object keys the combine Job produced,
+                  populated on successful completion.
+                items:
+                  type: string
+                type: array
+              revision:
+                description: |-
+                  Revision is the combine Job revision CombineJobRef currently
+                  names: 1 for the session's original combine, 2+ for a recombine
+                  spawned because the session grew (more subs closed) after an
+                  earlier revision already completed. Part of the Job's name
+                  (stack-<sessionID> for revision 1, stack-<sessionID>-r2 for
+                  revision 2, ...) so redelivered/duplicate close signals for the
+                  same revision keep hitting the same deterministic name.
+                format: int32
+                type: integer
+              subCount:
+                description: SubCount is the accepted-sub count as of close.
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
