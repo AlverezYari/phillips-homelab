@@ -10,6 +10,7 @@
 #   loopctl reap <name> [--no-pr]
 #   loopctl pr <owner/repo> <branch> [title...]
 #   loopctl merge <owner/repo> <pr#>
+#   loopctl release <owner/repo> <tag> [title...]
 #
 # Secrets never touch the laptop: FJO/NATS calls run in short-lived helper
 # pods that read the loop-secrets Secret in-cluster.
@@ -214,6 +215,24 @@ code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls/${
 if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge failed: \$code\"; head -c 300 /tmp/r; exit 1; fi"
 }
 
+# release: cut a Forgejo release with cross-built client binaries. The
+# build runs inside the helper pod (loop-dev carries Go), so source,
+# toolchain and token all stay in-cluster -- the same invariant every
+# other verb keeps. The pod body lives in release-build.sh rather than
+# inline here; nesting a build script inside this file's quoting was
+# unreadable and quietly broke.
+cmd_release() {
+  local repo=${1:?usage: loopctl release <owner/repo> <tag> [title...]}
+  local tag=${2:?tag required}; shift 2
+  local title=${*:-$tag}
+  local body
+  body=$(cat "$REPO_ROOT/loops/bin/release-build.sh")
+  helper_pod release "$body" "" "    env:
+    - {name: REPO, value: \"$repo\"}
+    - {name: TAG, value: \"$tag\"}
+    - {name: TITLE, value: \"$title\"}"
+}
+
 cmd=${1:-help}; shift || true
 case $cmd in
   spawn) cmd_spawn "$@";;
@@ -225,5 +244,6 @@ case $cmd in
   reap) cmd_reap "$@";;
   pr) cmd_pr "$@";;
   merge) cmd_merge "$@";;
+  release) cmd_release "$@";;
   *) sed -n '2,14p' "$0";;
 esac
