@@ -15,8 +15,8 @@ spec:
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
     targetRevision: main
   syncPolicy:
-    # Automation temporarily off while adopting the hand-applied tycho
-    # workloads (operator/gateway/scorer/seestar-proxy/agent) into this
-    # app. Re-enable (prune+selfHeal) once `argocd app diff` is clean.
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
