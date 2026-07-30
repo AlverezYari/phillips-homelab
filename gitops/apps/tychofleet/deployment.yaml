@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: app
-          image: zot.phillips-homelab.net/tychofleet:a1fb36a
+          image: zot.phillips-homelab.net/tychofleet:1dca48b
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
