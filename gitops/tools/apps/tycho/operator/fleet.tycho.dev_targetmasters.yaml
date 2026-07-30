@@ -74,7 +74,9 @@ spec:
               TargetMasterSpec identifies the (source, target) a master combines
               across all of that target's combinable per-session results. No
               filter component: v0 combines every filter state for a target into
-              one master.
+              one master (schemas/object-layout.md "Target masters" leaves the
+              path shape open to a future {filter-slug} segment, but nothing in
+              the operator groups by filter today — see targetmaster.Key).
             properties:
               sourceID:
                 description: SourceID is the owning Seestar's tycho-agent source id.
@@ -93,7 +95,12 @@ spec:
           status:
             description: |-
               TargetMasterStatus tracks the latest master combine Job's progress
-              and which sessions it covers.
+              and which sessions it covers. Deliberately as small as
+              ImagingSessionStatus's combine-tracking subset (SPEC tycho16: "do
+              NOT overbuild") — no per-sub or per-night detail beyond the
+              contributing session id list, since that's all ensureMasterCombine
+              needs to detect growth and all a consumer needs to answer "how many
+              nights deep."
             properties:
               actualCombinedSessionIDs:
                 description: |-
@@ -128,6 +135,50 @@ spec:
                 items:
                   type: string
                 type: array
+              combinedSessions:
+                description: |-
+                  CombinedSessions is CombinedSessionIDs' same spawn-time session
+                  set, each paired with the ImagingSessionStatus.Revision it was at
+                  when this Revision was spawned to combine it (SPEC
+                  tycho-master-staleness). This, not CombinedSessionIDs, is what
+                  ensureCombine's dedupe compares: an unchanged id set does not
+                  mean unchanged inputs, since a session's result is rewritten in
+                  place at a stable key every time that session itself recombines.
+
+                  Absent (nil) or shorter than the current combinable session count
+                  on any TargetMaster written before this field existed --
+                  sameSessionRevisionSet treats that as unknown-and-therefore-stale
+                  rather than as a match, so each such master rebuilds exactly once
+                  on its first reconcile after this field was introduced and then
+                  tracks correctly off this field from then on.
+                items:
+                  description: |-
+                    SessionRevision pairs a contributing session's
+                    ImagingSessionSpec.SessionID with the ImagingSessionStatus.Revision
+                    it was at when a master combined it. A session's own combine result
+                    is rewritten in place at a stable object key
+                    (combinejob.ResultKey) every time that session itself recombines, so
+                    the session id alone is not enough to tell a genuine duplicate
+                    trigger (nothing changed) from a session that recombined under the
+                    master's nose (same id, newer revision, different bytes at the same
+                    key) -- see internal/controller.sameSessionRevisionSet. A separate
+                    struct rather than a second array parallel to CombinedSessionIDs so
+                    the two can never drift out of index-sync with each other.
+                  properties:
+                    revision:
+                      description: |-
+                        Revision is that session's ImagingSessionStatus.Revision as of
+                        the combine this SessionRevision records.
+                      format: int32
+                      type: integer
+                    sessionID:
+                      description: SessionID is the contributing session's ImagingSessionSpec.SessionID.
+                      type: string
+                  required:
+                  - revision
+                  - sessionID
+                  type: object
+                type: array
               droppedSessionIDs:
                 description: |-
                   DroppedSessionIDs is the subset of CombinedSessionIDs the current
@@ -145,7 +196,8 @@ spec:
                 format: date-time
                 type: string
               masterJobRef:
-                description: MasterJobRef names the k8s Job spawned for the current Revision.
+                description: MasterJobRef names the k8s Job spawned for the current
+                  Revision.
                 properties:
                   name:
                     default: ""
@@ -159,7 +211,9 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               masterStartedAt:
-                description: MasterStartedAt is when the current Revision's master Job was created.
+                description: |-
+                  MasterStartedAt is when the current Revision's master Job was
+                  created.
                 format: date-time
                 type: string
               phase:
