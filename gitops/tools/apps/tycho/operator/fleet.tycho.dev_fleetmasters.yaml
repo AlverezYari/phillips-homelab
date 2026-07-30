@@ -46,8 +46,8 @@ spec:
           deeper integration, rather than leaving TargetMaster's per-source
           nightly stacks siloed by scope. Declared explicitly by creating this
           CR (unlike TargetMaster, which the operator auto-creates once a
-          source's own target reaches 2 combinable nights), since cross-source
-          pooling is an explicit opt-in.
+          source's own target reaches 2 combinable nights) — see
+          deploy/operator/README.md.
         properties:
           apiVersion:
             description: |-
@@ -70,12 +70,18 @@ spec:
             description: |-
               FleetMasterSpec declares one target as fleet-pooled: every source's
               combinable sessions for Target (not just one source's, unlike
-              TargetMaster) are combined into a single cross-source master.
+              TargetMaster) are combined into a single cross-source master. A
+              FleetMaster is user-declared ahead of time (e.g. before a multi-scope
+              session), not auto-created the way TargetMaster is, since pooling
+              across sources is an explicit opt-in rather than something the
+              operator should infer from any two sessions sharing a target-slug —
+              see deploy/operator/README.md's "Fleet masters (cross-source)"
+              section for how to create one.
             properties:
               sourceAllowList:
                 description: |-
                   SourceAllowList restricts which sources' sessions may contribute
-                  to this fleet master. Empty (the default) means every source --
+                  to this fleet master. Empty (the default) means every source —
                   the common case for "pool the whole fleet on this target".
                 items:
                   type: string
@@ -93,7 +99,10 @@ spec:
           status:
             description: |-
               FleetMasterStatus tracks the latest cross-source combine Job's
-              progress, which sessions it covers, and which sources contributed.
+              progress, which sessions it covers, and which sources contributed —
+              deliberately the same shape as TargetMasterStatus (SPEC: "do NOT
+              overbuild"), plus ContributingSources for honest per-source
+              provenance.
             properties:
               actualCombinedSessionIDs:
                 description: |-
@@ -108,10 +117,47 @@ spec:
                 description: |-
                   CombinedSessionIDs is the oldest-first ImagingSessionSpec.SessionID
                   list the current Revision's Job was ASKED to combine, spanning
-                  every contributing source -- spawn-time intent, mirrors
+                  every contributing source — spawn-time intent, mirrors
                   TargetMasterStatus.CombinedSessionIDs.
                 items:
                   type: string
+                type: array
+              combinedSessions:
+                description: |-
+                  CombinedSessions mirrors TargetMasterStatus.CombinedSessions:
+                  CombinedSessionIDs' same spawn-time session set, each paired with
+                  the ImagingSessionStatus.Revision it was at when this Revision
+                  was spawned to combine it. This is what ensureCombine's dedupe
+                  compares (SPEC tycho-master-staleness) -- see
+                  TargetMasterStatus.CombinedSessions's doc comment for the
+                  unknown-is-stale handling of pre-existing FleetMasters.
+                items:
+                  description: |-
+                    SessionRevision pairs a contributing session's
+                    ImagingSessionSpec.SessionID with the ImagingSessionStatus.Revision
+                    it was at when a master combined it. A session's own combine result
+                    is rewritten in place at a stable object key
+                    (combinejob.ResultKey) every time that session itself recombines, so
+                    the session id alone is not enough to tell a genuine duplicate
+                    trigger (nothing changed) from a session that recombined under the
+                    master's nose (same id, newer revision, different bytes at the same
+                    key) -- see internal/controller.sameSessionRevisionSet. A separate
+                    struct rather than a second array parallel to CombinedSessionIDs so
+                    the two can never drift out of index-sync with each other.
+                  properties:
+                    revision:
+                      description: |-
+                        Revision is that session's ImagingSessionStatus.Revision as of
+                        the combine this SessionRevision records.
+                      format: int32
+                      type: integer
+                    sessionID:
+                      description: SessionID is the contributing session's ImagingSessionSpec.SessionID.
+                      type: string
+                  required:
+                  - revision
+                  - sessionID
+                  type: object
                 type: array
               contributingSources:
                 description: |-
@@ -123,13 +169,17 @@ spec:
                 items:
                   description: |-
                     FleetMasterSourceContribution records one source's contribution to a
-                    fleet master's combined input set -- the per-source breakdown a
-                    single pooled total would otherwise hide.
+                    fleet master's combined input set — the per-source breakdown a
+                    single pooled total would otherwise hide (this repo has already had
+                    to fix a provenance-inflation bug once, see TargetMasterStatus's
+                    ActualCombinedSessionIDs/DroppedSessionIDs doc comment; a
+                    cross-source master must not repeat that mistake by reporting one
+                    rosy combined count with no source breakdown).
                   properties:
                     frameCount:
                       description: |-
                         FrameCount is the sum of ImagingSessionStatus.SubCount across
-                        that source's contributing sessions -- the closest v0 has to a
+                        that source's contributing sessions — the closest v0 has to a
                         "how many subs did this source contribute" figure, since the
                         operator has no S3 access to read frame counts out of the
                         combined result itself.
@@ -142,7 +192,8 @@ spec:
                       format: int32
                       type: integer
                     sourceID:
-                      description: SourceID is the contributing Seestar's tycho-agent source id.
+                      description: SourceID is the contributing Seestar's tycho-agent
+                        source id.
                       type: string
                   required:
                   - frameCount
@@ -165,7 +216,8 @@ spec:
                 format: date-time
                 type: string
               masterJobRef:
-                description: MasterJobRef names the k8s Job spawned for the current Revision.
+                description: MasterJobRef names the k8s Job spawned for the current
+                  Revision.
                 properties:
                   name:
                     default: ""
@@ -179,7 +231,8 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               masterStartedAt:
-                description: MasterStartedAt is when the current Revision's Job was created.
+                description: MasterStartedAt is when the current Revision's Job was
+                  created.
                 format: date-time
                 type: string
               phase:
@@ -194,7 +247,7 @@ spec:
                   ResultKey is the Garage object key the current Revision's Job
                   writes the combined output to (fleet-masters/{target}/master.fit,
                   schemas/object-layout.md's "Fleet masters (cross-source)"
-                  section -- deliberately not rooted under any single source's
+                  section — deliberately not rooted under any single source's
                   tycho-source-{id}/ prefix, since the result belongs to no one
                   source).
                 type: string
