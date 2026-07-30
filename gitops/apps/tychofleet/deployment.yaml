@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: app
-          image: zot.phillips-homelab.net/tychofleet:dd8aa59
+          image: zot.phillips-homelab.net/tychofleet:a3a1dee
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -51,7 +51,12 @@ spec:
               value: devs@lighttheham.com
             - name: SMTP_FROM
               value: admin@tychofleet.com
-          # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN, CATALOG_DSN
+            - name: GARAGE_ENDPOINT
+              value: "http://garage.garage.svc.cluster.local:3900"
+            - name: GARAGE_BUCKET
+              value: "tycho"
+          # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN, CATALOG_DSN,
+          # GARAGE_ACCESS_KEY_ID, GARAGE_SECRET_ACCESS_KEY
           envFrom:
             - secretRef:
                 name: tychofleet-config

@@ -53,3 +53,16 @@ spec:
         - ports:
             - port: "5432"
               protocol: TCP
+    # Garage's S3 API, for the master preview JPEG and the FITS download
+    # (/fleet/{slug}/master-preview.jpg, master-download.fit). Reads are
+    # SigV4-signed; the site holds a Garage key pair, so this rule alone
+    # grants nothing without those credentials. Scoped to the Garage
+    # pods, not the whole namespace.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: garage
+            app.kubernetes.io/name: garage
+      toPorts:
+        - ports:
+            - port: "3900"
+              protocol: TCP
