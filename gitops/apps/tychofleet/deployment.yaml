@@ -51,7 +51,7 @@ spec:
               value: devs@lighttheham.com
             - name: SMTP_FROM
               value: admin@tychofleet.com
-          # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN
+          # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN, CATALOG_DSN
           envFrom:
             - secretRef:
                 name: tychofleet-config
