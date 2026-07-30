@@ -1,0 +1,16 @@
+# Application reconciliation interval. ArgoCD's default is 180s, and with
+# argocd-server on a ClusterIP with no ingress there is no path for a
+# GitHub webhook to reach it, so polling is the only trigger available.
+# Three minutes of apparent silence after every merge reads as a stuck
+# deploy; 30s keeps the feel of a push-triggered sync without exposing
+# the ArgoCD API to the internet for a convenience feature.
+#
+# Cost is a git ls-remote per application per interval. If that ever
+# shows up on the git host or in argocd-repo-server CPU, raise this
+# rather than reaching for the webhook.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  timeout.reconciliation: 30s

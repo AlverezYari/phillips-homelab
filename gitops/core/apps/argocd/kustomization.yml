@@ -7,4 +7,5 @@ resources:
 
 patches:
   - path: params.yml
+  - path: reconciliation.yml
   - path: tailscale-patch.yml
