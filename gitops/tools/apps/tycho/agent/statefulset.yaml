@@ -83,6 +83,17 @@ spec:
               # connection for all tooling — see deploy/seestar-proxy/);
               # HTTP :80 FITS retrieval stays direct via SCOPE_HOST.
               value: "seestar-proxy.tycho.svc.cluster.local"
+            - name: FETCH_REJECTED_FRAMES
+              # The firmware marks frames its own quality check rejected
+              # with "_failed_" in the filename. false (the default) skips
+              # fetching them: on 2026-07-29 they were 82 of the first 142
+              # frames, and ingest is the pipeline's binding constraint
+              # (docs/seestar-fleet-context.md section 10, a 7x deficit
+              # between what the scope writes and what the agent fetches).
+              # Set true to fetch everything, including rejects. Stated
+              # here rather than left to the default because whether the
+              # rejects are worth keeping long term is an open question.
+              value: "false"
             - name: KEY_PATH
               value: /etc/tycho-agent/fleet-key/fleet-key.pem
             - name: GATEWAY_URL
