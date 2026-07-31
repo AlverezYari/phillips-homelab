@@ -102,7 +102,7 @@ spec:
             # operator fails closed at startup without them. See the
             # placeholder-image note above.
             - name: COMBINE_IMAGE
-              value: "zot.phillips-homelab.net/tycho-combine:9bb5cce" # PRs #96/#97: partition before load, and combinability is RGB-and-solved
+              value: "zot.phillips-homelab.net/tycho-combine:31451df" # PRs #96/#97: partition before load, and combinability is RGB-and-solved
             - name: COMBINE_S3_SECRET_NAME
               value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
             # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the
