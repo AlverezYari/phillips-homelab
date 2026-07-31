@@ -118,7 +118,15 @@ spec:
               # for the control API (AGENT_API_ADDR :9090, service-api.yaml).
               # status,events,settings for the POC; "dispatch"/"debug" stay
               # withheld until there's a real owner UI to grant them from.
-              value: "status,events,settings"
+              #
+              # TEMPORARY 2026-07-31: "debug" added to run get_device_state
+              # and friends against real hardware, mapping what the scope
+              # reports about itself for the scope-identity design. debug is
+              # a raw RPC passthrough and can reach methods that move
+              # hardware, so this comes back out as soon as the shapes are
+              # recorded. If you are reading this and the date is not today,
+              # the revert was forgotten: take it out.
+              value: "status,events,settings,debug"
             # AGENT_API_TOKEN (bearer token the control API requires in an
             # `authorization: Bearer <token>` header) is deliberately unset
             # here: no 1Password field for it exists in tycho-config yet.
