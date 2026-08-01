@@ -93,6 +93,17 @@ spec:
                   # tycho-config is queued as the durable fix (issue #29).
                   name: tycho-nats
                   key: NATS_URL
+            - name: DEVICE_INTEROP_KEY_PEM
+              # ADR 0009 + device-key-provisioning: the gateway serves
+              # this to an authenticated scope over GET /v1/device-key so
+              # the client never ships or stores it. Same material the
+              # agent already mounts at KEY_PATH (tycho-config's
+              # see_start_pem) — one copy, so it can be rotated in one
+              # place the day ZWO changes it in firmware.
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-config
+                  key: see_start_pem
             - name: SITE_API_TOKEN
               # ADR 0009: authenticates the tychofleet site to the
               # gateway's /v1/scopes API (create a scope, mint a setup
