@@ -97,6 +97,16 @@ spec:
                 secretKeyRef:
                   name: tycho-config
                   key: SOURCE_AUTH_TOKEN
+            - name: SITE_API_TOKEN
+              # ADR 0009: authenticates the tychofleet site to the
+              # gateway's /v1/scopes API (create a scope, mint a setup
+              # code, rename, remove). Required — the gateway exits at
+              # startup if it is unset, or if it equals any other
+              # configured token.
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-config
+                  key: SITE_API_TOKEN
           readinessProbe:
             httpGet:
               path: /healthz

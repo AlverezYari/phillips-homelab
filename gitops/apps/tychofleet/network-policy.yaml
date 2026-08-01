@@ -66,3 +66,17 @@ spec:
         - ports:
             - port: "3900"
               protocol: TCP
+    # ADR 0009: the scope-management API (add a scope, mint a setup
+    # code, rename, remove). Without this rule the egress lockdown
+    # silently blocks every scope action and the deck renders as though
+    # the member simply has no scopes — a plausible-looking empty state,
+    # which is how this project's worst bugs have always presented.
+    # Scoped to the gateway pods, not the whole tycho namespace.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: tycho
+            app.kubernetes.io/name: tycho-gateway
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
