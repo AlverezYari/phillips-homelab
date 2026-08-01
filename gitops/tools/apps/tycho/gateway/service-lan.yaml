@@ -1,0 +1,34 @@
+# LAN-facing gateway endpoint, for clients that are not in the cluster.
+#
+# ADR 0009's enrolment flow has a member download tycho-client and run it
+# on their own machine beside their scope. That client must reach the
+# gateway to redeem its setup code, fetch the device interop key,
+# register, heartbeat and upload — and `tycho-gateway` is ClusterIP, so
+# in-cluster DNS is meaningless to it. The generated tycho.yaml carried
+# http://tycho-gateway.tycho.svc.cluster.local and every client outside
+# the cluster failed to resolve it.
+#
+# This is the LAN answer, matching seestar-proxy (.215) and
+# tycho-agent-api (.216). It unblocks a client on the same network.
+#
+# It is NOT the answer for real members, who are not on this LAN: that
+# needs a public ingress with TLS (gateway.tychofleet.com) before anyone
+# outside the house can enrol. Note the traffic here is plain HTTP and
+# carries per-scope secrets, which is tolerable on a home LAN and is not
+# tolerable across the internet.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tycho-gateway-lan
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-gateway
+    app.kubernetes.io/part-of: tycho
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: tycho-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

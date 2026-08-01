@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
+  - service-lan.yaml
 images:
   # Pin to a real build before applying: set newTag to a tag `make
   # images`/`make push` (or .forgejo/workflows/ci.yml's tag-triggered
