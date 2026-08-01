@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: app
-          image: zot.phillips-homelab.net/tychofleet:9bb8dfe
+          image: zot.phillips-homelab.net/tychofleet:80d8f31
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -55,6 +55,13 @@ spec:
               value: "http://garage.garage.svc.cluster.local:3900"
             - name: GARAGE_BUCKET
               value: "tycho"
+            - name: TYCHO_GATEWAY_URL
+              # ADR 0009: the site calls the gateway's /v1/scopes API to
+              # add a scope, mint a one-time setup code, rename and
+              # remove. SITE_API_TOKEN arrives via envFrom below.
+              # In-cluster only; the network policy scopes egress to the
+              # gateway pods, not the whole namespace.
+              value: "http://tycho-gateway.tycho.svc.cluster.local"
           # SMTP_PASS, SESSION_SECRET, ADMIN_TOKEN, CATALOG_DSN,
           # GARAGE_ACCESS_KEY_ID, GARAGE_SECRET_ACCESS_KEY
           envFrom:
