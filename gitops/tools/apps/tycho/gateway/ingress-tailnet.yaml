@@ -1,0 +1,54 @@
+# Publishes tycho-gateway on the Tycho fleet tailnet.
+#
+# This is the address in every member's tycho.yaml. A member runs
+# tycho-client beside their scope; it brings itself up as an embedded
+# tsnet node (agent/internal/tailnet) and reaches the gateway here to
+# redeem its setup code, fetch the device interop key, register,
+# heartbeat and upload.
+#
+# L7 Ingress rather than an L3 Service so Tailscale terminates TLS at the
+# proxy and members get a real https:// endpoint with a valid cert,
+# rather than plain HTTP carrying a per-scope secret.
+#
+# Attaches to the fleet ProxyGroup by annotation: a plain
+# `tailscale.com/expose` Service cannot choose a tailnet, and this must
+# land on the fleet tailnet rather than the homelab one.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tycho-gateway-tailnet
+  namespace: tycho
+  annotations:
+    tailscale.com/proxy-group: tycho-fleet-ingress
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - tycho-gateway
+  rules:
+    - host: tycho-gateway
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tycho-gateway
+                port:
+                  number: 80
+---
+# Only this namespace may attach to the fleet tailnet's ingress proxies.
+# ProxyGroupPolicy is namespaced in the namespace being GRANTED access,
+# and its `ingress` list names the ProxyGroups that Ingress resources
+# here may use (verified against the CRD schema — it is not the reverse).
+#
+# Without it, any namespace in the cluster could annotate an Ingress onto
+# tycho-fleet-ingress and publish itself to every member's telescope.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyGroupPolicy
+metadata:
+  name: tycho-fleet-ingress
+  namespace: tycho
+spec:
+  ingress:
+    - tycho-fleet-ingress
