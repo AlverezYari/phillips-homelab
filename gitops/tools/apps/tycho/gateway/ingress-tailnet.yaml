@@ -29,6 +29,19 @@ metadata:
     # Advertise-needs-cert, cert-needs-advertise: nothing errors, the
     # Ingress simply never gets an address.
     tailscale.com/tags: "tag:gateway"
+    # Breaks a cert/advertise deadlock. For an HTTPS-only Ingress the
+    # operator refuses to advertise the Tailscale Service until a cert
+    # exists (maybeUpdateAdvertiseServicesConfig), while the proxy's
+    # cert loop blocks until control grants the service cert domain —
+    # which control only does once a host advertises it. Neither side
+    # moves, nothing errors, and the Ingress simply never gets an
+    # address.
+    #
+    # http-endpoint switches to HTTP+HTTPS, which advertises WITHOUT
+    # waiting for a cert. The service then publishes, control grants the
+    # domain, and the proxy issues the cert. Once tls.crt is non-empty
+    # this annotation can be removed to go back to HTTPS-only.
+    tailscale.com/http-endpoint: "enabled"
 spec:
   ingressClassName: tailscale
   tls:
