@@ -44,3 +44,9 @@ spec:
   type: ingress
   replicas: 2
   tailnet: tycho-fleet
+  # Custom tag rather than the default [tag:k8s], so the fleet ACL can
+  # name the gateway precisely: tag:scope reaches tag:gateway and
+  # nothing else. With the default tag, granting scopes access to the
+  # gateway would grant them access to every operator-managed proxy.
+  tags:
+    - tag:gateway
