@@ -14,8 +14,9 @@
 #     differently. Not provisioned yet as of this writing.
 #   - `tycho-config` is the ESO-managed secret (ExternalSecret synced
 #     from 1Password by the homelab GitOps repo): S3_ACCESS_KEY_ID,
-#     S3_SECRET_ACCESS_KEY, SOURCE_AUTH_TOKEN (plus IDENTITY_TOKEN for
-#     the agent and see_start_pem for the fleet key). This manifest
+#     S3_SECRET_ACCESS_KEY, SITE_API_TOKEN (plus IDENTITY_TOKEN — this
+#     scope's own ADR 0009 credential — and see_start_pem for the fleet
+#     key). This manifest
 #     only references keys in it, never inlines values.
 #   - `image` points at the registry `make images`/`make push` (repo
 #     root Makefile) and `.forgejo/workflows/ci.yml`'s tag-triggered
@@ -92,11 +93,6 @@ spec:
                   # tycho-config is queued as the durable fix (issue #29).
                   name: tycho-nats
                   key: NATS_URL
-            - name: SOURCE_AUTH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: tycho-config
-                  key: SOURCE_AUTH_TOKEN
             - name: SITE_API_TOKEN
               # ADR 0009: authenticates the tychofleet site to the
               # gateway's /v1/scopes API (create a scope, mint a setup
