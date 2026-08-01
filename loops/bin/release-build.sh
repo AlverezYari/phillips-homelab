@@ -22,8 +22,8 @@ for pair in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
   # reachable from that machine still exercises the TUI end to end
   # (`dummyscope.exe -frames-dir <dir> -launch-tui`). Elsewhere the
   # simulator is a `make mock` concern, not a release artifact.
-  cmds="scopetui fleetview"
-  [ "$os" = windows ] && cmds="scopetui fleetview dummyscope"
+  cmds="tycho-client fleetview"
+  [ "$os" = windows ] && cmds="tycho-client fleetview dummyscope"
   for c in $cmds; do
     GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath \
       -ldflags="-s -w -X tycho.dev/agent/internal/version.Version=$V" \
@@ -68,15 +68,15 @@ func main() {
 	}
 }
 GOEOF
-    go run /tmp/mkzip.go "/tmp/out/tycho-${V}-${os}-${arch}.zip" scopetui.exe fleetview.exe dummyscope.exe)
+    go run /tmp/mkzip.go "/tmp/out/tycho-client-${V}-${os}-${arch}.zip" tycho-client.exe fleetview.exe dummyscope.exe)
   else
-    tar -czf "/tmp/out/tycho-${V}-${os}-${arch}.tar.gz" -C /tmp/stage scopetui fleetview
+    tar -czf "/tmp/out/tycho-client-${V}-${os}-${arch}.tar.gz" -C /tmp/stage tycho-client fleetview
   fi
-  rm -f /tmp/stage/scopetui /tmp/stage/fleetview /tmp/stage/*.exe
+  rm -f /tmp/stage/tycho-client /tmp/stage/fleetview /tmp/stage/*.exe
   echo "built ${os}/${arch}"
 done
 
-BODY="Client binaries (scopetui, fleetview) cross-built in-cluster from ${V}."
+BODY="Client binaries (tycho-client, fleetview) cross-built in-cluster from ${V}."
 PAYLOAD=$(jq -n --arg t "$TAG" --arg n "$TITLE" --arg b "$BODY" \
   '{tag_name:$t, name:$n, body:$b, draft:false, prerelease:true}')
 code=$(curl -s -o /tmp/r -w '%{http_code}' -X POST "$F/repos/${REPO}/releases" \
