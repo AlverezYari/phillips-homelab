@@ -19,6 +19,12 @@ git checkout -q "$TAG" 2>/dev/null || echo "tag $TAG not a ref yet; building fro
 # "tycho-client-scopetui-v0.3.0-2-g35bb44d-..."). Fall back to describe
 # only when TAG is somehow empty.
 V=${TAG:-$(git describe --tags --always)}
+# Archive names are "tycho-client-<version>-<os>-<arch>". Tags are
+# normally already prefixed (tycho-client-v0.4.0), so strip a leading
+# "tycho-client-" from V before composing or the name doubles up
+# ("tycho-client-tycho-client-v0.4.0-..."). Works either way: a bare
+# v0.5.0 tag still yields tycho-client-v0.5.0-<os>-<arch>.
+VN=${V#tycho-client-}
 
 mkdir -p /tmp/out /tmp/stage
 for pair in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
@@ -74,9 +80,9 @@ func main() {
 	}
 }
 GOEOF
-    go run /tmp/mkzip.go "/tmp/out/tycho-client-${V}-${os}-${arch}.zip" tycho-client.exe fleetview.exe dummyscope.exe)
+    go run /tmp/mkzip.go "/tmp/out/tycho-client-${VN}-${os}-${arch}.zip" tycho-client.exe fleetview.exe dummyscope.exe)
   else
-    tar -czf "/tmp/out/tycho-client-${V}-${os}-${arch}.tar.gz" -C /tmp/stage tycho-client fleetview
+    tar -czf "/tmp/out/tycho-client-${VN}-${os}-${arch}.tar.gz" -C /tmp/stage tycho-client fleetview
   fi
   rm -f /tmp/stage/tycho-client /tmp/stage/fleetview /tmp/stage/*.exe
   echo "built ${os}/${arch}"
