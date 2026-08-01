@@ -1,0 +1,52 @@
+# The Tycho fleet tailnet, and the ingress proxies that live on it.
+#
+# ADR 0009's enrolment has a member run tycho-client on their own machine
+# beside their scope, and that client reaches the gateway over the
+# tailnet (agent/internal/tailnet brings the binary up as an embedded
+# tsnet node and dials everything northbound through it). tycho-gateway
+# is ClusterIP, so before this no client anywhere could reach it.
+#
+# Deliberately the FLEET tailnet, not the homelab one: enrolling a
+# telescope should put a member on the fleet's network and nothing else.
+# Tailscale v1.96's cluster-scoped Tailnet CRD lets the single operator
+# serve both, so this is a second credential rather than a second
+# operator.
+#
+# The other half of the trust story lives in the fleet tailnet's ACL,
+# not in git: tag:scope must be able to reach tag:gateway:80 and nothing
+# else, and tagOwners must let the operator tag its own proxies.
+---
+apiVersion: tailscale.com/v1alpha1
+kind: Tailnet
+metadata:
+  name: tycho-fleet
+spec:
+  credentials:
+    # Cluster-scoped resource; the Secret is read from the operator's
+    # namespace. Created by tycho-fleet-oauth in tailscale-secrets.yml,
+    # carrying client_id + client_secret — an OAuth client, not an auth
+    # key: the operator mints its own device keys from it.
+    secretName: tycho-fleet-oauth
+---
+# Ingress proxies bound to the fleet tailnet. A plain
+# `tailscale.com/expose` Service cannot choose a tailnet — only
+# ProxyGroup, Connector and Recorder take spec.tailnet — so the gateway
+# attaches to this group by annotation instead.
+#
+# Two replicas so a proxy restart does not drop every member's client at
+# once.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyGroup
+metadata:
+  name: tycho-fleet-ingress
+  namespace: tailscale
+spec:
+  type: ingress
+  replicas: 2
+  tailnet: tycho-fleet
+  # Custom tag rather than the default [tag:k8s], so the fleet ACL can
+  # name the gateway precisely: tag:scope reaches tag:gateway and
+  # nothing else. With the default tag, granting scopes access to the
+  # gateway would grant them access to every operator-managed proxy.
+  tags:
+    - tag:gateway
