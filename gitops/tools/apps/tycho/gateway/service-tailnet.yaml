@@ -1,0 +1,43 @@
+# Tailnet-facing gateway endpoint.
+#
+# ADR 0009's enrolment flow has a member run tycho-client on their own
+# machine beside their scope, and that client must reach the gateway to
+# redeem its setup code, fetch the device interop key, register,
+# heartbeat and upload. `tycho-gateway` is ClusterIP, so the generated
+# tycho.yaml pointed at an in-cluster DNS name no client could resolve.
+#
+# The tailnet is the intended path, and it already exists in the client:
+# agent/internal/tailnet brings the binary up as an embedded tsnet node
+# (no tailscaled, no root) and dials everything northbound through it,
+# with the auth key carried in tycho.conf. Enrolment was built without
+# that path; this is the gateway half of putting it back.
+#
+# Deliberately NOT a plain LAN LoadBalancer: members are not on this
+# LAN, and plain HTTP carrying per-scope secrets is not acceptable off
+# it. The tailnet gives an authenticated, encrypted path that works from
+# anywhere without exposing the gateway to the internet.
+#
+# NOTE this joins the *homelab* tailnet, because that is the operator
+# running here. The plan calls for a dedicated fleet tailnet so a
+# member's scope joins the fleet's network rather than Casey's house
+# (blast radius, and the trust story). That move is still outstanding —
+# see the Tailscale fleet-account steps and tycho#37.
+apiVersion: v1
+kind: Service
+metadata:
+  name: tycho-gateway-tailnet
+  namespace: tycho
+  labels:
+    app.kubernetes.io/name: tycho-gateway
+    app.kubernetes.io/part-of: tycho
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "tycho-gateway"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: tycho-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
