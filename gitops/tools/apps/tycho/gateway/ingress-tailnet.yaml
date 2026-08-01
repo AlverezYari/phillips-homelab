@@ -26,7 +26,11 @@ spec:
     - hosts:
         - tycho-gateway
   rules:
-    - host: tycho-gateway
+    # Fully-qualified: the operator rejects a short host outright
+    # ("rule with host "tycho-gateway" ignored, unsupported"). Only
+    # tls.hosts above takes the short form, which is what names the
+    # tailnet device.
+    - host: tycho-gateway.tail92d9b0.ts.net
       http:
         paths:
           - path: /
