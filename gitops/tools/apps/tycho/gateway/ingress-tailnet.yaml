@@ -20,6 +20,15 @@ metadata:
   namespace: tycho
   annotations:
     tailscale.com/proxy-group: tycho-fleet-ingress
+    # The Tailscale Service this Ingress creates must carry the SAME tag
+    # as the proxy nodes that host it. Without this it inherits the
+    # operator default (tag:k8s) while the ProxyGroup nodes carry
+    # tag:gateway, and control then refuses to grant the service cert
+    # domain to those nodes — the cert Secret stays 0 bytes, and the
+    # operator will not advertise an HTTPS-only Ingress without a cert.
+    # Advertise-needs-cert, cert-needs-advertise: nothing errors, the
+    # Ingress simply never gets an address.
+    tailscale.com/tags: "tag:gateway"
 spec:
   ingressClassName: tailscale
   tls:
