@@ -12,7 +12,13 @@ F=http://forgejo-http.forgejo.svc.cluster.local:3000/api/v1
 git clone -q "https://oauth2:${FORGEJO_TOKEN}@code.phillips-homelab.net/${REPO}.git" /tmp/src
 cd /tmp/src
 git checkout -q "$TAG" 2>/dev/null || echo "tag $TAG not a ref yet; building from default branch"
-V=$(git describe --tags --always)
+# The version in the archive names is the tag being released, not
+# `git describe`. describe runs before this release's tag exists, so it
+# resolves to the PREVIOUS tag — which is how every release so far has
+# been named after its predecessor (the v0.4.0 archives came out as
+# "tycho-client-scopetui-v0.3.0-2-g35bb44d-..."). Fall back to describe
+# only when TAG is somehow empty.
+V=${TAG:-$(git describe --tags --always)}
 
 mkdir -p /tmp/out /tmp/stage
 for pair in darwin/arm64 darwin/amd64 linux/amd64 windows/amd64; do
