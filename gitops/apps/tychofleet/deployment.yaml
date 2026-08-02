@@ -55,6 +55,24 @@ spec:
               value: "http://garage.garage.svc.cluster.local:3900"
             - name: GARAGE_BUCKET
               value: "tycho"
+            - name: TYCHO_GATEWAY_PUBLIC_URL
+              # The address a MEMBER'S OWN MACHINE reaches, written into
+              # the tycho.yaml they download — distinct from
+              # TYCHO_GATEWAY_URL below, which is in-cluster DNS and
+              # means nothing off-cluster. Sending the wrong one is
+              # exactly how a real member got "couldn't reach
+              # http://tycho-gateway.tycho.svc.cluster.local".
+              #
+              # The gateway is published ONLY on the fleet tailnet, so
+              # this is a tailnet name: not public DNS, not a LAN
+              # address. The client joins that tailnet in-process (tsnet)
+              # using the key the site mints, so the member's machine
+              # needs no Tailscale of its own.
+              value: "https://tycho-gateway.tail92d9b0.ts.net"
+            - name: TS_TAILNET
+              # "-" resolves to the OAuth client's own tailnet, so the
+              # fleet tailnet name is not duplicated here.
+              value: "-"
             - name: TYCHO_GATEWAY_URL
               # ADR 0009: the site calls the gateway's /v1/scopes API to
               # add a scope, mint a one-time setup code, rename and
