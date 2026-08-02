@@ -60,6 +60,19 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          # Mirrors deploy/gateway/deployment.yaml in the tycho repo,
+          # which loops can edit and this repo's manifests are not.
+          # Without a limit, the part-upload path OOMs the NODE rather
+          # than the pod — and with replicas: 1 that node is the whole
+          # ingest path. The ceiling is chosen against maxPartSize plus
+          # upload concurrency (tycho #129).
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
           env:
             - name: LISTEN_ADDR
               value: ":8080"
