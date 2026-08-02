@@ -29,6 +29,13 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
+          # L7 DNS visibility, for pods this policy selects only. Cilium
+          # can enforce a toFQDNs rule only for names it has watched
+          # being resolved, so the api.tailscale.com rule below depends
+          # on this. It does not turn the DNS proxy on cluster-wide.
+          rules:
+            dns:
+              - matchPattern: "*"
     # smtp.fastmail.com submission. Port-scoped world egress rather than
     # toFQDNs — nothing in the cluster uses the Cilium DNS proxy yet and
     # this deploy is the wrong place to introduce it.
@@ -48,8 +55,15 @@ spec:
     # cluster runs the Cilium DNS proxy yet, matching the note above.
     # That means 443 to the internet generally, not just Tailscale —
     # narrow it to a toFQDNs rule if the DNS proxy is ever enabled.
-    - toEntities:
-        - world
+    # api.tailscale.com, for minting each member a one-time tag:scope
+    # auth key at enrolment (ADR 0009 / fleet tailnet).
+    #
+    # Was `toEntities: world` on 443 — i.e. every HTTPS host on the
+    # internet — because nothing here ran Cilium's DNS proxy. The DNS
+    # rule above enables it for this endpoint alone, which lets this be
+    # scoped to the single host the site actually calls.
+    - toFQDNs:
+        - matchName: "api.tailscale.com"
       toPorts:
         - ports:
             - port: "443"
