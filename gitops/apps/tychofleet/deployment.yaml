@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: app
-          image: zot.phillips-homelab.net/tychofleet:32ab869
+          image: zot.phillips-homelab.net/tychofleet:15658a3
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -55,6 +55,16 @@ spec:
               value: "http://garage.garage.svc.cluster.local:3900"
             - name: GARAGE_BUCKET
               value: "tycho"
+            - name: PROVISIONER
+              # Selects the Tailscale auth-key provisioner for the legacy
+              # waitlist/approve invite path. There is deliberately NO
+              # default any more: it used to fall back to a fake that
+              # minted tskey-fake-000001, which the approve flow then
+              # emailed as a working invite — every screen reported
+              # success and the member's agent silently never joined.
+              # The app now throws at startup if this is unset, so this
+              # line is load-bearing.
+              value: "tailscale"
             - name: TYCHO_GATEWAY_PUBLIC_URL
               # The address a MEMBER'S OWN MACHINE reaches, written into
               # the tycho.yaml they download — distinct from
