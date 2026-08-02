@@ -38,6 +38,22 @@ spec:
         - ports:
             - port: "587"
               protocol: TCP
+    # api.tailscale.com, for minting each member a one-time tag:scope
+    # auth key at enrolment (ADR 0009 / fleet tailnet). Without this the
+    # egress lockdown blocks the mint and setup fails at the moment a
+    # member clicks — the site is otherwise entirely healthy, which is
+    # the failure shape this project keeps hitting.
+    #
+    # toEntities: world rather than toFQDNs because nothing in this
+    # cluster runs the Cilium DNS proxy yet, matching the note above.
+    # That means 443 to the internet generally, not just Tailscale —
+    # narrow it to a toFQDNs rule if the DNS proxy is ever enabled.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
     # The Tycho catalog (CATALOG_DSN -> tycho-pg-r). Every attribution
     # number the site shows -- pooled integration, campaign totals, a
     # master's per-source seconds, a scope's last heartbeat -- is read
