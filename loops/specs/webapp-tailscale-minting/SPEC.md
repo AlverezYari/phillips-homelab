@@ -32,6 +32,19 @@ endpoints:
 - The client consumes the key on first join and rewrites the file
   without it. Nothing reads it back.
 
+## Note on the base you cloned
+
+An earlier version of this loop was respawned because it had cloned a
+`main` that predated the `TYCHO_GATEWAY_PUBLIC_URL` split (tychofleet
+#48). That work is now on `main`: the member-facing gateway address
+comes from `TYCHO_GATEWAY_PUBLIC_URL`, distinct from the in-cluster
+`TYCHO_GATEWAY_URL` the site uses server-side, and a missing public URL
+means **no config is served at all** rather than a broken one.
+
+Build on that rather than around it — `src/lib/gateway/client.ts` and
+`src/pages/api/scopes/[scopeId]/tycho-yaml.ts` already have the shape.
+The auth key follows the same rule: no key, no config.
+
 ## What to build
 
 ### 1. Mint a key when the setup code is minted
