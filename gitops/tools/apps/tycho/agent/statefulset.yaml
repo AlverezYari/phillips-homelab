@@ -43,7 +43,17 @@ metadata:
     app.kubernetes.io/part-of: tycho
 spec:
   serviceName: tycho-agent
-  replicas: 1
+  # RETIRED 2026-08-01. The headless agent and the tycho-client a member
+  # downloads are two front ends over the same fieldrun pipeline, and
+  # both were talking to the SAME telescope — one physical scope
+  # (serial 5741d34d) reporting under two source ids, which would
+  # double-count every night it captured.
+  #
+  # The client is now the path: it enrols itself, joins the fleet
+  # tailnet in-process, and needs no Kubernetes. Scaled to 0 rather than
+  # deleted so the PVC-backed buffer survives — anything it had not yet
+  # uploaded is still on disk if this ever needs to come back.
+  replicas: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: tycho-agent
