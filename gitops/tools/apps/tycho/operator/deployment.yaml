@@ -107,7 +107,7 @@ spec:
               # feature was live everywhere except the container that
               # reads it (tycho #154). Bump this whenever combine/
               # changes, and check it moved after ArgoCD syncs.
-              value: "zot.phillips-homelab.net/tycho-combine:f2fa8f6"
+              value: "zot.phillips-homelab.net/tycho-combine:cb49452"
             - name: COMBINE_S3_SECRET_NAME
               value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
             # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the
