@@ -102,7 +102,12 @@ spec:
             # operator fails closed at startup without them. See the
             # placeholder-image note above.
             - name: COMBINE_IMAGE
-              value: "zot.phillips-homelab.net/tycho-combine:31451df" # PRs #96/#97: partition before load, and combinability is RGB-and-solved
+              # Bumped by hand, and it has drifted before: it sat 70
+              # commits stale through the #148 deploy, so the recipe
+              # feature was live everywhere except the container that
+              # reads it (tycho #154). Bump this whenever combine/
+              # changes, and check it moved after ArgoCD syncs.
+              value: "zot.phillips-homelab.net/tycho-combine:f2fa8f6"
             - name: COMBINE_S3_SECRET_NAME
               value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
             # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the
