@@ -98,6 +98,22 @@ upstream. Weigh it against the client's ability to work when the
 gateway is unreachable, decide, and **justify the decision in PR.md** —
 this is the most consequential design call in the loop.
 
+## One scope now, a fleet later
+
+This ships for **the scope the client is attached to**. Fleet-wide sky
+across every scope in a fleet is where this goes, and it is not this
+loop.
+
+But it is close enough to matter for the data model: key the forecast
+state **per site**, not as a client-global singleton, so a second site
+is additive rather than a rewrite. Same for the cache and the provider
+interface — a cache keyed by (lat, lon) rounded to a sensible grid
+serves one scope today and dedupes across co-located scopes for free
+later.
+
+Do not build fleet UI, fleet fetching, or multi-site layout. Just do
+not make them expensive.
+
 ## Two boundaries that are not stylistic
 
 **The meteogram is display-only.** Weather *thresholds* remain
