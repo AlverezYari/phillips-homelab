@@ -15,19 +15,28 @@ The brief wins on intent. The design doc wins on layout law.
 The design README is a **frozen handoff**. Code and doc must not fork,
 so the doc changes *first*, in its own commit, before any Go:
 
-1. **Amend `docs/design/tycho-client/README.md`.** Screen 6b's single
-   "Cloud cover · next 10 h" row becomes a meteogram pane. Widen the
-   state model's `weather.forecast.hourly[10]` to 48, with per-row
-   fields plus provenance and fetched-at. Leave the **sensors pane and
-   escalation ladder untouched** — the meteogram is lookahead; sensors
-   stay authoritative, per 6b's own line: *"forecasts are wrong and
-   sensors are not."*
+1. **Amend `docs/design/tycho-client/README.md`.** Add the meteogram
+   as a **new, deeper view opened with `W`** from 6b. Widen the state
+   model's `weather.forecast.hourly[10]` to 48, with per-row fields
+   plus provenance and fetched-at.
+
+   **6b's existing "Cloud cover · next 10 h" row STAYS exactly as it
+   is.** Casey's instruction, and it overrides the brief's phrasing of
+   "the single 10 h cloud sparkline becomes a stacked multi-row
+   meteogram": the thin banner is the at-a-glance answer during a
+   night and must not be replaced by something that needs reading.
+   The meteogram is what you open when the banner makes you want more.
+
+   Leave the **sensors pane and escalation ladder untouched** — the
+   meteogram is lookahead; sensors stay authoritative, per 6b's own
+   line: *"forecasts are wrong and sensors are not."*
 2. **Pattern kit next** (design doc §3): `meteogram(rows []MeteoRow,
    hours int, width int) string`, a sibling of the existing
    `bar(segments []Segment, width int) string` at README:175. Same
    shape of API, same file, same testing style.
 3. **Providers + almanac** behind one interface.
-4. **Wire into 6b** last.
+4. **Wire in last**: `W` from 6b opens the meteogram; `esc` returns.
+   6b itself renders unchanged.
 
 A PR that implements the pane without the doc amendment is rejected
 regardless of how good the pane is.
@@ -55,6 +64,39 @@ regardless of how good the pane is.
 - **Degraded state** is already specified in 6b: provider unreachable
   → forecast rows render stale-dashed, the `dark` row still renders,
   sensors unaffected, thresholds unchanged.
+
+## Buffering — do not be an aggressive client
+
+Casey's explicit requirement, and it is the one most likely to be got
+wrong by a TUI that redraws on every keystroke.
+
+- **A keypress must never trigger a fetch.** Opening `W`, resizing,
+  re-rendering, or toggling back and forth reads whatever is cached.
+  A render path that can reach the network is a bug.
+- **Cache with a TTL that matches the data.** These are hourly models
+  updated a few times a day — refetching more often than ~30 min buys
+  nothing and costs someone else's free service. Persist the cache
+  across restarts so a client relaunched five times in a minute makes
+  at most one call.
+- **Jitter refreshes.** A fleet of clients started by the same script
+  at dusk must not arrive as a thundering herd on a free API.
+- **Back off and stay backed off on failure.** Exponential with a
+  ceiling, and a failed provider does not get retried on the next
+  render. The degraded state already specified is the correct
+  behaviour — show stale, do not hammer.
+- **Serve stale rather than block.** A slow or dead provider renders
+  the last good data with its age visible, never an empty pane and
+  never a spinner that blocks the TUI.
+
+**Consider fetching via the gateway rather than per-client.** The
+operator already polls Open-Meteo once per scope, server-side. If N
+clients each poll directly, that is N times the load on a free service
+for identical data about the same site. Fetching via the gateway makes
+it one pull per scope regardless of how many clients are open, and it
+is the same good-neighbour instinct the CrowdSky work applied
+upstream. Weigh it against the client's ability to work when the
+gateway is unreachable, decide, and **justify the decision in PR.md** —
+this is the most consequential design call in the loop.
 
 ## Two boundaries that are not stylistic
 
@@ -104,8 +146,13 @@ Kubernetes API.
 
 ## Tests
 
-- [ ] 6b renders the 6-row 48 h meteogram in the reference 112-126 ch
-  terminal. Put the render in PR.md.
+- [ ] **6b's existing cloud row renders unchanged.** Show it beside
+  the pre-change render.
+- [ ] `W` opens the 6-row 48 h meteogram in the reference 112-126 ch
+  terminal; `esc` returns to 6b. Put both renders in PR.md.
+- [ ] **No keypress causes a fetch.** Assert it: open `W`, close,
+  reopen, resize — the provider stub records zero additional calls.
+- [ ] A restart within the cache TTL makes no network call.
 - [ ] It degrades at 80 ch per grid rule 5 — drop to 24 h or scroll,
   your call, but **note the decision in the doc amendment**.
 - [ ] `NO_COLOR` output is fully legible from heights alone. Show it.
