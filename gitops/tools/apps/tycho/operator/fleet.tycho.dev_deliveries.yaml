@@ -1,0 +1,353 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: deliveries.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: Delivery
+    listKind: DeliveryList
+    plural: deliveries
+    shortNames:
+    - dlv
+    singular: delivery
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.sessionRef.name
+      name: Session
+      type: string
+    - jsonPath: .spec.targetRef.name
+      name: Target
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.refusalReason
+      name: Reason
+      type: string
+    - jsonPath: .status.bytesTransferredTotal
+      name: Bytes
+      type: integer
+    - jsonPath: .status.jobRef.name
+      name: Job
+      type: string
+    - jsonPath: .status.attempts
+      name: Attempts
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Delivery is one session's outbound delivery to one target: phases,
+          attempts, the per-file acknowledgement ledger, the far end's commit
+          response, bytes transferred, and a terminal state that includes
+          Unknown for a commit whose outcome was never learned. One per
+          (session, target) pair for the pair's whole life (ADR 0010 §1).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              DeliverySpec identifies the (session, target) pair a Delivery sends
+              and, structurally, which member it is allowed to act for.
+
+              MemberID is denormalized from the owning session at creation time
+              and is immutable. It exists so that the controller's one Job-spawn
+              chokepoint (internal/delivery) never has to trust TargetRef alone:
+              before anything is admitted, it re-reads the referenced
+              DeliveryTarget and refuses — Phase=Refused, RefusalReason naming
+              the mismatch — unless MemberID equals
+              DeliveryTargetSpec.MemberID. That check lives in exactly one
+              function, the same one that is the only path to spawning a Job, so
+              there is no second code path that could forget it (ADR 0010 §2: "a
+              fleet owner must not be able to publish another member's data by
+              configuring a fleet").
+            properties:
+              memberID:
+                description: |-
+                  MemberID is the member this Delivery is asserted to act for,
+                  denormalized from the owning session at creation time.
+                  Immutable.
+                minLength: 1
+                type: string
+                x-kubernetes-validations:
+                - message: memberID is immutable
+                  rule: self == oldSelf
+              sessionRef:
+                description: |-
+                  SessionRef names the ImagingSession this Delivery sends.
+                  Immutable: a Delivery is one (session, target) pair for its
+                  whole life, per ADR 0010 §1.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: sessionRef is immutable
+                  rule: self == oldSelf
+              targetRef:
+                description: |-
+                  TargetRef names the DeliveryTarget this Delivery sends to.
+                  Immutable, same reason as SessionRef.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: targetRef is immutable
+                  rule: self == oldSelf
+            required:
+            - memberID
+            - sessionRef
+            - targetRef
+            type: object
+          status:
+            description: |-
+              DeliveryStatus is load-bearing state, not a progress bar (ADR 0010
+              §1/§9): the per-file ledger and the commit record are the only
+              idempotency that exists anywhere in this pipeline, on either side.
+            properties:
+              attempts:
+                description: |-
+                  Attempts counts Job attempts for this Delivery, mirroring
+                  ImagingSessionStatus.Attempts.
+                format: int32
+                type: integer
+              bytesTransferredByArtifact:
+                additionalProperties:
+                  format: int64
+                  type: integer
+                description: |-
+                  BytesTransferredByArtifact breaks BytesTransferredTotal down by
+                  DeliveryArtifactClass.
+                type: object
+              bytesTransferredTotal:
+                description: |-
+                  BytesTransferredTotal is bytes actually acknowledged so far
+                  (sum of Files[].Bytes for acknowledged files) — attributable to
+                  (member, target, period) directly off this and TargetRef's
+                  MemberID, without any join through object storage (ADR §4).
+                format: int64
+                type: integer
+              commit:
+                description: |-
+                  Commit is the far end's commit response, persisted before
+                  anything acts on it (G2).
+                properties:
+                  attempted:
+                    description: Attempted is true once a commit call was made.
+                    type: boolean
+                  attemptedAt:
+                    description: AttemptedAt is when the commit call was made.
+                    format: date-time
+                    type: string
+                  responded:
+                    description: |-
+                      Responded is true once a response — success, failure, or a
+                      definitive rejection — was actually received and recorded.
+                      Attempted && !Responded is the ambiguous case G2 exists for.
+                    type: boolean
+                  respondedAt:
+                    description: RespondedAt is when a response was recorded.
+                    format: date-time
+                    type: string
+                  response:
+                    description: |-
+                      Response is what the far end said, kept legible enough to act
+                      on and to show a human directly off this object.
+                    type: string
+                  succeeded:
+                    description: Succeeded is only meaningful when Responded is
+                      true.
+                    type: boolean
+                type: object
+              completedAt:
+                description: |-
+                  CompletedAt is when this Delivery reached a terminal phase
+                  (Done, Failed, Refused, or Unknown).
+                format: date-time
+                type: string
+              files:
+                description: |-
+                  Files is the per-file ledger keyed by (ChunkKey, ContentHash) —
+                  the only idempotency in the pipeline (G1, G8; ADR 0010 §9).
+                items:
+                  description: |-
+                    DeliveryFileStatus is one file's delivery record, keyed by
+                    (ChunkKey, ContentHash) — G8: a renamed duplicate hashes the same
+                    and is therefore the same ledger entry, not a new one, so a rename
+                    can never smuggle a second send past the ledger.
+
+                    This is the record G1 depends on. Acknowledged is set true and
+                    persisted (Status().Update) strictly before the next file is
+                    handed to the adapter — see the adapter interface's doc comment
+                    for how the Go interface itself makes the opposite order
+                    unrepresentable, not merely discouraged. A crash between "the
+                    far end acked" and "we recorded it" can only make the next
+                    reconcile re-check an entry that is already true (a no-op); it
+                    can never cause a re-send of a file whose ack was lost, because
+                    the ack is never the thing that can be lost — the file itself
+                    would be re-sent instead, landing a second, distinguishable
+                    ledger entry only if its content actually changed.
+                  properties:
+                    acknowledged:
+                      description: |-
+                        Acknowledged is true once the far end returned a positive
+                        acknowledgement for this file (G1). Never reset to false once
+                        set.
+                      type: boolean
+                    ackedAt:
+                      description: AckedAt is when Acknowledged was set.
+                      format: date-time
+                      type: string
+                    bytes:
+                      description: |-
+                        Bytes is this file's size. Counted into
+                        DeliveryStatus.BytesTransferredTotal/BytesTransferredByArtifact once Acknowledged —
+                        never before, so a failed or unacknowledged send never inflates
+                        metering.
+                      format: int64
+                      type: integer
+                    chunkKey:
+                      description: |-
+                        ChunkKey is the far end's chunk identity for this file. Opaque
+                        to the framework — nothing here parses it; the fake adapter's
+                        test fixtures may use a destination's real chunk-key shape as a
+                        realistic example, but the framework attaches no meaning to it
+                        beyond "an opaque grouping key the adapter reports."
+                      minLength: 1
+                      type: string
+                    contentHash:
+                      description: |-
+                        ContentHash is this file's content hash (sha256 hex), the G8
+                        dedup key alongside ChunkKey.
+                      minLength: 1
+                      type: string
+                    sourceKey:
+                      description: |-
+                        SourceKey is the object-storage key this file was read from —
+                        informational, for kubectl get delivery -o yaml legibility.
+                        Dedup keys on ChunkKey+ContentHash, never on this: a renamed
+                        object (different SourceKey, same bytes) is still a duplicate.
+                      type: string
+                  required:
+                  - chunkKey
+                  - contentHash
+                  type: object
+                type: array
+              jobRef:
+                description: JobRef names the k8s Job spawned to run this Delivery.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              observedGeneration:
+                description: ObservedGeneration is the Spec generation last reconciled.
+                format: int64
+                type: integer
+              phase:
+                description: |-
+                  Phase is this Delivery's current lifecycle state.
+                enum:
+                - Pending
+                - Refused
+                - Sending
+                - Committing
+                - Done
+                - Failed
+                - Unknown
+                type: string
+              refusalReason:
+                description: |-
+                  RefusalReason names the limit or mismatch admission refused
+                  this Delivery for (Phase=Refused only) — legible to the member,
+                  never a silent throttle (ADR 0010 §4/§5).
+                type: string
+              skipped:
+                description: |-
+                  Skipped summarizes files the FileSource excluded before any send
+                  was attempted (e.g. device-rejected frames), grouped by reason.
+                  Empty when nothing was skipped. Set once, when Phase first moves
+                  to Sending (see deliveryjob.Run) -- these files were never part
+                  of the per-file ledger (Files) to begin with, since they were
+                  never sent.
+                items:
+                  description: |-
+                    DeliverySkippedSummary groups files a FileSource excluded before any
+                    send was attempted (e.g. device-rejected frames), by reason -- so a
+                    rejected frame is a reported skip, visible on the Delivery, never a
+                    silent drop a member is left wondering about.
+                  properties:
+                    count:
+                      description: Count is how many files were excluded for Reason.
+                      format: int32
+                      minimum: 1
+                      type: integer
+                    reason:
+                      description: |-
+                        Reason is why these files were excluded (e.g. "device_marked_failed",
+                        the catalog's sub.reject_reason value).
+                      minLength: 1
+                      type: string
+                  required:
+                  - count
+                  - reason
+                  type: object
+                type: array
+              startedAt:
+                description: StartedAt is when the Job for this Delivery was first
+                  created.
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
