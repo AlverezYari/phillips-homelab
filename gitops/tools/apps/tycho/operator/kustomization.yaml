@@ -5,6 +5,8 @@ resources:
   - fleet.tycho.dev_imagingsessions.yaml
   - fleet.tycho.dev_targetmasters.yaml
   - fleet.tycho.dev_fleetmasters.yaml
+  - fleet.tycho.dev_deliveries.yaml
+  - fleet.tycho.dev_deliverytargets.yaml
   - rbac.yaml
   - deployment.yaml
 images:
