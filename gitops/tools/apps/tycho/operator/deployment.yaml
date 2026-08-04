@@ -108,6 +108,26 @@ spec:
               # reads it (tycho #154). Bump this whenever combine/
               # changes, and check it moved after ArgoCD syncs.
               value: "zot.phillips-homelab.net/tycho-combine:0ae9196"
+            # ADR 0010 outbound delivery. Both are REQUIRED: the
+            # operator fails closed at startup without them, so this
+            # block must land in the same commit as the image bump.
+            #
+            # DELIVERY_JOB_IMAGE is a placeholder -- no delivery Job
+            # image is built yet. Nothing pulls it: DeliveryTargets
+            # default disabled and none exist, so no Delivery is ever
+            # admitted. It exists so the gap is a visible startup
+            # requirement rather than a silent ImagePullBackOff later.
+            - name: DELIVERY_JOB_IMAGE
+              value: "zot.phillips-homelab.net/tycho-deliver:none-yet"
+            # Read-only in intent: DeliveryReconciler's admission needs
+            # a session's frame count and accepted-byte total before
+            # any Job exists. Uses the same Secret the gateway writes
+            # with, because no read-only role exists yet (tycho #172).
+            - name: DELIVERY_CATALOG_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: tycho-pg-app
+                  key: uri
             - name: COMBINE_S3_SECRET_NAME
               value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
             # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the
