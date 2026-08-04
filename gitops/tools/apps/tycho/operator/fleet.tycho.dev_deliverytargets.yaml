@@ -1,0 +1,242 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: deliverytargets.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: DeliveryTarget
+    listKind: DeliveryTargetList
+    plural: deliverytargets
+    shortNames:
+    - dtarget
+    singular: deliverytarget
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.memberID
+      name: Member
+      type: string
+    - jsonPath: .spec.adapterKind
+      name: Adapter
+      type: string
+    - jsonPath: .spec.artifactClass
+      name: Artifact
+      type: string
+    - jsonPath: .spec.enabled
+      name: Enabled
+      type: boolean
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.refusalReason
+      name: Reason
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          DeliveryTarget is a named, member-scoped destination for outbound
+          delivery: an adapter kind, a credential reference, an artifact
+          class, and the settings a Delivery against it is spawned with.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              DeliveryTargetSpec names one member's destination for outbound
+              delivery: adapter kind, an opaque credential reference, which
+              artifact class it receives, per-target settings, and the enable
+              toggle (default off, per ADR 0010 §2 — never defaulted on by the
+              framework).
+
+              Member-scoped, structurally: MemberID is required and immutable
+              (the XValidation rule below rejects any update that changes it), so
+              it is a safe join key for admission and for the controller's
+              session-to-target pairing. A DeliveryTarget cannot be re-pointed at
+              a different member after creation, and nothing in this package ever
+              trusts a MemberID that arrived any other way — see
+              DeliverySpec.MemberID and internal/delivery's admission chokepoint,
+              which is the one place a mismatch is checked before a Job is ever
+              spawned (ADR 0010 §2: "a fleet owner must not be able to publish
+              another member's data by configuring a fleet").
+            properties:
+              adapterKind:
+                description: AdapterKind selects which compiled-in adapter this
+                  target speaks through.
+                enum:
+                - fake
+                type: string
+              artifactClass:
+                description: ArtifactClass selects which artifact this target receives.
+                enum:
+                - raw_subs
+                - stacks
+                type: string
+              consentRecord:
+                description: |-
+                  ConsentRecord captures what the member was shown before
+                  enabling this target (ADR 0010 §7). Nil until the member has
+                  gone through consent at least once.
+                properties:
+                  acceptedAt:
+                    description: AcceptedAt is when the member accepted this TermsVersion.
+                    format: date-time
+                    type: string
+                  termsText:
+                    description: |-
+                      TermsText is the verbatim text shown to the member. Where a
+                      destination has no published terms, this says exactly that
+                      rather than implying protections that do not exist (ADR §7).
+                    minLength: 1
+                    type: string
+                  termsVersion:
+                    description: |-
+                      TermsVersion identifies the shown terms text's version, or a
+                      fixed sentinel such as "none-published" when the destination
+                      has no published terms to version.
+                    minLength: 1
+                    type: string
+                required:
+                - acceptedAt
+                - termsText
+                - termsVersion
+                type: object
+              credentialRef:
+                description: |-
+                  CredentialRef names a Secret holding this target's opaque
+                  credential (ADR 0010 §8). The framework never reads its
+                  contents — only the adapter does, and the fake adapter in this
+                  loop ignores it entirely.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              credentialScheme:
+                description: CredentialScheme names how CredentialRef should be
+                  presented.
+                enum:
+                - basic
+                - bearer
+                type: string
+              enabled:
+                default: false
+                description: |-
+                  Enabled gates whether the controller will ever spawn a Delivery
+                  Job against this target. Default off (ADR 0010 §2): opt-in,
+                  never defaulted on by the framework.
+                type: boolean
+              memberID:
+                description: MemberID is the owning member. Required and immutable.
+                minLength: 1
+                type: string
+                x-kubernetes-validations:
+                - message: memberID is immutable
+                  rule: self == oldSelf
+              quota:
+                description: |-
+                  Quota is this member's plan allowance. See DeliveryQuota's doc
+                  comment for why it is carried here rather than on a separate
+                  object.
+                properties:
+                  maxBytesPerPeriod:
+                    default: 10737418240
+                    description: |-
+                      MaxBytesPerPeriod caps bytes this member may deliver across all
+                      of their targets in one PeriodDays window. Admission refuses,
+                      never queues past this silently (ADR 0010 §4/§5).
+                    format: int64
+                    type: integer
+                  maxEnabledTargets:
+                    default: 1
+                    description: |-
+                      MaxEnabledTargets caps how many of this member's DeliveryTargets
+                      may have DeliveryTargetStatus.Phase=Active at once. Default 1 — ADR 0010 §5:
+                      "one is the right free-tier number."
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  periodDays:
+                    default: 30
+                    description: PeriodDays is the window MaxBytesPerPeriod is measured
+                      over.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                type: object
+              settings:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Settings carries adapter-specific, per-target configuration
+                  (e.g. a future scrub_location-style flag) as opaque string
+                  key/value pairs — the framework never interprets these itself.
+                type: object
+            required:
+            - adapterKind
+            - artifactClass
+            - credentialRef
+            - credentialScheme
+            - memberID
+            type: object
+          status:
+            description: |-
+              DeliveryTargetStatus reports whether this target is currently
+              eligible for delivery, computed by admission rather than trusted
+              from Spec.Enabled directly.
+            properties:
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the Spec generation admission last
+                  evaluated, so a client can tell a stale Phase (an edit not yet
+                  reconciled) from a current one.
+                format: int64
+                type: integer
+              phase:
+                description: Phase is this target's current admission state.
+                enum:
+                - Disabled
+                - Active
+                - Refused
+                type: string
+              refusalReason:
+                description: |-
+                  RefusalReason names the limit admission refused this target for
+                  (Phase=Refused only) — legible to the member, never a silent
+                  throttle (ADR 0010 §4/§5).
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
