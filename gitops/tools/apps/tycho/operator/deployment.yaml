@@ -130,10 +130,24 @@ spec:
                   key: uri
             - name: COMBINE_S3_SECRET_NAME
               value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
-            # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the
-            # emptyDir size limit for the combine Job's scratch volume.
+            # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the size
+            # of the combine Job's scratch volume. 32Gi covers the
+            # deepest observed session (19.5 GiB at N=631 half-res)
+            # with headroom — see loops/specs/combinescratch/SPEC.md.
             - name: COMBINE_SCRATCH_SIZE
-              value: "10Gi"
+              value: "32Gi"
+            # Scratch on the homelab-04 NVMe via a generic ephemeral
+            # volume instead of emptyDir. Unset storage class = legacy
+            # emptyDir. The node pin is load-bearing, not an
+            # optimization: local-path-config's nodePathMap lists ONLY
+            # homelab-04, and with WaitForFirstConsumer a combine Job
+            # scheduled anywhere else would sit Pending forever. Widen
+            # nodePathMap before relaxing this. Inert until the
+            # operator image carries loop/combinescratch.
+            - name: COMBINE_SCRATCH_STORAGE_CLASS
+              value: "nvme-scratch"
+            - name: COMBINE_SCRATCH_NODE_SELECTOR
+              value: "kubernetes.io/hostname=homelab-04"
             # NTFY_URL is optional: a full ntfy topic URL for
             # best-effort session-close/combine-result notifications.
             # Unset (the default — no value here) disables
