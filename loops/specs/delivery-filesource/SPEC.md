@@ -42,6 +42,52 @@ S3 still supplies the **bytes**. The catalog supplies the **list and
 the facts about it**. Do not re-derive from object storage anything the
 catalog already knows.
 
+## A previous attempt failed here — read this first
+
+PR #169 implemented this and was rejected for a **cross-source data
+leak**. Do not repeat it.
+
+Both its queries filtered on `session_id` alone:
+
+```sql
+FROM sub WHERE session_id = $1 AND frame_kind = $2
+```
+
+`session` has `PRIMARY KEY (source_id, id)`
+(`gateway/internal/catalog/migrations/0008_session_source_scoping.sql:90`)
+— **session ids are unique only within a source.** The gateway's own
+queries all scope by both, e.g. `postgres.go:427`:
+`WHERE sub.source_id = $2 AND sub.session_id = $1`.
+
+Session ids are `<target>-<date>`. Two members imaging M13 on the same
+night both produce `m-13-2026-07-29`. That query would list, meter and
+**upload another member's frames to a third party** — exactly what ADR
+0010 §2 makes targets member-scoped to prevent. For a public fleet it
+is the ordinary case, not an edge case.
+
+It shipped because its Postgres test had never executed (no daemon in
+the sandbox) and fails immediately against a real one:
+
+```
+inserting sub obj-1: ERROR: null value in column "source_id"
+of relation "sub" violates not-null constraint (SQLSTATE 23502)
+```
+
+The column the test choked on is the column the query was missing.
+
+**Therefore, non-negotiable:**
+
+- Every catalog query in this loop is scoped by **`source_id` AND
+  `session_id`**, with the source threaded from the Delivery/target
+  rather than inferred or defaulted.
+- There is a test that **inserts two different sources sharing one
+  session id** and asserts only the requested source's frames come
+  back. That is the test that would have caught this; it is worth more
+  than the rest of the suite combined.
+- If you cannot run the Postgres leg, **say so prominently in PR.md**
+  and state that the Postgres tests are unverified. Do not describe an
+  unexecuted test as passing.
+
 ## What to build
 
 ### 1. A catalog-backed `FileSource`
@@ -53,6 +99,18 @@ class, returns the files to send with their content hashes and sizes.
 not an error and not a silent drop — it is a *reported* skip, visible
 on the `Delivery` so a member can see "412 sent, 21 skipped: device
 marked failed" rather than wondering where 21 frames went.
+
+### 1b. Identity in the ledger
+
+PR #169 set `FileToSend.ChunkKey` to the sub's `object_key`, making the
+ledger key `(object_key, content_hash)`. G8 exists so a **renamed**
+duplicate is still a duplicate — with the object key in the identity
+tuple, a rename yields a new key and the file ships again. That
+defeats G8 rather than deferring it.
+
+Key the ledger identity on the **content hash**. If a
+destination-specific chunk key is needed later, carry it alongside as
+data rather than as part of the identity. Say what you chose in PR.md.
 
 ### 2. Artifact class selection
 
@@ -89,8 +147,12 @@ PR #166 may have used. A refusal names the limit and the total.
   reported as a successful empty delivery.
 - [ ] Admission totals real sizes and refuses over-allowance before any
   file is sent — the fake adapter receives nothing.
+- [ ] **Two sources sharing a session id: only the requested source's
+  frames are returned.** Same for the byte/count aggregate used by
+  admission.
 - [ ] Postgres-backed tests run against the real catalog leg, not a
   mock. This is a query-layer change; a mocked query proves nothing.
+  If the leg cannot run here, the PR says so in its own words.
 - [ ] Full gate green including `-race`, Postgres and S3 legs, 0 skips.
 
 ## Warts / traps
