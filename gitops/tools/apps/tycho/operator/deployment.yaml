@@ -107,7 +107,7 @@ spec:
               # feature was live everywhere except the container that
               # reads it (tycho #154). Bump this whenever combine/
               # changes, and check it moved after ArgoCD syncs.
-              value: "zot.phillips-homelab.net/tycho-combine:8eb8bfe"
+              value: "zot.phillips-homelab.net/tycho-combine:4c971e8"
             # ADR 0010 outbound delivery. Both are REQUIRED: the
             # operator fails closed at startup without them, so this
             # block must land in the same commit as the image bump.
@@ -131,11 +131,13 @@ spec:
             - name: COMBINE_S3_SECRET_NAME
               value: "tycho-combine-s3" # hand-minted from tycho-config values — see README
             # COMBINE_SCRATCH_SIZE is optional (default 10Gi): the size
-            # of the combine Job's scratch volume. 32Gi covers the
-            # deepest observed session (19.5 GiB at N=631 half-res)
-            # with headroom — see loops/specs/combinescratch/SPEC.md.
+            # of the combine Job's scratch volume. Full-res output
+            # (tycho #190) is 4x the pixels of the half-res grid this
+            # was last sized for: measured 43 GB at N=626 half-res
+            # (m-13-2026-07-18 r3) scales to ~172 GB. 200Gi adds
+            # headroom; the nvme-scratch disk has 862 GB free.
             - name: COMBINE_SCRATCH_SIZE
-              value: "32Gi"
+              value: "200Gi"
             # Scratch on the homelab-04 NVMe via a generic ephemeral
             # volume instead of emptyDir. Unset storage class = legacy
             # emptyDir. The node pin is load-bearing, not an
@@ -148,6 +150,17 @@ spec:
               value: "nvme-scratch"
             - name: COMBINE_SCRATCH_NODE_SELECTOR
               value: "kubernetes.io/hostname=homelab-04"
+            # COMBINE_CPU_LIMIT is optional (default 2): the combine
+            # Job's CPU limit, forwarded into the container as of
+            # tycho #190 so the pipeline sizes its reprojection worker
+            # pool off its real allocation. The measured half-res run
+            # used one core for 174 min; full-res is ~4x that serial.
+            # 4 workers brings it back to roughly the old wall clock.
+            # Memory cost is bounded: each worker holds one reprojected
+            # frame (~133Mi at full res) at a time, so 4 workers add
+            # ~0.5Gi against COMBINE_MEMORY_LIMIT's 12Gi.
+            - name: COMBINE_CPU_LIMIT
+              value: "4"
             # COMBINE_MEMORY_LIMIT: operator/main.go's 4Gi default is
             # sized for ADR 0003's v0 operating point (~10 inputs) and
             # says outright that a combine growing past it should raise
