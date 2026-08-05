@@ -32,6 +32,9 @@ spec:
     - jsonPath: .status.masterJobRef.name
       name: Job
       type: string
+    - jsonPath: .status.attempts
+      name: Attempts
+      type: integer
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -100,10 +103,19 @@ spec:
             description: |-
               FleetMasterStatus tracks the latest cross-source combine Job's
               progress, which sessions it covers, and which sources contributed —
-              deliberately the same shape as TargetMasterStatus (SPEC: "do NOT
-              overbuild"), plus ContributingSources for honest per-source
-              provenance.
+              deliberately the same shape as TargetMasterStatus, plus
+              ContributingSources for honest per-source provenance.
             properties:
+              attempts:
+                description: |-
+                  Attempts counts consecutive fleet-combine failures since this
+                  target's last successful fleet combine, mirroring
+                  TargetMasterStatus.Attempts: incremented on Failed, reset to 0
+                  on Done or whenever a retry is spawned for a grown combinable-
+                  session set. Bounds ensureCombine's Failed-phase retry
+                  the same way as the TargetMaster path.
+                format: int32
+                type: integer
               actualCombinedSessionIDs:
                 description: |-
                   ActualCombinedSessionIDs is the oldest-first SessionID list the
@@ -128,7 +140,7 @@ spec:
                   CombinedSessionIDs' same spawn-time session set, each paired with
                   the ImagingSessionStatus.Revision it was at when this Revision
                   was spawned to combine it. This is what ensureCombine's dedupe
-                  compares (SPEC tycho-master-staleness) -- see
+                  compares -- see
                   TargetMasterStatus.CombinedSessions's doc comment for the
                   unknown-is-stale handling of pre-existing FleetMasters.
                 items:
@@ -162,9 +174,9 @@ spec:
               contributingSources:
                 description: |-
                   ContributingSources is the spawn-time per-source breakdown of
-                  CombinedSessionIDs (SPEC: "honest provenance" -- contributing
+                  CombinedSessionIDs -- contributing
                   sources + per-source frame counts must be visible here, not
-                  collapsed into a single total), oldest-contributing-source-first
+                  collapsed into a single total -- oldest-contributing-source-first
                   by SourceID.
                 items:
                   description: |-

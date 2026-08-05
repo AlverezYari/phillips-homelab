@@ -35,6 +35,9 @@ spec:
     - jsonPath: .status.combineJobRef.name
       name: Job
       type: string
+    - jsonPath: .status.attempts
+      name: Attempts
+      type: integer
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -93,8 +96,8 @@ spec:
                   component used in a target master's location
                   (masters/{target-slug}/, schemas/object-layout.md) and CR names.
                   Session grouping and matching itself is decided by sky position,
-                  not by this string (docs/ATTRIBUTION.md, "Target identity is
-                  matched by name, not by sky position") -- see
+                  not by this string (docs/ATTRIBUTION.md, "sky position decides
+                  grouping, names stay for humans") -- see
                   internal/targetmaster.CombinableSessions and .ResolveTargetSlug,
                   which choose Target deterministically from TargetRADeg/
                   TargetDecDeg when available, falling back to a name-derived slug
@@ -109,15 +112,15 @@ spec:
                   event's optional target_ra_deg/target_dec_deg fields
                   (schemas/tycho.session.closed.schema.json) at session-close
                   time -- the operator has no S3 access to read manifest.json
-                  directly (SPEC guardrail), so the closing event is the only
+                  directly, so the closing event is the only
                   route a position can reach it by. Both are nil together for a
                   session whose close event didn't carry one: a quiescence-timeout
                   close never reads a manifest at all, and an older or malformed
                   manifest may lack a usable target block.
                   internal/targetmaster falls back to Target-slug matching for
                   such a session rather than dropping it from its target's
-                  grouping (docs/ATTRIBUTION.md's "fall back to name grouping"
-                  guardrail).
+                  grouping -- a session must never vanish from grouping for lack of
+                  coordinates (docs/ATTRIBUTION.md).
                 type: number
               targetRADeg:
                 description: |-
@@ -128,15 +131,15 @@ spec:
                   event's optional target_ra_deg/target_dec_deg fields
                   (schemas/tycho.session.closed.schema.json) at session-close
                   time -- the operator has no S3 access to read manifest.json
-                  directly (SPEC guardrail), so the closing event is the only
+                  directly, so the closing event is the only
                   route a position can reach it by. Both are nil together for a
                   session whose close event didn't carry one: a quiescence-timeout
                   close never reads a manifest at all, and an older or malformed
                   manifest may lack a usable target block.
                   internal/targetmaster falls back to Target-slug matching for
                   such a session rather than dropping it from its target's
-                  grouping (docs/ATTRIBUTION.md's "fall back to name grouping"
-                  guardrail).
+                  grouping -- a session must never vanish from grouping for lack of
+                  coordinates (docs/ATTRIBUTION.md).
                 type: number
             required:
             - objectPrefix
@@ -148,6 +151,24 @@ spec:
               ImagingSessionStatus tracks close detection and the resulting
               combine Job.
             properties:
+              attempts:
+                description: |-
+                  Attempts counts consecutive combine failures since this
+                  session's last successful combine (or since it was first
+                  created, if it has never succeeded): incremented each time a
+                  combine Job for this session reaches Failed, reset to 0 on
+                  Done. ensureCombineJob refuses to retry a Failed session once
+                  Attempts reaches the bounded retry limit (operator/internal/
+                  sessionclose.maxCombineAttempts) -- see Phase=Failed with
+                  Attempts at that limit as the observable "permanently failed,
+                  needs a human" terminal state: not that the combine failed,
+                  but that nothing said so and nothing tried again. A retry
+                  triggered by the session growing (more subs than the failed
+                  revision covered) resets Attempts back to 0 first, since new
+                  data deserves its own fresh retry budget rather than inheriting
+                  an unrelated prior failure streak.
+                format: int32
+                type: integer
               closeReason:
                 description: |-
                   CloseReason records how the session's close was detected, once
@@ -194,6 +215,19 @@ spec:
                   spawned to combine. Compared against a later close event's
                   sub_count to detect the session growing past what the latest
                   revision covered.
+                format: int32
+                type: integer
+              jobStartedPublishedRevision:
+                description: |-
+                  JobStartedPublishedRevision is the last Revision whose
+                  tycho.job.stack.started event was actually published
+                  successfully. Separate from Revision/CombineJobRef (set as soon
+                  as the Job is created, regardless of publish outcome) so a
+                  redelivered close signal for a Job that already exists
+                  (created=false in ensureCombineJob) can still tell whether the
+                  started event for the current revision made it out, and retry
+                  the publish alone if it didn't (issue #127: `created=false` must
+                  not mean "never publish").
                 format: int32
                 type: integer
               phase:
