@@ -38,6 +38,9 @@ spec:
     - jsonPath: .status.masterJobRef.name
       name: Job
       type: string
+    - jsonPath: .status.attempts
+      name: Attempts
+      type: integer
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -96,12 +99,26 @@ spec:
             description: |-
               TargetMasterStatus tracks the latest master combine Job's progress
               and which sessions it covers. Deliberately as small as
-              ImagingSessionStatus's combine-tracking subset (SPEC tycho16: "do
-              NOT overbuild") — no per-sub or per-night detail beyond the
+              ImagingSessionStatus's combine-tracking subset — no per-sub or per-night detail beyond the
               contributing session id list, since that's all ensureMasterCombine
               needs to detect growth and all a consumer needs to answer "how many
               nights deep."
             properties:
+              attempts:
+                description: |-
+                  Attempts counts consecutive master-combine failures since this
+                  target's last successful master combine: incremented each time
+                  the master Job reaches Failed, reset to 0 on Done or whenever a
+                  retry is spawned for a grown combinable-session set (new data
+                  gets its own budget rather than inheriting an unrelated prior
+                  failure streak). MasterCombineReconciler's periodic
+                  re-evaluation refuses to retry a Failed
+                  TargetMaster once Attempts reaches
+                  internal/controller.maxCombineRetryAttempts -- Phase=Failed with
+                  Attempts at that limit is the observable "permanently failed"
+                  terminal state, mirroring ImagingSessionStatus.Attempts.
+                format: int32
+                type: integer
               actualCombinedSessionIDs:
                 description: |-
                   ActualCombinedSessionIDs is the oldest-first SessionID list the
@@ -111,7 +128,7 @@ spec:
                   ground-truth channel, since it has no S3 access). This is what the
                   ntfy "N nights deep" wording and the tycho.job.master.succeeded
                   event's nights/session_ids report -- CombinedSessionIDs must not
-                  be used for those (SPEC review H3, #57). Falls back to
+                  be used for those. Falls back to
                   CombinedSessionIDs (spawn-time intent) when an older combine image
                   predating the completion report, or a GC'd Pod, leaves no report
                   to read -- best-effort, not a hard requirement, so a missing
@@ -127,8 +144,8 @@ spec:
                   to detect growth (a new night became combinable) versus a true
                   duplicate trigger (no growth -- dedupe, no new revision) --
                   spawn-time intent, not a claim about what actually landed in
-                  master.fit. See ActualCombinedSessionIDs for that (SPEC review H3,
-                  #57): a session reaching Done is no guarantee its result is
+                  master.fit. See ActualCombinedSessionIDs for that: a session
+                  reaching Done is no guarantee its result is
                   RGB-combinable (combine_controller.markDone sets Done from k8s Job
                   success alone, the operator has no S3 access to check frame kind),
                   so the master Job can silently drop one of these sessions.
@@ -139,8 +156,7 @@ spec:
                 description: |-
                   CombinedSessions is CombinedSessionIDs' same spawn-time session
                   set, each paired with the ImagingSessionStatus.Revision it was at
-                  when this Revision was spawned to combine it (SPEC
-                  tycho-master-staleness). This, not CombinedSessionIDs, is what
+                  when this Revision was spawned to combine it. This, not CombinedSessionIDs, is what
                   ensureCombine's dedupe compares: an unchanged id set does not
                   mean unchanged inputs, since a session's result is rewritten in
                   place at a stable key every time that session itself recombines.
