@@ -153,14 +153,25 @@ spec:
             # COMBINE_CPU_LIMIT is optional (default 2): the combine
             # Job's CPU limit, forwarded into the container as of
             # tycho #190 so the pipeline sizes its reprojection worker
-            # pool off its real allocation. The measured half-res run
-            # used one core for 174 min; full-res is ~4x that serial.
-            # 4 workers brings it back to roughly the old wall clock.
-            # Memory cost is bounded: each worker holds one reprojected
-            # frame (~133Mi at full res) at a time, so 4 workers add
-            # ~0.5Gi against COMBINE_MEMORY_LIMIT's 12Gi.
+            # pool off its real allocation. 8 of homelab-04's 16
+            # cores: the Job is burstable (requests stay 250m), so two
+            # concurrent combines bursting to 8 each just share the
+            # node rather than blocking scheduling. Memory cost is
+            # bounded: each reprojection worker holds one frame
+            # (~133Mi at full res) at a time, so 8 workers add ~1Gi
+            # against COMBINE_MEMORY_LIMIT's 12Gi.
             - name: COMBINE_CPU_LIMIT
-              value: "4"
+              value: "8"
+            # COMBINE_MAX_CONCURRENT is optional (default 1): how many
+            # combine Jobs (session, master, fleet) may run at once.
+            # The default-1 was sized for a 10Gi emptyDir era; scratch
+            # is now 200Gi claims on the 860 GB homelab-04 NVMe, so 2
+            # concurrent costs 400Gi scratch, 2x12Gi memory limit and
+            # 2x8 CPU limit -- all inside the node. Raise past 2 only
+            # after checking scratch headroom: N x 200Gi must stay
+            # under what the NVMe actually has free.
+            - name: COMBINE_MAX_CONCURRENT
+              value: "2"
             # COMBINE_MEMORY_LIMIT: operator/main.go's 4Gi default is
             # sized for ADR 0003's v0 operating point (~10 inputs) and
             # says outright that a combine growing past it should raise
