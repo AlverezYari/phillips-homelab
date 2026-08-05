@@ -148,6 +148,20 @@ spec:
               value: "nvme-scratch"
             - name: COMBINE_SCRATCH_NODE_SELECTOR
               value: "kubernetes.io/hostname=homelab-04"
+            # COMBINE_MEMORY_LIMIT: operator/main.go's 4Gi default is
+            # sized for ADR 0003's v0 operating point (~10 inputs) and
+            # says outright that a combine growing past it should raise
+            # this rather than rely on a bigger default. Issue #45 made
+            # sessions 600+ inputs: the first real 626-input combine
+            # (m-13-2026-07-18 r3, 2026-08-04) peaked at 4006Mi against
+            # the 4096Mi limit -- 97.8%, surviving on luck. The tiled
+            # path bounds peak RAM independently of N, but sigma-clip's
+            # per-tile float64 temporaries make the real peak several
+            # times the nominal tile budget. 12Gi is ~3x the observed
+            # peak; homelab-04 has 62Gi allocatable at 18% use, so the
+            # old ceiling was arbitrary, not a capacity constraint.
+            - name: COMBINE_MEMORY_LIMIT
+              value: "12Gi"
             # NTFY_URL is optional: a full ntfy topic URL for
             # best-effort session-close/combine-result notifications.
             # Unset (the default — no value here) disables
