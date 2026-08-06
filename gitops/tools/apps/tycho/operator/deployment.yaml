@@ -118,7 +118,12 @@ spec:
             # or the adapter changes — same drift hazard as
             # COMBINE_IMAGE above.
             - name: DELIVERY_JOB_IMAGE
-              value: "zot.phillips-homelab.net/tycho-deliver:3b46e98"
+              value: "zot.phillips-homelab.net/tycho-deliver:c7202c6"
+            # SA delivery Job pods run as (rbac.yaml's tycho-deliver:
+            # get deliveries/deliverytargets, update deliveries/status,
+            # nothing else). REQUIRED, fail-closed (tycho #197).
+            - name: DELIVERY_JOB_SERVICE_ACCOUNT_NAME
+              value: "tycho-deliver"
             # Names the Secret whose `uri` key is the catalog DSN the
             # delivery Job injects as DELIVERY_CATALOG_DSN (SecretKeyRef,
             # tycho #196) — the CNPG <cluster>-app Secret, same one the
