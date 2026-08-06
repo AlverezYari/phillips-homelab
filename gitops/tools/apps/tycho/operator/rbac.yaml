@@ -56,3 +56,42 @@ subjects:
   - kind: ServiceAccount
     name: tycho-operator
     namespace: tycho
+---
+# ServiceAccount + minimal Role for delivery Jobs (tycho #195/#197):
+# cmd/deliverjob reads its own Delivery and its DeliveryTarget, and
+# writes per-artifact progress via Status().Update. Nothing else — a
+# delivery Job can never touch sessions, masters, or other CRDs.
+# The operator's Job template sets this SA by name
+# (DELIVERY_JOB_SERVICE_ACCOUNT_NAME, fail-closed).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tycho-deliver
+  namespace: tycho
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tycho-deliver
+  namespace: tycho
+rules:
+  - apiGroups: ["fleet.tycho.dev"]
+    resources: ["deliveries", "deliverytargets"]
+    verbs: ["get"]
+  - apiGroups: ["fleet.tycho.dev"]
+    resources: ["deliveries/status"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tycho-deliver
+  namespace: tycho
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tycho-deliver
+subjects:
+  - kind: ServiceAccount
+    name: tycho-deliver
+    namespace: tycho
