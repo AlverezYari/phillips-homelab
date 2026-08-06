@@ -95,6 +95,7 @@ spec:
                 enum:
                 - fake
                 - s3
+                - crowdsky
                 type: string
               artifactClasses:
                 description: |-
