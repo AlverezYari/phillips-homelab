@@ -1,4 +1,11 @@
 ---
+# NOT applied directly. This file is a hand-maintained mirror of the
+# Go API types (see deploy/operator/README.md) -- the cluster reads a
+# hand-copied version of it at gitops/tools/apps/tycho/operator/ in the
+# phillips-homelab repo, not this one. A field added here is not
+# deployed until that copy is made by hand: Kubernetes silently prunes
+# any field a CRD's schema does not declare, with no error or warning
+# to the writer.
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -23,7 +30,7 @@ spec:
     - jsonPath: .spec.adapterKind
       name: Adapter
       type: string
-    - jsonPath: .spec.artifactClass
+    - jsonPath: .spec.artifactClasses
       name: Artifact
       type: string
     - jsonPath: .spec.enabled
@@ -87,13 +94,48 @@ spec:
                   target speaks through.
                 enum:
                 - fake
+                - s3
                 type: string
-              artifactClass:
-                description: ArtifactClass selects which artifact this target receives.
-                enum:
-                - raw_subs
-                - stacks
-                type: string
+              artifactClasses:
+                description: |-
+                  ArtifactClasses selects which artifact(s) this target receives --
+                  plural because SPEC's member-selective shape needs raws delivered
+                  standing, plus optional stacks and masters, ALL on the same
+                  target. Convention, not an enforced invariant: "everything" is
+                  intended as a target's only class rather than combined with the
+                  session-scoped classes.
+                items:
+                  description: DeliveryArtifactClass selects which of a session's
+                    (or, for "everything", the whole archive's) artifacts a target
+                    receives.
+                  enum:
+                  - raw_subs
+                  - stacks
+                  - masters
+                  - everything
+                  type: string
+                minItems: 1
+                type: array
+                x-kubernetes-list-type: set
+              backfill:
+                default: false
+                description: |-
+                  Backfill delivers every existing session this target already
+                  matches (any session already in a terminal combined state --
+                  Done or Unsalvageable, tycho#191) rather than only sessions that
+                  close from now on. The member-selective shape's real first user
+                  (a member cross-checking their own Siril pipeline against ours)
+                  wants their existing ~80 GB backfilled, not just tonight's
+                  session onward. Evaluated by DeliveryTargetReconciler whenever
+                  this target is Active: every existing matching session gets its
+                  Delivery ensured (create-if-missing, same dedupe-by-name the
+                  session-close trigger uses), so a session that closes AFTER this
+                  flag was already true is not double-delivered, and a target
+                  created with Backfill=false that flips it on later still picks
+                  up the backlog on its next reconcile. Metered like any other
+                  delivery -- a large backfill is not special-cased, only bounded
+                  by the member's own byte allowance (DeliveryQuota).
+                type: boolean
               consentRecord:
                 description: |-
                   ConsentRecord captures what the member was shown before
@@ -203,7 +245,7 @@ spec:
                 type: object
             required:
             - adapterKind
-            - artifactClass
+            - artifactClasses
             - credentialRef
             - credentialScheme
             - memberID
