@@ -70,7 +70,7 @@ spec:
             size: 1Gi
           data:
             storageClass: "syno-iscsi-default"
-            size: 50Gi
+            size: 150Gi
 
         deployment:
           kind: StatefulSet

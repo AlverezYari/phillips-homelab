@@ -1,0 +1,51 @@
+# RBAC for the site's per-fleet backup/sync admin UI (tychofleet #65),
+# added on Casey's explicit instruction (2026-08-06). The site pod
+# writes DeliveryTarget CRs + their creds Secrets into the tycho
+# namespace and reads delivery status back; the tycho operator does
+# all actual syncing.
+#
+# Secrets scoping note: the RUNBOOK brief asked for resourceNames
+# "prefixed fleetsync-", which k8s RBAC cannot express (exact match
+# only, and `create` ignores resourceNames). So mutating verbs are
+# pinned to exact per-fleet names — extend the list as fleets are
+# added, one reviewed line each — and `create` is namespace-wide on
+# secrets because it cannot be narrower.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tychofleet-fleetsync
+  namespace: tychofleet
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tychofleet-fleetsync
+  namespace: tycho
+rules:
+- apiGroups: ["fleet.tycho.dev"]
+  resources: ["deliverytargets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["fleet.tycho.dev"]
+  resources: ["deliveries"]
+  verbs: ["get", "list", "watch"] # status readback on the settings page
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create"] # cannot be resourceName-scoped; see header comment
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["fleetsync-fleet-zero"]
+  verbs: ["get", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tychofleet-fleetsync
+  namespace: tycho
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tychofleet-fleetsync
+subjects:
+- kind: ServiceAccount
+  name: tychofleet-fleetsync
+  namespace: tychofleet

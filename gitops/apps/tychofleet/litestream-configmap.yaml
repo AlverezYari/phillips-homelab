@@ -1,0 +1,23 @@
+# Litestream replication config for the site's SQLite (see the
+# sidecar in deployment.yaml). Continuous WAL shipping to B2 —
+# restore is `litestream restore -config /etc/litestream.yml
+# /data/tychofleet.db` from a fresh pod. Same bucket as the archive
+# mirror, its own prefix; ~10s replication lag, pennies of storage.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tychofleet-litestream
+  namespace: tychofleet
+data:
+  litestream.yml: |
+    dbs:
+      - path: /data/tychofleet.db
+        replicas:
+          - type: s3
+            bucket: tf-fleet-bak-01
+            path: site-backups/tychofleet.db
+            endpoint: https://s3.us-east-005.backblazeb2.com
+            region: us-east-005
+            force-path-style: false
+            sync-interval: 10s
+            retention: 720h
