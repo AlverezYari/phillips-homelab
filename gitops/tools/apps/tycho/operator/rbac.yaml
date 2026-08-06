@@ -75,8 +75,12 @@ metadata:
   name: tycho-deliver
   namespace: tycho
 rules:
+  # The full read surface, grepped from every c.Get in
+  # internal/deliveryjob + cmd/deliverjob: the Delivery itself, its
+  # DeliveryTarget, the session (driver.go — stacks class reads
+  # ResultKeys off the CR), and the TargetMaster (masterfilesource).
   - apiGroups: ["fleet.tycho.dev"]
-    resources: ["deliveries", "deliverytargets"]
+    resources: ["deliveries", "deliverytargets", "imagingsessions", "targetmasters"]
     verbs: ["get"]
   - apiGroups: ["fleet.tycho.dev"]
     resources: ["deliveries/status"]
