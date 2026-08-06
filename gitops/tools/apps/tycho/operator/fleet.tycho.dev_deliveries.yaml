@@ -1,4 +1,11 @@
 ---
+# NOT applied directly. This file is a hand-maintained mirror of the
+# Go API types (see deploy/operator/README.md) -- the cluster reads a
+# hand-copied version of it at gitops/tools/apps/tycho/operator/ in the
+# phillips-homelab repo, not this one. A field added here is not
+# deployed until that copy is made by hand: Kubernetes silently prunes
+# any field a CRD's schema does not declare, with no error or warning
+# to the writer.
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -204,6 +211,51 @@ spec:
                   CompletedAt is when this Delivery reached a terminal phase
                   (Done, Failed, Refused, or Unknown).
                 format: date-time
+                type: string
+              deliveredMasterRevision:
+                description: |-
+                  DeliveredMasterRevision is TargetMasterStatus.Revision as of this
+                  Delivery's most recent admission, meaningful only when the
+                  target selects the masters class -- the same growth-detection
+                  role DeliveredSessionRevision plays for raw_subs/stacks, but
+                  keyed on a master rebuild (internal/controller's
+                  MasterCombineReconciler.markDone hook) rather than the session's
+                  own Revision, since a master can gain a new revision long after
+                  the sessions that fed it last closed.
+                format: int32
+                type: integer
+              deliveredSessionRevision:
+                description: |-
+                  DeliveredSessionRevision is ImagingSessionStatus.Revision as of
+                  this Delivery's most recent admission -- stamped by
+                  DeliveryReconciler.admit alongside Phase=Sending. The continuous-
+                  semantics trigger (internal/controller's session-close/master-
+                  rebuild hooks, ADR 0010 "session grows and recombines -> deliver
+                  only the new/changed objects") compares a Done Delivery's own
+                  value here against the session's CURRENT Revision to decide
+                  whether growth happened since the last successful send; if so it
+                  re-arms this same object (Phase reset to "") rather than creating
+                  a second Delivery for the same (session, target) pair (ADR 0010
+                  §1: one per pair for its whole life). Idempotency (the s3
+                  adapter's HeadObject skip) is what makes a re-armed run cheap --
+                  only the delta actually transfers.
+                format: int32
+                type: integer
+              failedArtifact:
+                description: |-
+                  FailedArtifact names the ChunkKey of the artifact whose SendFile
+                  call most recently failed -- so `kubectl get delivery -o yaml`
+                  answers "what stopped this" without reading Pod logs (ADR 0010
+                  §1). Set alongside FailureReason, in the same Status().Update,
+                  immediately before deliveryjob.Run returns the error -- a
+                  partial failure is always named, never silent. Not cleared on a
+                  later successful attempt; Phase moving to Committing or Done is
+                  the stronger signal that superseded it.
+                type: string
+              failureReason:
+                description: |-
+                  FailureReason is the error message from that same failed
+                  SendFile attempt.
                 type: string
               files:
                 description: |-

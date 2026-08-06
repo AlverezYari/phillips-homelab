@@ -119,6 +119,14 @@ spec:
             # COMBINE_IMAGE above.
             - name: DELIVERY_JOB_IMAGE
               value: "zot.phillips-homelab.net/tycho-deliver:b1f1a18"
+            # Source-side S3 creds for delivery Jobs (reading the
+            # Garage archive) — the same Secret combine Jobs use.
+            # REQUIRED: the operator fails closed at startup without
+            # it (tycho #195's LoadConfig), which is exactly how its
+            # absence was discovered — a CrashLoopBackOff, not a
+            # silent delivery no-op.
+            - name: DELIVERY_JOB_S3_SECRET_NAME
+              value: "tycho-combine-s3"
             # Read-only in intent: DeliveryReconciler's admission needs
             # a session's frame count and accepted-byte total before
             # any Job exists. Uses the same Secret the gateway writes

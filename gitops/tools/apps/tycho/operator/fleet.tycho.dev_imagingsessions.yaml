@@ -1,4 +1,11 @@
 ---
+# NOT applied directly. This file is a hand-maintained mirror of the
+# Go API types (see deploy/operator/README.md) -- the cluster reads a
+# hand-copied version of it at gitops/tools/apps/tycho/operator/ in the
+# phillips-homelab repo, not this one. A field added here is not
+# deployed until that copy is made by hand: Kubernetes silently prunes
+# any field a CRD's schema does not declare, with no error or warning
+# to the writer.
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -238,6 +245,7 @@ spec:
                 - Combining
                 - Done
                 - Failed
+                - Unsalvageable
                 type: string
               resultKeys:
                 description: |-
