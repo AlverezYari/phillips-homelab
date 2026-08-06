@@ -118,7 +118,13 @@ spec:
             # or the adapter changes — same drift hazard as
             # COMBINE_IMAGE above.
             - name: DELIVERY_JOB_IMAGE
-              value: "zot.phillips-homelab.net/tycho-deliver:b1f1a18"
+              value: "zot.phillips-homelab.net/tycho-deliver:3b46e98"
+            # Names the Secret whose `uri` key is the catalog DSN the
+            # delivery Job injects as DELIVERY_CATALOG_DSN (SecretKeyRef,
+            # tycho #196) — the CNPG <cluster>-app Secret, same one the
+            # gateway reads. REQUIRED, fail-closed at operator startup.
+            - name: DELIVERY_JOB_CATALOG_DSN_SECRET_NAME
+              value: "tycho-pg-app"
             # Source-side S3 creds for delivery Jobs (reading the
             # Garage archive) — the same Secret combine Jobs use.
             # REQUIRED: the operator fails closed at startup without
