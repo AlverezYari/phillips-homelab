@@ -18,6 +18,10 @@ spec:
       labels:
         app: tychofleet
     spec:
+      # fleetsync-rbac.yaml's SA: lets the site write DeliveryTarget
+      # CRs/Secrets into the tycho namespace (tychofleet #65). Without
+      # it the storage page saves but shows "not materialized".
+      serviceAccountName: tychofleet-fleetsync
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
@@ -133,7 +137,48 @@ spec:
               port: 4321
             initialDelaySeconds: 5
             periodSeconds: 10
+        # Litestream sidecar: continuous SQLite replication to B2 —
+        # the site DB (waitlist/members/fleet-storage settings) was
+        # the last un-backed-up state in the system. Same bucket as
+        # the archive mirror, its own prefix; creds are the existing
+        # MANAGED_STORAGE_* keys from tychofleet-config (ESO). RWO PVC
+        # is fine: sidecar shares the app's pod.
+        - name: litestream
+          image: litestream/litestream:0.3.13
+          args: ["replicate", "-config", "/etc/litestream.yml"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: LITESTREAM_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tychofleet-config
+                  key: MANAGED_STORAGE_ACCESS_KEY_ID
+            - name: LITESTREAM_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tychofleet-config
+                  key: MANAGED_STORAGE_SECRET_ACCESS_KEY
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 128Mi
+              cpu: 100m
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: tychofleet-data
+        - name: litestream-config
+          configMap:
+            name: tychofleet-litestream
