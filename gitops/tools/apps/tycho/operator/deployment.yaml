@@ -118,12 +118,19 @@ spec:
             # or the adapter changes — same drift hazard as
             # COMBINE_IMAGE above.
             - name: DELIVERY_JOB_IMAGE
-              value: "zot.phillips-homelab.net/tycho-deliver:20807b5"
+              value: "zot.phillips-homelab.net/tycho-deliver:8aed7ac"
             # SA delivery Job pods run as (rbac.yaml's tycho-deliver:
             # get deliveries/deliverytargets, update deliveries/status,
             # nothing else). REQUIRED, fail-closed (tycho #197).
             - name: DELIVERY_JOB_SERVICE_ACCOUNT_NAME
               value: "tycho-deliver"
+            # DELIVERY_MAX_CONCURRENT is optional (default 1): how many
+            # delivery Jobs run at once (tycho #200's cap — ~20 ran
+            # concurrently during the 2026-08-06 etcd incident). 2 is
+            # safe now that S3-adapter status is O(1)+rate-limited, and
+            # halves large-backfill wall clock.
+            - name: DELIVERY_MAX_CONCURRENT
+              value: "2"
             # Names the Secret whose `uri` key is the catalog DSN the
             # delivery Job injects as DELIVERY_CATALOG_DSN (SecretKeyRef,
             # tycho #196) — the CNPG <cluster>-app Secret, same one the

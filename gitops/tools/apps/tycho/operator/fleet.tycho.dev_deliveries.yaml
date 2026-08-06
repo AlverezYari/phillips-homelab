@@ -150,7 +150,11 @@ spec:
             description: |-
               DeliveryStatus is load-bearing state, not a progress bar (ADR 0010
               §1/§9): the per-file ledger and the commit record are the only
-              idempotency that exists anywhere in this pipeline, on either side.
+              idempotency that exists anywhere in this pipeline, on either side --
+              except for an adapter that declares its own independent idempotency
+              (internal/delivery.SelfIdempotentAdapter, ADR 0010 §9's exemption),
+              which trades Files' per-file record for ClassProgress's O(1) rollup
+              instead, relying on the adapter itself rather than this object.
             properties:
               attempts:
                 description: |-
@@ -174,6 +178,58 @@ spec:
                   MemberID, without any join through object storage (ADR §4).
                 format: int64
                 type: integer
+              classProgress:
+                description: |-
+                  ClassProgress is the O(1) per-class rollup a self-idempotent
+                  adapter's StatusLedger writes INSTEAD of Files -- see
+                  DeliveryClassProgress. Empty for the default (non-self-idempotent)
+                  path, where Files carries this information per-file instead.
+                items:
+                  description: |-
+                    DeliveryClassProgress is one artifact class's O(1) progress rollup:
+                    count, bytes, and the most recent artifact's name -- the replacement
+                    for a per-file Files entry when the bound adapter is self-idempotent
+                    (internal/delivery.SelfIdempotentAdapter) and therefore does not need
+                    Files' per-file G1 protection (ADR 0010 §9's exemption). At most one
+                    entry per DeliveryArtifactClass the target selects, so this list's
+                    size is bounded by the number of artifact classes, never by object
+                    count -- the delivery-hardening O(1)-status-size requirement.
+                  properties:
+                    artifactClass:
+                      description: ArtifactClass is which class this rollup is
+                        for.
+                      type: string
+                    bytesTransferred:
+                      description: |-
+                        BytesTransferred is bytes actually moved for this class, within
+                        the current attempt -- only counted when the adapter's own
+                        SendFile call reported a real transfer, never for a call that
+                        resolved via the adapter's own idempotency check (already
+                        present at the destination, nothing moved).
+                      format: int64
+                      type: integer
+                    currentArtifact:
+                      description: |-
+                        CurrentArtifact is the ChunkKey of the most recently acked
+                        artifact in this class -- a live "what's happening now" pointer,
+                        not a history.
+                      type: string
+                    filesAcked:
+                      description: |-
+                        FilesAcked counts SendFile calls that returned success for this
+                        class, within the CURRENT attempt only -- a self-idempotent
+                        adapter's Ledger keeps no per-file record (Acknowledged always
+                        reports false, see StatusLedger's doc comment), so a Job restart
+                        re-lists and re-sends the whole class from scratch, and this
+                        counter restarts with it rather than accumulating across
+                        attempts. Reaches the class's true total exactly when the class
+                        finishes without a restart -- the common case.
+                      format: int32
+                      type: integer
+                  required:
+                  - artifactClass
+                  type: object
+                type: array
               commit:
                 description: |-
                   Commit is the far end's commit response, persisted before
@@ -255,12 +311,21 @@ spec:
               failureReason:
                 description: |-
                   FailureReason is the error message from that same failed
-                  SendFile attempt.
+                  SendFile attempt, OR -- when the Delivery controller's Job-watch
+                  safety net (watchJob, delivery_controller.go) is what marked
+                  Phase=Failed instead of the driver itself -- the failed Job's
+                  Pod termination evidence (deliveryJobFailureMessage), so a
+                  Failed Delivery is never left with an empty reason regardless of
+                  which path set it (delivery-hardening item 2, 2026-08-06).
                 type: string
               files:
                 description: |-
                   Files is the per-file ledger keyed by (ChunkKey, ContentHash) —
-                  the only idempotency in the pipeline (G1, G8; ADR 0010 §9).
+                  the only idempotency in the pipeline (G1, G8; ADR 0010 §9) for any
+                  adapter that has not declared itself self-idempotent
+                  (internal/delivery.SelfIdempotentAdapter). Unbounded in the
+                  number of files a Delivery ever sends — the default, safest
+                  behavior, and the one every adapter gets unless it opts out.
                 items:
                   description: |-
                     DeliveryFileStatus is one file's delivery record, keyed by
