@@ -8,6 +8,7 @@ kind: Kustomization
 namespace: tycho
 resources:
 - externalsecret.yaml
+- externalsecret-delivery.yaml
 - operator
 - gateway
 - scorer

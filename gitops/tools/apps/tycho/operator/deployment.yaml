@@ -112,13 +112,13 @@ spec:
             # operator fails closed at startup without them, so this
             # block must land in the same commit as the image bump.
             #
-            # DELIVERY_JOB_IMAGE is a placeholder -- no delivery Job
-            # image is built yet. Nothing pulls it: DeliveryTargets
-            # default disabled and none exist, so no Delivery is ever
-            # admitted. It exists so the gap is a visible startup
-            # requirement rather than a silent ImagePullBackOff later.
+            # DELIVERY_JOB_IMAGE: the real delivery Job image as of
+            # tycho #195 (ADR 0010's first adapter, kind: s3). Bump
+            # alongside the operator tag whenever operator/cmd/deliverjob
+            # or the adapter changes — same drift hazard as
+            # COMBINE_IMAGE above.
             - name: DELIVERY_JOB_IMAGE
-              value: "zot.phillips-homelab.net/tycho-deliver:none-yet"
+              value: "zot.phillips-homelab.net/tycho-deliver:b1f1a18"
             # Read-only in intent: DeliveryReconciler's admission needs
             # a session's frame count and accepted-byte total before
             # any Job exists. Uses the same Secret the gateway writes
