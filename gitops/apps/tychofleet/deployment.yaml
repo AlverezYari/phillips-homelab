@@ -26,7 +26,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: app
-          image: zot.phillips-homelab.net/tychofleet:0c7bbc5
+          image: zot.phillips-homelab.net/tychofleet:2816c0a
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -51,6 +51,22 @@ spec:
               value: devs@lighttheham.com
             - name: SMTP_FROM
               value: admin@tychofleet.com
+            # Per-fleet backup/sync admin UI (tychofleet #65). The
+            # in-cluster k8s client reads the SA token Kubernetes
+            # projects into the pod; TYCHO_NAMESPACE is where the
+            # DeliveryTarget/Secret pairs land. Managed-storage mode's
+            # non-secret half lives here; the key pair arrives via
+            # tychofleet-config (ESO), reading the SAME tycho-item
+            # fields as the operator's tycho-delivery-b2 Secret so the
+            # two sides can never drift.
+            - name: TYCHO_NAMESPACE
+              value: "tycho"
+            - name: MANAGED_STORAGE_ENDPOINT
+              value: "https://s3.us-east-005.backblazeb2.com"
+            - name: MANAGED_STORAGE_REGION
+              value: "us-east-005"
+            - name: MANAGED_STORAGE_BUCKET
+              value: "tf-fleet-bak-01"
             - name: GARAGE_ENDPOINT
               value: "http://garage.garage.svc.cluster.local:3900"
             - name: GARAGE_BUCKET
