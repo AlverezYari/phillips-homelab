@@ -316,7 +316,11 @@ spec:
                   Phase=Failed instead of the driver itself -- the failed Job's
                   Pod termination evidence (deliveryJobFailureMessage), so a
                   Failed Delivery is never left with an empty reason regardless of
-                  which path set it (delivery-hardening item 2, 2026-08-06).
+                  which path set it (delivery-hardening item 2, 2026-08-06). Also
+                  set on a terminal Unknown Delivery (G2): the commit call's own
+                  error, session context and all, so an operator resolving an
+                  Unknown Delivery out of band has something to act on beyond the
+                  bare phase name.
                 type: string
               files:
                 description: |-
