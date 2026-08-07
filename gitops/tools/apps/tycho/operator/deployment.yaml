@@ -118,7 +118,7 @@ spec:
             # or the adapter changes — same drift hazard as
             # COMBINE_IMAGE above.
             - name: DELIVERY_JOB_IMAGE
-              value: "zot.phillips-homelab.net/tycho-deliver:61691b5"
+              value: "zot.phillips-homelab.net/tycho-deliver:91d41d0"
             # SA delivery Job pods run as (rbac.yaml's tycho-deliver:
             # get deliveries/deliverytargets, update deliveries/status,
             # nothing else). REQUIRED, fail-closed (tycho #197).
