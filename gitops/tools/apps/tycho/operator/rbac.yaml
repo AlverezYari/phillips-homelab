@@ -43,6 +43,16 @@ rules:
   - apiGroups: ["fleet.tycho.dev"]
     resources: ["imagingsessions/status", "seestars/status", "targetmasters/status", "fleetmasters/status", "deliverytargets/status", "deliveries/status"]
     verbs: ["get", "patch", "update"]
+  # Observations are created by fleet clients, never by the operator
+  # itself (unlike every other resource above) -- no create/delete
+  # verb, matching the dispatch controller's own read/reconcile-only
+  # relationship to this CRD.
+  - apiGroups: ["fleet.tycho.dev"]
+    resources: ["observations"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["fleet.tycho.dev"]
+    resources: ["observations/status"]
+    verbs: ["get", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
