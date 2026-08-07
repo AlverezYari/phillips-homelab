@@ -7,6 +7,7 @@ resources:
   - fleet.tycho.dev_fleetmasters.yaml
   - fleet.tycho.dev_deliveries.yaml
   - fleet.tycho.dev_deliverytargets.yaml
+  - fleet.tycho.dev_observations.yaml
   - rbac.yaml
   - deployment.yaml
 images:
@@ -14,4 +15,4 @@ images:
   # images`/`make push` (or .forgejo/workflows/ci.yml's tag-triggered
   # job) actually published, e.g. a git short sha.
   - name: zot.phillips-homelab.net/tycho-operator
-    newTag: "e8e2fa1"
+    newTag: "61691b5"

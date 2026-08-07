@@ -1,0 +1,274 @@
+---
+# NOT applied directly. This file is a hand-maintained mirror of the
+# Go API types (see deploy/operator/README.md) -- the cluster reads a
+# hand-copied version of it at gitops/tools/apps/tycho/operator/ in the
+# phillips-homelab repo, not this one. A field added here is not
+# deployed until that copy is made by hand: Kubernetes silently prunes
+# any field a CRD's schema does not declare, with no error or warning
+# to the writer.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: observations.fleet.tycho.dev
+spec:
+  group: fleet.tycho.dev
+  names:
+    kind: Observation
+    listKind: ObservationList
+    plural: observations
+    shortNames:
+    - obs
+    singular: observation
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.sourceID
+      name: Source
+      type: string
+    - jsonPath: .spec.target.name
+      name: Target
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.observationID
+      name: ObservationID
+      type: string
+    - jsonPath: .spec.window.notAfter
+      name: NotAfter
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          Observation is one request that the fleet observe something: this
+          is the seam ADR 0004 built the agent side of but nothing ever
+          called -- a dispatch controller watches these, dials the named
+          source's agent, and reflects StartObservation/WatchObservation back
+          onto Status. Namespaced, like every other CR in this API group.
+          CaptureProgram (multi-Observation scheduling) lands on top of this
+          CRD later; this loop only builds the single-observation seam.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              ObservationSpec is one request that the fleet observe something:
+              where (SourceID), what (Target), how (Exposure/Budget), and when
+              (Window). Mirrors StartObservationRequest's own shape rather than
+              inventing richer scheduling semantics the agent has no way to honor
+              -- see agent.proto's StartObservationRequest and
+              agentserver.validateStartObservation, which this type's validation
+              markers deliberately parallel.
+            properties:
+              budget:
+                description: |-
+                  Budget is the requested total integration duration, forwarded as
+                  StartObservationRequest.total. The RPC expresses budget as a
+                  duration only -- StartObservationRequest has no frame-count
+                  field -- so this mirrors that shape rather than inventing a
+                  frame-count budget the agent has no way to honor (SPEC: "pick
+                  what the RPC expresses, don't invent richer semantics than the
+                  agent honors").
+                type: string
+              exposure:
+                description: |-
+                  Exposure is the per-sub exposure duration, forwarded as
+                  StartObservationRequest.exposure. Positivity mirrors
+                  validateStartObservation's own check (exposure must be > 0);
+                  enforced by the controller at dispatch time rather than
+                  duplicated here as CEL over a duration-formatted string, which
+                  this repo's CRD YAMLs have no precedent for.
+                type: string
+              sourceID:
+                description: |-
+                  SourceID is the tycho-agent source identity to dispatch this
+                  observation to -- the same identity Seestar.spec.sourceID and
+                  ImagingSessionSpec.SourceID use.
+                minLength: 1
+                type: string
+              target:
+                description: |-
+                  Target is what to observe: name and/or RA/Dec. At least one of
+                  Target.Name or Target.Pointing is required -- an Observation
+                  with neither is refused by admission before it can ever reach
+                  the agent, mirroring validateStartObservation's own check.
+                properties:
+                  name:
+                    description: |-
+                      Name is the target's human-facing name, forwarded as
+                      StartObservationRequest.target_name.
+                    type: string
+                  pointing:
+                    description: |-
+                      Pointing is an explicit RA/Dec, forwarded as
+                      StartObservationRequest.target. Nil means no pointing was
+                      supplied -- never stood in for by a zero-valued (0,0) --
+                      mirroring the agent's own nil check.
+                    properties:
+                      decDegrees:
+                        description: DecDegrees is declination in degrees.
+                        type: number
+                      raHours:
+                        description: RAHours is right ascension in hours (not degrees).
+                        type: number
+                    required:
+                    - decDegrees
+                    - raHours
+                    type: object
+                type: object
+                x-kubernetes-validations:
+                - message: target requires a name and/or a pointing
+                  rule: self.name != '' || has(self.pointing)
+              window:
+                description: Window bounds when dispatch may happen and when the
+                  observation must stop.
+                properties:
+                  notAfter:
+                    description: |-
+                      NotAfter is when the observing window closes. Dispatch must not
+                      start after this time (Phase moves to Expired instead of
+                      Dispatched), and an Observing Observation still running at
+                      NotAfter is stopped (StopObservation) rather than left running
+                      past what the requester asked for.
+                    format: date-time
+                    type: string
+                  notBefore:
+                    description: |-
+                      NotBefore is the earliest the controller may dispatch this
+                      Observation. Absent means no lower bound: eligible for dispatch
+                      as soon as an agent endpoint is on record for Spec.SourceID.
+                    format: date-time
+                    type: string
+                required:
+                - notAfter
+                type: object
+            required:
+            - budget
+            - exposure
+            - sourceID
+            - target
+            - window
+            type: object
+          status:
+            description: ObservationStatus reports what the dispatch controller
+              has done and what the agent has reported back.
+            properties:
+              agentPhase:
+                description: |-
+                  AgentPhase mirrors the agent's own ObservationStatus.phase
+                  verbatim (slewing/focusing/capturing/done/failed) -- the
+                  finest-grained progress the agent reports, kept distinct from
+                  Phase, which is this CRD's own coarser lifecycle state.
+                type: string
+              completedAt:
+                description: |-
+                  CompletedAt is when Phase last moved to a terminal state (Done,
+                  Refused, Failed, or Expired).
+                format: date-time
+                type: string
+              dispatchedAt:
+                description: DispatchedAt is when StartObservation was called successfully.
+                format: date-time
+                type: string
+              lastUpdateAt:
+                description: |-
+                  LastUpdateAt is when Status was last written by the
+                  WatchObservation-driven rollup -- one write per N seconds, not
+                  one per streamed event (SPEC: "rate-limited and O(1)-sized",
+                  the etcd incident arithmetic from the delivery-hardening loop
+                  applied here).
+                format: date-time
+                type: string
+              observationID:
+                description: |-
+                  ObservationID is the agent-assigned id from
+                  StartObservationResponse.observation_id. Recorded immediately
+                  after a successful StartObservation call, in the same
+                  Status().Update that moves Phase to Dispatched -- before any
+                  other status write -- so a controller crash between the RPC and
+                  this write is the only window where the record could be lost;
+                  once persisted, a restarted controller re-derives all further
+                  state via WatchObservation(ObservationID) rather than ever
+                  re-sending StartObservation.
+                type: string
+              observingAt:
+                description: |-
+                  ObservingAt is when the agent first reported active
+                  slewing/capturing progress via WatchObservation.
+                format: date-time
+                type: string
+              phase:
+                description: Phase is this Observation's current lifecycle state.
+                enum:
+                - Pending
+                - Dispatched
+                - Observing
+                - Done
+                - Refused
+                - Failed
+                - Expired
+                type: string
+              reason:
+                description: |-
+                  Reason carries the agent's refusal or failure reason verbatim
+                  (ADR 0004 stewardship model) when Phase is Refused or Failed, or
+                  a human-readable explanation of why an otherwise-eligible
+                  Observation is still Pending (e.g. "no agent endpoint on record
+                  for source seestar-1") the rest of the time.
+                type: string
+              run:
+                description: |-
+                  Run mirrors the agent's most recently reported RunQuality for
+                  this observation.
+                properties:
+                  framesRejected:
+                    description: |-
+                      FramesRejected is the frame_drop + frame_complete-with-error
+                      count so far.
+                    format: int32
+                    type: integer
+                  framesStacked:
+                    description: FramesStacked is the clean frame_complete count
+                      so far.
+                    format: int32
+                    type: integer
+                type: object
+              transportFailures:
+                description: |-
+                  TransportFailures counts consecutive dial/RPC-level failures
+                  (could not reach the agent at all, as opposed to a refusal the
+                  agent actually answered) across Start/Watch/StopObservation --
+                  reset to zero the moment any call to the agent succeeds. The
+                  dispatch controller retries with bounded jittered backoff while
+                  this stays under its configured ceiling, then gives up and moves
+                  Phase to Failed -- never incremented by a refusal, which is
+                  terminal on its own, immediately, regardless of this count.
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
