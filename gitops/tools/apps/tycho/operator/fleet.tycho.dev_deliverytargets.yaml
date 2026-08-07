@@ -114,6 +114,7 @@ spec:
                   - stacks
                   - masters
                   - everything
+                  - results
                   type: string
                 minItems: 1
                 type: array
