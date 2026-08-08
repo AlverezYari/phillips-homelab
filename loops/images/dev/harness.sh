@@ -59,7 +59,20 @@ drain_inbox() { # answers published to loops.<name>.inbox land in .inbox/
     n=$((n+1))
     echo "$msg" > "$WS/.inbox/$(date -u +%s)-$n.json"
   done
-  [ "$n" -gt 0 ] && log "drained $n inbox message(s)"
+  if [ "$n" -gt 0 ]; then
+    log "drained $n inbox message(s)"
+    # Answered-decision ledger: pairs with decisions/.sent count so the
+    # review-wait check below knows whether a filed decision is still
+    # unanswered. PVC-persistent like .iter-count.
+    echo $(( $(cat "$WS/.answers-count" 2>/dev/null || echo 0) + n )) > "$WS/.answers-count"
+  fi
+}
+
+unanswered_decisions() { # true if more decisions were relayed than answered
+  local sent answered
+  sent=$(ls "$WS/decisions/.sent" 2>/dev/null | wc -l)
+  answered=$(cat "$WS/.answers-count" 2>/dev/null || echo 0)
+  [ "$sent" -gt "$answered" ]
 }
 
 relay_decisions() { # new decision files -> NATS (file-then-relay per brief)
@@ -100,7 +113,7 @@ if [ -n "$MEMORY_URL" ] && [ ! -d "$WS/memory/.git" ]; then
 fi
 [ -f "$WS/PROGRESS.md" ] || printf '# PROGRESS\n\n(harness: no iterations yet)\n' > "$WS/PROGRESS.md"
 
-PROMPT='You are one iteration of an autonomous coding loop. Read /workspace/SPEC.md (the task, checkboxes, guardrails) and /workspace/PROGRESS.md (state so far), and check /workspace/.inbox/ for operator answers to earlier decisions. Then do exactly ONE thing: the next unchecked SPEC item. Work in /workspace/repo. Follow SPEC guardrails strictly. If an item is blocked after 3 distinct attempts (see PROGRESS), write a decision file to /workspace/decisions/NNN-slug.json (fields: question, context, options[2-3], recommendation, risk) and move to the next item. Update PROGRESS.md: what you did, gate expectations, what is next, any BLOCKED items. If ALL items are done, create /workspace/.loop-done containing a one-paragraph summary, AND /workspace/PR.md: a reviewer-facing pull-request description in markdown (sections: What changed, How it was verified, Review notes — call out any tradeoffs, dependency changes, or deviations a human reviewer should scrutinize). Write PR.md for a human who has NOT read PROGRESS.md; no process narration or iteration numbers. If ALL remaining items are BLOCKED, create /workspace/.loop-blocked with a summary. Never write secrets to logs or files. Do not run git push (the harness pushes). Consult /workspace/memory/ (gotchas, conventions) if present.'
+PROMPT='You are one iteration of an autonomous coding loop. Read /workspace/SPEC.md (the task, checkboxes, guardrails) and /workspace/PROGRESS.md (state so far), and check /workspace/.inbox/ for operator answers to earlier decisions. Then do exactly ONE thing: the next unchecked SPEC item. Work in /workspace/repo. Follow SPEC guardrails strictly. If an item is blocked after 3 distinct attempts (see PROGRESS), write a decision file to /workspace/decisions/NNN-slug.json (fields: question, context, options[2-3], recommendation, risk) and move to the next item. Update PROGRESS.md: what you did, gate expectations, what is next, any BLOCKED items. If ALL items are done, create /workspace/.loop-done containing a one-paragraph summary, AND /workspace/PR.md: a reviewer-facing pull-request description in markdown (sections: What changed, How it was verified, Review notes — call out any tradeoffs, dependency changes, or deviations a human reviewer should scrutinize). Write PR.md for a human who has NOT read PROGRESS.md; no process narration or iteration numbers. If ALL remaining items are BLOCKED, or if your ONLY remaining action is waiting for an operator answer to a decision you already filed (a review gate counts — waiting is not working), create /workspace/.loop-blocked with a summary; the harness waits for the answer without spending iterations. Never write secrets to logs or files. Do not run git push (the harness pushes). Consult /workspace/memory/ (gotchas, conventions) if present.'
 
 # ---- iteration loop --------------------------------------------------------
 ensure_inbox_consumer
@@ -114,6 +127,7 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
   log "=== iteration ${iter}/${MAX_ITER} ==="
   drain_inbox
 
+  head_before=$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || echo none)
   claude -p "$PROMPT" \
     --dangerously-skip-permissions \
     --add-dir "$WS" \
@@ -190,9 +204,45 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
       fi
     done
   fi
+
+  # Review-wait: an unanswered decision exists, the inbox is empty, and this
+  # iteration changed nothing in the repo — the loop is waiting on a human,
+  # not working. Poll the inbox for free instead of burning budget on no-op
+  # iterations. (webapp-docs-voice burned 8 iterations idle-polling;
+  # webapp-truth-pass EXHAUSTED its budget mid-review and died. This block is
+  # the harness-side backstop; the PROMPT also now tells agents to write
+  # .loop-blocked in this situation, but agent judgment proved inconsistent.)
+  if unanswered_decisions \
+     && [ -z "$(ls "$WS/.inbox" 2>/dev/null)" ] \
+     && [ "$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || echo none)" = "$head_before" ]; then
+    set_state waiting
+    log "review-wait: unanswered decision, no repo change; polling inbox (budget frozen at ${iter}/${MAX_ITER})"
+    npub events "{\"iter\":${iter},\"waiting\":true,\"ts\":\"$(date -u +%FT%TZ)\"}"
+    waited=0
+    while :; do
+      if [ "$waited" -ge "${BLOCKED_TIMEOUT:-172800}" ]; then
+        term "review-wait timeout after ${iter} iterations; no answer in $((waited/3600))h"
+        set_state blocked
+        exit 2
+      fi
+      sleep "${BLOCKED_POLL:-120}"; waited=$((waited + ${BLOCKED_POLL:-120}))
+      before=$(ls "$WS/.inbox" 2>/dev/null | wc -l)
+      drain_inbox
+      after=$(ls "$WS/.inbox" 2>/dev/null | wc -l)
+      if [ "$after" -gt "$before" ]; then
+        log "operator answer received after ${waited}s; resuming"
+        set_state running
+        break
+      fi
+    done
+  fi
 done
 
+# Budget spent: terminal, not an error. Exit 0 so the pod completes instead
+# of CrashLoopBackOff-ing forever "resuming" at iter MAX+1 (webapp-truth-pass
+# restarted 15 times doing exactly that). State 'exhausted' tells loopctl and
+# the conductor what happened; the workspace PVC keeps everything for reap.
 npub done "{\"iter\":${iter},\"exhausted\":true}"
-set_state blocked
+set_state exhausted
 term "budget exhausted (${MAX_ITER} iterations)"
-exit 3
+exit 0
