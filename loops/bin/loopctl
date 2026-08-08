@@ -29,7 +29,7 @@ TEMPLATE="$REPO_ROOT/loops/templates/loop-sandbox.yaml"
 
 die() { echo "loopctl: $*" >&2; exit 1; }
 
-image_from_template() { grep -oE 'zot\.phillips-homelab\.net/loop-dev:[a-z0-9]+' "$TEMPLATE" | head -1; }
+image_from_template() { grep -oE 'zot\.phillips-homelab\.net/loop-dev:[a-zA-Z0-9._-]+' "$TEMPLATE" | head -1; }
 
 # Run $2 (bash script text) in a short-lived in-cluster pod named loopctl-$1-*
 # with loop-secrets in env. Prints the pod's logs. Optional $3 = extra pod
