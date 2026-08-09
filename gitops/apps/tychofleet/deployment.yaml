@@ -141,8 +141,10 @@ spec:
         # the site DB (waitlist/members/fleet-storage settings) was
         # the last un-backed-up state in the system. Same bucket as
         # the archive mirror, its own prefix; creds are the existing
-        # MANAGED_STORAGE_* keys from tychofleet-config (ESO). RWO PVC
-        # is fine: sidecar shares the app's pod.
+        # LITESTREAM_GARAGE_* keys from tychofleet-config (ESO) — replicates
+        # to in-cluster Garage (the pod has no internet egress, so the old
+        # B2 target failed continuously). RWO PVC is fine: sidecar shares
+        # the app's pod.
         - name: litestream
           image: litestream/litestream:0.3.13
           args: ["replicate", "-config", "/etc/litestream.yml"]
@@ -156,12 +158,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: tychofleet-config
-                  key: MANAGED_STORAGE_ACCESS_KEY_ID
+                  key: LITESTREAM_GARAGE_ACCESS_KEY_ID
             - name: LITESTREAM_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: tychofleet-config
-                  key: MANAGED_STORAGE_SECRET_ACCESS_KEY
+                  key: LITESTREAM_GARAGE_SECRET_ACCESS_KEY
           volumeMounts:
             - name: data
               mountPath: /data
