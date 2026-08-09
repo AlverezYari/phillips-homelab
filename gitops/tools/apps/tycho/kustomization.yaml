@@ -9,6 +9,8 @@ namespace: tycho
 resources:
 - externalsecret.yaml
 - externalsecret-delivery.yaml
+- resourcequota.yaml
+- vmalertmanagerconfig-ntfy.yaml
 - operator
 - gateway
 - scorer
