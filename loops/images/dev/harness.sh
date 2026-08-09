@@ -16,11 +16,29 @@ set -uo pipefail
 
 : "${LOOP_NAME:?LOOP_NAME required (sandbox name)}"
 : "${REPO_URL:?REPO_URL required (Forgejo clone URL, no creds)}"
-: "${CLAUDE_CODE_OAUTH_TOKEN:?CLAUDE_CODE_OAUTH_TOKEN required (claude setup-token)}"
 : "${FORGEJO_TOKEN:?FORGEJO_TOKEN required}"
-# Pro-subscription auth: an API key would take precedence over the OAuth
-# token and break auth if both are set.
-unset ANTHROPIC_API_KEY
+# ENGINE selects the model CLI an iteration runs: claude (default,
+# Casey's Pro OAuth token — ONE such loop at a time, shared with his
+# interactive use) or codex (OpenAI Codex CLI on the ChatGPT-sub auth —
+# a separate budget, so a codex loop may run alongside a claude one;
+# Plus-tier limits fit short review-shaped loops, not 15-iteration
+# builds).
+ENGINE="${ENGINE:-claude}"
+case "$ENGINE" in
+  claude)
+    : "${CLAUDE_CODE_OAUTH_TOKEN:?CLAUDE_CODE_OAUTH_TOKEN required (claude setup-token)}"
+    # Pro-subscription auth: an API key would take precedence over the
+    # OAuth token and break auth if both are set.
+    unset ANTHROPIC_API_KEY
+    ;;
+  codex)
+    : "${CODEX_AUTH_JSON:?CODEX_AUTH_JSON required (contents of ~/.codex/auth.json; secret codex-auth)}"
+    mkdir -p "$HOME/.codex"
+    printf '%s' "$CODEX_AUTH_JSON" > "$HOME/.codex/auth.json"
+    chmod 600 "$HOME/.codex/auth.json"
+    ;;
+  *) echo "unknown ENGINE '$ENGINE' (claude|codex)" >&2; exit 2 ;;
+esac
 BRANCH="${BRANCH:-loop/${LOOP_NAME}}"
 MAX_ITER="${MAX_ITER:-30}"
 GATE_CMD="${GATE_CMD:-make build test lint}"
@@ -128,10 +146,26 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
   drain_inbox
 
   head_before=$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null || echo none)
-  claude -p "$PROMPT" \
-    --dangerously-skip-permissions \
-    --add-dir "$WS" \
-    > "$WS/.iter-${iter}.log" 2>&1
+  if [ "$ENGINE" = codex ]; then
+    # danger-full-access mirrors --dangerously-skip-permissions: the
+    # gVisor sandbox pod IS the isolation boundary, same as claude.
+    # cwd must be the REPO (codex's trust check refuses a non-git cwd;
+    # first smoke died on exactly that from $WS) and the check is
+    # skipped outright -- full-access mode reaches the $WS files
+    # regardless of cwd. Prompt on stdin ('-'); reasoning high: these
+    # are review-shaped loops.
+    (cd "$REPO_DIR" && codex exec \
+      --skip-git-repo-check \
+      --sandbox danger-full-access \
+      -c model_reasoning_effort=high \
+      - <<<"$PROMPT") \
+      > "$WS/.iter-${iter}.log" 2>&1
+  else
+    claude -p "$PROMPT" \
+      --dangerously-skip-permissions \
+      --add-dir "$WS" \
+      > "$WS/.iter-${iter}.log" 2>&1
+  fi
   agent_rc=$?
   log "agent exited rc=${agent_rc} ($(wc -l < "$WS/.iter-${iter}.log") log lines)"
 

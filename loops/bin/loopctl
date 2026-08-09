@@ -2,7 +2,7 @@
 # loopctl — conductor verbs for the loop rig. Deterministic single commands
 # so the conductor never improvises multi-step kubectl.
 #
-#   loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG]
+#   loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG] [--engine claude|codex] [--gate CMD]
 #   loopctl status [name]
 #   loopctl logs <name> [-f]
 #   loopctl answer <name> <json-or-text>
@@ -61,17 +61,24 @@ helper_pod() {
 }
 
 cmd_spawn() {
-  local name=${1:?usage: loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG]}
+  local name=${1:?usage: loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG] [--engine claude|codex] [--gate CMD]}
   local repo=${2:?owner/repo required}; shift 2
-  local spec="" max_iter=15 image=""
+  local spec="" max_iter=15 image="" engine=claude gate=""
   while [ $# -gt 0 ]; do case $1 in
     --spec) spec=$2; shift 2;; --max-iter) max_iter=$2; shift 2;; --image) image=$2; shift 2;;
+    --engine) engine=$2; shift 2;; --gate) gate=$2; shift 2;;
     *) die "unknown flag $1";;
   esac; done
   [ -f "$spec" ] || die "--spec <file> required and must exist"
+  case "$engine" in claude|codex) ;; *) die "--engine must be claude or codex";; esac
+  if [ "$engine" = codex ]; then
+    kubectl -n "$NS" get secret codex-auth >/dev/null 2>&1 \
+      || die "--engine codex needs secret codex-auth (kubectl -n $NS create secret generic codex-auth --from-file=CODEX_AUTH_JSON=\$HOME/.codex/auth.json)"
+  fi
   kubectl -n "$NS" get sandbox "$name" >/dev/null 2>&1 && die "sandbox '$name' already exists (reap it first)"
 
-  LOOP=$name REPO=$repo MAX_ITER=$max_iter python3 - "$TEMPLATE" <<'EOF' | kubectl apply -f - >/dev/null
+  LOOP=$name REPO=$repo MAX_ITER=$max_iter ENGINE=$engine GATE="${gate:-make build test lint}" \
+    python3 - "$TEMPLATE" <<'EOF' | kubectl apply -f - >/dev/null
 import os, re, sys
 t = open(sys.argv[1]).read()
 print(re.sub(r'\$\{(\w+)\}', lambda m: os.environ[m.group(1)], t))
@@ -134,6 +141,21 @@ cmd_answer() {
 
 cmd_pause()  { kubectl -n "$NS" patch sandbox "${1:?name}" --type=merge -p '{"spec":{"operatingMode":"Suspended"}}' && echo "paused (PVC retained)"; }
 cmd_resume() { kubectl -n "$NS" patch sandbox "${1:?name}" --type=merge -p '{"spec":{"operatingMode":"Running"}}' && echo "resumed"; }
+
+# cat: read a file off a loop's workspace PVC, running or reaped-not-yet-
+# deleted -- the forensics verb the codex-smoke debugging was missing
+# (a Completed pod is not exec-able, and reap deletes the PVC without
+# ever showing the iteration logs).
+cmd_cat() {
+  local name=${1:?usage: loopctl cat <name> <path-relative-to-workspace>}
+  local path=${2:?path required}
+  kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1 || die "no PVC workspace-$name"
+  helper_pod cat "cat /ws/${path} 2>&1 || echo \"(cannot read /ws/${path})\"" \
+      "  volumes:
+  - name: ws
+    persistentVolumeClaim: {claimName: workspace-$name}" \
+      "    volumeMounts: [{name: ws, mountPath: /ws}]"
+}
 
 cmd_reap() {
   local name=${1:?usage: loopctl reap <name> [--no-pr]}
@@ -242,6 +264,7 @@ case $cmd in
   pause) cmd_pause "$@";;
   resume) cmd_resume "$@";;
   reap) cmd_reap "$@";;
+  cat) cmd_cat "$@";;
   pr) cmd_pr "$@";;
   merge) cmd_merge "$@";;
   release) cmd_release "$@";;

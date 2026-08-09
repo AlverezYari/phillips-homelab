@@ -32,10 +32,17 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: loop
-        image: zot.phillips-homelab.net/loop-dev:260808-reviewwait
+        image: zot.phillips-homelab.net/loop-dev:260809-codex2
         envFrom:
         - secretRef:
             name: loop-secrets
+        # codex-auth exists only if the conductor has seeded it
+        # (kubectl -n loops create secret generic codex-auth
+        #    --from-file=CODEX_AUTH_JSON=$HOME/.codex/auth.json);
+        # optional so claude-engine loops never depend on it.
+        - secretRef:
+            name: codex-auth
+            optional: true
         env:
         - name: LOOP_NAME
           value: ${LOOP}
@@ -45,6 +52,15 @@ spec:
           value: http://forgejo-http.forgejo.svc.cluster.local:3000/loop-bot/memory.git
         - name: MAX_ITER
           value: "${MAX_ITER}"
+        - name: ENGINE
+          value: ${ENGINE}
+        # GATE_CMD must be set at pod creation: a patch after apply
+        # races the already-started pod and silently never applies
+        # (the first codex smoke ran the full default gate for exactly
+        # this reason). loopctl substitutes the harness default when
+        # --gate is not given.
+        - name: GATE_CMD
+          value: "${GATE}"
         volumeMounts:
         - name: workspace
           mountPath: /workspace
