@@ -1,25 +1,28 @@
-# Namespace guardrails for tycho (alpha-readiness tier-0): stop a single
-# fleet member from spawning unbounded combine/delivery Jobs and starving
-# the cluster. The tycho namespace had NO ResourceQuota before this.
+# Namespace guardrail for tycho (alpha-readiness tier-0): stop a single
+# fleet member from spawning unbounded combine/delivery Jobs and pods and
+# starving the cluster. The tycho namespace had NO ResourceQuota before.
 #
-# Sizing = observed live usage + configured Job caps, with generous
-# headroom (roughly observed x3 on requests; limits are floored by the
-# combine Job's own hard per-pod ceiling). Deliberately well above
-# current healthy operation so nothing gets throttled.
+# COUNT-ONLY BY DESIGN. This deliberately does NOT quota
+# requests.cpu/requests.memory/limits.* — and there is no paired
+# LimitRange — because the combine Job pods run with NO k8s
+# resource requests/limits at all (verified live 2026-08-09: every
+# stack-* pod shows blank requests/limits; the operator's combine Job
+# template — operator/internal/controller/combinejob/template.go — sets
+# no resources stanza; the process self-bounds via COMBINE_MEMORY_LIMIT
+# instead). A requests/limits quota forces every pod to declare them,
+# which would require a LimitRange to supply defaults — and any default
+# ceiling low enough to be meaningful (e.g. 512Mi) would OOM-kill a
+# full-res combine that needs GBs. So the cpu/memory quota is DEFERRED
+# until the combine/delivery Job templates carry explicit k8s resources
+# (a Tier-1 code change); at that point add requests.*/limits.* here.
 #
-# Observed (kubectl -n tycho top pods, 2026-08-09):
-#   operator 1m/24Mi, scorer 1m/200Mi, gateway 1m/5Mi, pg 6m/92Mi,
-#   seestar-proxy 1m/2Mi.
-# Job specs (operator config / live delivery pod):
-#   combine  req 250m/1Gi   lim 8core/12Gi   COMBINE_MAX_CONCURRENT=2
-#   delivery req 50m/128Mi  lim 500m/256Mi   DELIVERY_MAX_CONCURRENT=2
-#
-# Peak concurrent demand ~= 2 combine + 2 delivery + the long-running
-# deployments:
-#   requests ~1.4 CPU / ~3.7Gi  -> quota 8 CPU / 16Gi  (~5x / ~4x)
-#   limits   ~21 CPU / ~28Gi    -> quota 32 CPU / 48Gi (combine's
-#            2x12Gi=24Gi is the hard floor; 48Gi keeps ~1.7x room and
-#            fits inside homelab-04's 62Gi where combine Jobs are pinned)
+# Count caps still close the core DoS: a member cannot spawn unbounded
+# pods or Jobs. Real concurrency is already bounded by the operator
+# (COMBINE_MAX_CONCURRENT=2, DELIVERY_MAX_CONCURRENT=2); these are the
+# backstop against a runaway loop or Job accumulation (completed Jobs
+# currently have no TTL — ~9 present over ~3 weeks, so jobs.batch is set
+# generously; if approached, add a TTL/GC on finished Jobs rather than
+# raising).
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -27,37 +30,5 @@ metadata:
   namespace: tycho
 spec:
   hard:
-    requests.cpu: "8"
-    requests.memory: 16Gi
-    limits.cpu: "32"
-    limits.memory: 48Gi
-    pods: "50"
-    # Bounds a runaway Job spawn. Concurrency is already capped at 2+2 by
-    # the operator, but completed Jobs currently accumulate with no TTL
-    # (~9 present over ~3 weeks), so this is set generously; if it is
-    # ever approached, add a TTL/GC on finished Jobs rather than raising.
+    pods: "60"
     count/jobs.batch: "100"
----
-# A ResourceQuota that constrains requests.*/limits.* rejects any pod
-# that doesn't declare them, so this LimitRange supplies defaults for
-# pods that specify nothing (seestar-proxy, the scaled-to-0 agent, CNPG's
-# pg pod which has no CPU limit, ad-hoc helpers). Combine and delivery
-# Jobs set their own explicit requests+limits, so these defaults never
-# apply to them (no risk of capping a 12Gi combine at the default).
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: tycho-limits
-  namespace: tycho
-spec:
-  limits:
-    - type: Container
-      # Modest ceiling for otherwise-unbounded pods; real heavy pods
-      # (combine/delivery) override it with their own limits.
-      default:
-        cpu: 500m
-        memory: 512Mi
-      # Low floor so scheduling/requests-quota accounting isn't inflated.
-      defaultRequest:
-        cpu: 100m
-        memory: 128Mi
