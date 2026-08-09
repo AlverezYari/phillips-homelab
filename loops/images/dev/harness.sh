@@ -149,9 +149,13 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
   if [ "$ENGINE" = codex ]; then
     # danger-full-access mirrors --dangerously-skip-permissions: the
     # gVisor sandbox pod IS the isolation boundary, same as claude.
-    # cwd=$WS so /workspace files and repo/ are all in reach; prompt on
-    # stdin ('-'). Reasoning high: these are review-shaped loops.
-    (cd "$WS" && codex exec \
+    # cwd must be the REPO (codex's trust check refuses a non-git cwd;
+    # first smoke died on exactly that from $WS) and the check is
+    # skipped outright -- full-access mode reaches the $WS files
+    # regardless of cwd. Prompt on stdin ('-'); reasoning high: these
+    # are review-shaped loops.
+    (cd "$REPO_DIR" && codex exec \
+      --skip-git-repo-check \
       --sandbox danger-full-access \
       -c model_reasoning_effort=high \
       - <<<"$PROMPT") \
