@@ -16,6 +16,45 @@ spec:
     targetRevision: 0.39.2
     helm:
       values: |
+        alertmanager:
+          # GLOBAL Alertmanager config (the base route tree the VM operator
+          # merges every VMAlertmanagerConfig into). The chart default routes
+          # the top-level catch-all to a null "blackhole" receiver, so any
+          # alert without a matching per-namespace VMAlertmanagerConfig — etcd
+          # (no namespace label), garage/storage PVCs, node/kube-system — was
+          # silently dropped.
+          #
+          # Fix: point the top-level default receiver at the SAME ntfy webhook
+          # stock-bot/tycho use (stock-bot-serve's /alerthook formats the
+          # Alertmanager payload into a readable ntfy message). Now every
+          # unmatched cluster-level alert notifies instead of vanishing.
+          #
+          # The operator APPENDS each VMAlertmanagerConfig's route as a child
+          # of this root (selectAllByDefault: true), so the existing
+          # stock-bot (namespace=stock-bot) and tycho (namespace=tycho) routes
+          # keep working unchanged and are NOT duplicated here: an alert that
+          # matches a child route is handled there and never reaches this
+          # root receiver (Alertmanager only uses the root receiver when NO
+          # child route matches). The one explicit child below re-blackholes
+          # the always-firing Watchdog heartbeat and the InfoInhibitor so they
+          # don't spam ntfy.
+          config:
+            route:
+              receiver: ntfy-cluster
+              group_by: ["alertname", "namespace"]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 3h
+              routes:
+                - receiver: blackhole
+                  matchers:
+                    - alertname =~ "Watchdog|InfoInhibitor"
+            receivers:
+              - name: blackhole
+              - name: ntfy-cluster
+                webhook_configs:
+                  - url: "http://stock-bot-serve.stock-bot.svc.cluster.local:8080/alerthook"
+                    send_resolved: true
         grafana:
           enabled: false
         defaultDashboards:
