@@ -1,0 +1,54 @@
+# Route tycho-namespace alerts out of the vmstack Alertmanager's default
+# "blackhole" (null) receiver and into the same ntfy webhook stock-bot
+# uses (stock-bot-serve's /alerthook formats the Alertmanager payload
+# into a readable ntfy message). Copied from
+# tools/apps/stock-bot/vmalertmanagerconfig-ntfy.yaml.
+#
+# vmstack's VMAlertmanager runs selectAllByDefault: true, so this config
+# is merged into the running Alertmanager with no extra selectors/labels
+# needed (exactly like the stock-bot config, which carries none).
+#
+# SCOPE / IMPORTANT — this routes ONLY namespace=tycho alerts, and that
+# is a hard limit of the mechanism, not a choice:
+#   * The VictoriaMetrics operator injects an enforced
+#     `namespace = "<this config's namespace>"` matcher into every route
+#     of a VMAlertmanagerConfig (tenant isolation). Proof: the stock-bot
+#     config's route declares only `app = "stock-bot"`, but the merged
+#     Alertmanager config shows `app="stock-bot"` AND
+#     `namespace="stock-bot"`. There is no per-config or operator-flag
+#     override in this version (operator v0.54.1). So a config living in
+#     the `tycho` namespace can ONLY match alerts labeled
+#     namespace=tycho — a `namespace=~"tycho|garage|monitoring"` matcher
+#     here would just be AND-ed with the forced `namespace="tycho"` and
+#     silently match tycho alone.
+#   * Storage alerts (KubePersistentVolumeFillingUp, ...) carry the
+#     PVC's namespace, so tycho PVC alerts ARE covered here; garage PVC
+#     alerts are not.
+#   * etcd alerts (vmstack-etcd) carry NO namespace label at all, so no
+#     VMAlertmanagerConfig in any namespace can ever match them.
+#
+# Covering garage/monitoring/etcd therefore needs a different lever:
+# sibling VMAlertmanagerConfigs in those namespaces, or overriding the
+# chart's global route (the blackhole default) in
+# gitops/core/apps/victoria-metrics-k8s-stack.yml. Left as a follow-up
+# so this change stays scoped to the tycho app.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertmanagerConfig
+metadata:
+  name: tycho-ntfy
+  namespace: tycho
+spec:
+  route:
+    # No matchers: the operator forces `namespace = "tycho"`, making
+    # this a catch-all for every tycho-namespace alert (operator,
+    # scorer, gateway, combine/delivery Jobs, tycho PVC storage alerts).
+    receiver: ntfy
+    group_by: ["alertname", "namespace"]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 3h
+  receivers:
+    - name: ntfy
+      webhook_configs:
+        - url: "http://stock-bot-serve.stock-bot.svc.cluster.local:8080/alerthook"
+          send_resolved: true

@@ -245,3 +245,14 @@ spec:
               port: health
             initialDelaySeconds: 10
             periodSeconds: 15
+          # tier-0 alpha-readiness: was resources: {} (unbounded).
+          # Observed 1m CPU / 24Mi (kubectl top, 2026-08-09) — a control
+          # loop with no per-frame heavy work. Conservative floor +
+          # generous ceiling (~21x observed memory).
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

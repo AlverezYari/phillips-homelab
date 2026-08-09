@@ -96,3 +96,15 @@ spec:
             # optional (defaults 5, "tycho-scorer" —
             # scorer/src/tycho_scorer/service.py) and deliberately
             # left unset here: no reason yet to override either.
+          # tier-0 alpha-readiness: was resources: {} (unbounded).
+          # Observed 1m CPU / 200Mi (kubectl top, 2026-08-09). It does
+          # numeric/astropy scoring, so it gets more headroom than the
+          # operator: request 512Mi (> observed 200Mi) and a 1Gi/1-core
+          # ceiling (~5x observed memory).
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
