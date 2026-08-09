@@ -36,6 +36,13 @@ spec:
         envFrom:
         - secretRef:
             name: loop-secrets
+        # codex-auth exists only if the conductor has seeded it
+        # (kubectl -n loops create secret generic codex-auth
+        #    --from-file=CODEX_AUTH_JSON=$HOME/.codex/auth.json);
+        # optional so claude-engine loops never depend on it.
+        - secretRef:
+            name: codex-auth
+            optional: true
         env:
         - name: LOOP_NAME
           value: ${LOOP}
@@ -45,6 +52,8 @@ spec:
           value: http://forgejo-http.forgejo.svc.cluster.local:3000/loop-bot/memory.git
         - name: MAX_ITER
           value: "${MAX_ITER}"
+        - name: ENGINE
+          value: ${ENGINE}
         volumeMounts:
         - name: workspace
           mountPath: /workspace

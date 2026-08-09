@@ -34,6 +34,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     rm -rf /var/lib/apt/lists/* && \
     corepack enable
 
+# OpenAI Codex CLI: the harness's ENGINE=codex lane (review-shaped
+# loops on the ChatGPT-sub budget, separate from the claude token).
+RUN npm install -g @openai/codex && codex --version
+
 # kubectl (only used to patch the loop's own Sandbox state label)
 RUN KUBECTL_VERSION="$(curl -fsSL https://dl.k8s.io/release/stable.txt)" && \
     curl -fsSL -o /usr/local/bin/kubectl \
