@@ -27,6 +27,11 @@ patches:
     inline:
       cluster:
         allowSchedulingOnControlPlanes: true
+  # etcd DB-quota raise (2 GiB -> 8 GiB) + metrics listener on :2381.
+  # Takes effect only on `omnictl cluster template sync` (restarts etcd on
+  # the sole control-plane member; apply deliberately). See the patch file.
+  - name: etcd-hardening
+    file: patches/etcd-hardening.yml
 systemExtensions:
   - siderolabs/amd-ucode
   - siderolabs/iscsi-tools

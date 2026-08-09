@@ -1,0 +1,40 @@
+# Scrape Talos etcd's Prometheus metrics so etcd db-size / quota / health land
+# in VictoriaMetrics and the (already-installed) chart VMRule `vmstack-etcd`
+# has data to alert on.
+#
+# Why a VMStaticScrape (not the chart's VMServiceScrape): on Talos, etcd runs
+# as a host-level Talos service, NOT a Kubernetes pod. The chart's
+# `vmstack-kube-etcd` VMServiceScrape selects pods labeled `component: etcd`,
+# which don't exist here, so its Service has zero endpoints and produces no
+# data (`etcd_mvcc_db_total_size_in_bytes` and `up{job="etcd"}` are empty).
+#
+# etcd exposes two ports:
+#   * 2379 — client API, mutual-TLS; scraping needs the etcd client cert from
+#     the control-plane node (/system/secrets/etcd/*), which can't be managed
+#     declaratively here and rotates. Verified: a plain TLS probe to :2379 gets
+#     "Request CERT" back (client cert required).
+#   * 2381 — etcd's dedicated metrics/health listener, plain HTTP, no auth.
+#     This is the Talos-recommended way to scrape etcd metrics.
+#
+# DEPENDENCY — this scrape stays at up=0 until the Talos patch that sets
+# `listen-metrics-urls: http://0.0.0.0:2381` on etcd is applied via Omni
+# (cluster/talos/omni/phillips-homelab/patches/etcd-hardening.yml). As of
+# authoring, :2381 is Connection-refused (metrics listener not yet enabled).
+#
+# Target is the single control-plane node homelab-01 (192.168.10.191); it is
+# the only etcd member. Update this IP if the control-plane node changes.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: etcd
+  namespace: monitoring
+spec:
+  jobName: etcd
+  targetEndpoints:
+    - targets:
+        - "192.168.10.191:2381"
+      scheme: http
+      path: /metrics
+      interval: 30s
+      labels:
+        job: etcd

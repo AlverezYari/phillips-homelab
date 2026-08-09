@@ -1,0 +1,32 @@
+# etcd hardening for the control-plane (homelab-01, the single etcd member).
+#
+# APPLY MANUALLY — this is a Talos machine-config change, applied via Omni with
+# the operator's PGP-authed omnictl, NOT by ArgoCD. See PR body / README.
+# Applying restarts etcd on the sole control-plane member => a brief
+# control-plane / API pause. Do it deliberately.
+#
+#   omnictl cluster template sync \
+#     -f cluster/talos/omni/phillips-homelab/template.yaml
+#
+# Two changes, both passed through to etcd via cluster.etcd.extraArgs (Talos's
+# documented escape hatch for arbitrary etcd flags):
+#
+# 1. quota-backend-bytes: raise the etcd DB quota from the 2 GiB default
+#    (2147483648) to 8 GiB (8589934592) — etcd's recommended maximum. The
+#    2026-08 NOSPACE incident filled the 2 GiB quota and froze the cluster;
+#    8 GiB gives real headroom while staying within etcd's supported range.
+#
+# 2. listen-metrics-urls: expose etcd's Prometheus metrics on :2381 over plain
+#    HTTP (no auth, metrics only). Required for the VMStaticScrape in
+#    gitops/core/apps/etcd-monitoring to populate etcd_mvcc_db_total_size_in_bytes
+#    and up{job="etcd"}. Without this, :2381 is closed and the scrape reads 0.
+#
+# SCHEMA NOTE / uncertainty: cluster.etcd.extraArgs is the stable Talos field
+# for etcd flags (values must be strings). If a future Talos version rejects
+# quota-backend-bytes via extraArgs, the alternative is the typed field — but as
+# of Talos v1.12.6 extraArgs is correct. Verify after apply (see README).
+cluster:
+  etcd:
+    extraArgs:
+      quota-backend-bytes: "8589934592"
+      listen-metrics-urls: http://0.0.0.0:2381
