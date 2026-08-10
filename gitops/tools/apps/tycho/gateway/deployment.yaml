@@ -127,9 +127,19 @@ spec:
                 secretKeyRef:
                   name: tycho-config
                   key: SITE_API_TOKEN
+            # Optional best-effort paging for dead-lettered events
+            # (operator-survivability item 2) — the tailnet ntfy topic
+            # Casey already subscribes to for the loop rig; ntfy is the
+            # paging layer, the DLQ record stays the source of truth.
+            - name: NTFY_URL
+              value: "https://ntfy.tail852f61.ts.net/loops"
           readinessProbe:
+            # /readyz actually checks Postgres/Garage/NATS (operator-
+            # survivability item 3) — readiness ONLY, so a dependency
+            # outage sheds traffic without crash-looping the pod;
+            # liveness stays on the unconditional /healthz.
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
