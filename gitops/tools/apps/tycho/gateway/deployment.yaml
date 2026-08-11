@@ -132,7 +132,7 @@ spec:
             # Casey already subscribes to for the loop rig; ntfy is the
             # paging layer, the DLQ record stays the source of truth.
             - name: NTFY_URL
-              value: "https://ntfy.tail852f61.ts.net/loops"
+              value: "https://ntfy.tail852f61.ts.net/tycho-alerts"
           readinessProbe:
             # /readyz actually checks Postgres/Garage/NATS (operator-
             # survivability item 3) — readiness ONLY, so a dependency
