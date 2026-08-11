@@ -220,7 +220,7 @@ spec:
             # alerting layer dark. The tailnet ntfy topic Casey already
             # subscribes to for the loop rig.
             - name: NTFY_URL
-              value: "https://ntfy.tail852f61.ts.net/loops"
+              value: "https://ntfy.tail852f61.ts.net/tycho-alerts"
             # - name: NTFY_URL
             #   value: "https://ntfy.sh/your-topic-here"
             # WEATHER_ENABLED is the tier-2 sky-conditions kill-switch
