@@ -11,6 +11,8 @@ resources:
 - externalsecret-delivery.yaml
 - resourcequota.yaml
 - vmalertmanagerconfig-ntfy.yaml
+- vmrule-pipeline.yaml
+- vmpodscrape-operator.yaml
 - operator
 - gateway
 - scorer

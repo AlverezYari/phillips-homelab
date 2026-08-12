@@ -1,0 +1,17 @@
+# Scrape the operator's controller-runtime metrics (already exposed on the
+# named :8080 "metrics" port — nothing was scraping them). Yields reconcile
+# error rate, workqueue depth/latency, Go/process metrics into the TSDB, so
+# operator health is queryable/alertable. No Tycho code change — wiring only.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: tycho-operator
+  namespace: tycho
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tycho-operator
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
