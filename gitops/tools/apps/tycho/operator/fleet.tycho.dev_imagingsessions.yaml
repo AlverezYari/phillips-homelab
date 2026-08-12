@@ -222,6 +222,17 @@ spec:
                   spawned to combine. Compared against a later close event's
                   sub_count to detect the session growing past what the latest
                   revision covered.
+
+                  Relied on as append-only (monotonic non-decreasing, same as
+                  SubCount) by combinejob.Fingerprint, which treats "same
+                  (SourceID, SessionID) identity + same CombinedSubCount" as "same
+                  combinable content" -- a cheap proxy that only holds because a
+                  session's subs are never removed and replaced, only added. If a
+                  future change ever lets this count regress (e.g. discarding a
+                  bad sub and re-adding a correction, or a manual CR edit), a
+                  same-count-but-different-membership set would fingerprint
+                  identically and Fingerprint would silently under-fire, skipping
+                  a combine that genuinely needed to run.
                 format: int32
                 type: integer
               jobStartedPublishedRevision:
@@ -246,6 +257,7 @@ spec:
                 - Done
                 - Failed
                 - Unsalvageable
+                - Stalled
                 type: string
               resultKeys:
                 description: |-
@@ -265,8 +277,23 @@ spec:
                   same revision keep hitting the same deterministic name.
                 format: int32
                 type: integer
+              stalledReason:
+                description: |-
+                  StalledReason explains why Phase is Stalled -- e.g. the missing
+                  combine Job's name -- legible to a human via kubectl, mirroring
+                  FailureReason-shaped fields elsewhere (DeliveryTargetStatus.
+                  RefusalReason) rather than requiring a log dive. Empty whenever
+                  Phase is not Stalled; not cleared retroactively once Phase moves
+                  on, same "last reason recorded" convention as
+                  CombineCompletedAt.
+                type: string
               subCount:
-                description: SubCount is the accepted-sub count as of close.
+                description: |-
+                  SubCount is the accepted-sub count as of close. Monotonic
+                  non-decreasing through the public path (sessionclose.go pins it
+                  to the last recorded value rather than ever storing a
+                  regression) -- combinejob.Fingerprint's dedupe correctness
+                  depends on this invariant holding (see CombinedSubCount below).
                 format: int32
                 type: integer
             type: object
