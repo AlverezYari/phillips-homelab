@@ -1,0 +1,69 @@
+# Tycho pipeline-health alerts. All series here come from
+# kube-state-metrics (already scraped, no Tycho code needed) and carry
+# namespace="tycho", so they route to ntfy via the tycho-ntfy
+# VMAlertmanagerConfig catch-all. vmalert selects all VMRules by default.
+# Flagship rule is TychoJobsQuotaNearCap — the exact blind spot behind the
+# 2026-08-12 combine-pipeline stall (count/jobs.batch filled to 100/100,
+# silently). Domain signals that need CRD/gateway metrics (session stuck
+# Combining, scope offline mid-session) are deferred to the code pass.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: tycho-pipeline
+  namespace: tycho
+spec:
+  groups:
+    - name: tycho.pipeline
+      rules:
+        - alert: TychoJobsQuotaNearCap
+          expr: |
+            kube_resourcequota{namespace="tycho", resource="count/jobs.batch", type="used"}
+              / ignoring(type)
+            kube_resourcequota{namespace="tycho", resource="count/jobs.batch", type="hard"}
+              > 0.8
+          for: 5m
+          labels:
+            severity: critical
+            app: tycho
+          annotations:
+            summary: "Tycho jobs.batch quota over 80% ({{ $value | humanizePercentage }})"
+            description: >-
+              count/jobs.batch in namespace tycho is above 80% of its hard
+              limit. At 100% the operator cannot create combine Jobs and the
+              whole combine pipeline silently stalls (2026-08-12 incident).
+              Check combine churn; the tycho-job-janitor CronJob should be
+              pruning finished Jobs — if this fires it is falling behind.
+        - alert: TychoCombineJobFailed
+          expr: kube_job_status_failed{namespace="tycho", job_name=~"stack-.*|master-.*"} > 0
+          for: 10m
+          labels:
+            severity: warning
+            app: tycho
+          annotations:
+            summary: "Tycho combine Job failing: {{ $labels.job_name }}"
+            description: >-
+              Combine/stack Job {{ $labels.job_name }} has {{ $value }} failed
+              pod(s) for over 10m — a session or target master is not producing
+              its stacked master.
+        - alert: TychoOperatorUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="tycho", deployment="tycho-operator"} < 1
+          for: 5m
+          labels:
+            severity: critical
+            app: tycho
+          annotations:
+            summary: "Tycho operator has no available replica"
+            description: >-
+              tycho-operator has <1 available replica for over 5m. Nothing
+              reconciles: sessions won't close, combines and deliveries won't run.
+        - alert: TychoGatewayUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="tycho", deployment="tycho-gateway"} < 1
+          for: 5m
+          labels:
+            severity: critical
+            app: tycho
+          annotations:
+            summary: "Tycho gateway has no available replica"
+            description: >-
+              tycho-gateway has <1 available replica for over 5m. Telescopes
+              cannot enroll, heartbeat, or upload frames.
