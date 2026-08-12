@@ -197,6 +197,22 @@ spec:
                     sessionID:
                       description: SessionID is the contributing session's ImagingSessionSpec.SessionID.
                       type: string
+                    sourceID:
+                      description: |-
+                        SourceID is the contributing session's ImagingSessionSpec.SourceID
+                        -- optional so a status persisted before this field existed keeps
+                        deserializing (a zero-value SourceID); sameSessionRevisionSet
+                        treats any such legacy entry as stale (see that function's doc
+                        comment), so it triggers exactly one rebuild and then tracks
+                        correctly off this field from then on, same "rebuild once, then
+                        track correctly" rule the sibling CombinedSessions-absent case
+                        already established. Without this field, two different sources
+                        sharing one bare SessionID (same slugify(target)-YYYY-MM-DD, the
+                        pooled-target alpha's primary shape) collapse onto the same map
+                        entry in sameSessionRevisionSet, and a master whose contributing
+                        sources' revisions genuinely differ can never compare equal to
+                        its own just-spawned candidate set -- an endless rebuild loop.
+                      type: string
                   required:
                   - revision
                   - sessionID
@@ -212,6 +228,25 @@ spec:
                 items:
                   type: string
                 type: array
+              fingerprint:
+                description: |-
+                  Fingerprint is combinejob.Fingerprint's hash of the current
+                  Revision's actual combinable content -- each contributing
+                  session's identity paired with its CombinedSubCount (not the raw
+                  Revision counter, which bumps on any recombine including one that
+                  leaves CombinedSubCount unchanged) plus the combine Job's own
+                  parameters/algorithm version. ensureCombine's dedupe treats an
+                  unchanged Fingerprint as a true no-op trigger and skips spawning a
+                  new Job, in addition to (not instead of) the existing
+                  CombinedSessions/sameSessionRevisionSet check -- see
+                  combinejob.Fingerprint's doc comment for why this is what keeps
+                  the churn incident's named trigger (a Seestar re-solving/
+                  rewriting an already-archived sub) from forcing a master rebuild.
+                  Empty for a TargetMaster written before this field existed, or
+                  one that has never yet combined -- ensureCombine then relies on
+                  CombinedSessions alone, exactly as it did before this field
+                  existed, until the next successful spawn stamps a real value.
+                type: string
               masterCompletedAt:
                 description: |-
                   MasterCompletedAt is when the current Revision's master Job
@@ -245,6 +280,7 @@ spec:
                 - Combining
                 - Done
                 - Failed
+                - Stalled
                 type: string
               resultKey:
                 description: |-
@@ -263,6 +299,11 @@ spec:
                   2, ...), mirroring ImagingSessionStatus.Revision (#33).
                 format: int32
                 type: integer
+              stalledReason:
+                description: |-
+                  StalledReason explains why Phase is Stalled, mirroring
+                  ImagingSessionStatus.StalledReason.
+                type: string
             type: object
         type: object
     served: true
