@@ -15,4 +15,4 @@ images:
   # images`/`make push` (or .forgejo/workflows/ci.yml's tag-triggered
   # job) actually published, e.g. a git short sha.
   - name: zot.phillips-homelab.net/tycho-operator
-    newTag: "e95f17a4"
+    newTag: "09ad13a0"
