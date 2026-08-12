@@ -139,6 +139,27 @@ spec:
                   delivery -- a large backfill is not special-cased, only bounded
                   by the member's own byte allowance (DeliveryQuota).
                 type: boolean
+              bundle:
+                default: false
+                description: |-
+                  Bundle opts this target into per-session zip delivery: instead of
+                  SendFile-ing each matching artifact loose, the deliver Job streams
+                  the session's artifacts into a SINGLE zip (STORE method, built on
+                  a scratch disk volume, never in memory) and delivers that one
+                  file. Default false -- loose-file delivery, today's shipped
+                  behavior, is unchanged when this is unset.
+
+                  Delta-safety (do not defeat this): a bundle Delivery is only ever
+                  built for a TERMINAL session (Done/Unsalvageable) and delivered
+                  EXACTLY ONCE -- a re-arm (master-rebuild, resync, the m-13-style
+                  churn) must find the zip already at the destination and skip
+                  before re-fetching or re-zipping anything. Unlike the loose-file
+                  model, a remote zip cannot be incrementally updated, so this flag
+                  is not meant for a target whose session keeps growing after this
+                  target first delivers it. Per-target/campaign AGGREGATE zips
+                  (which would grow across sessions) are explicitly out of scope --
+                  this flag only ever produces one zip per (session, target).
+                type: boolean
               consentRecord:
                 description: |-
                   ConsentRecord captures what the member was shown before
