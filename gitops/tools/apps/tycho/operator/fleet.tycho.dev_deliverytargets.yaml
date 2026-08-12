@@ -96,6 +96,7 @@ spec:
                 - fake
                 - s3
                 - crowdsky
+                - gdrive
                 type: string
               artifactClasses:
                 description: |-
