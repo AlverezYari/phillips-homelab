@@ -49,9 +49,10 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          DeliveryTarget is a named, member-scoped destination for outbound
-          delivery: an adapter kind, a credential reference, an artifact
-          class, and the settings a Delivery against it is spawned with.
+          DeliveryTarget is a named destination for outbound delivery: an
+          adapter kind, a credential reference, an artifact class, a scope
+          (member/everything/campaign, ADR 0011), and the settings a Delivery
+          against it is spawned with.
         properties:
           apiVersion:
             description: |-
@@ -160,6 +161,46 @@ spec:
                   (which would grow across sessions) are explicitly out of scope --
                   this flag only ever produces one zip per (session, target).
                 type: boolean
+              campaignTargets:
+                description: |-
+                  CampaignTargets is the set of sky positions a Scope=campaign
+                  target attributes closing sessions against (ADR 0011). Required,
+                  non-empty, for that scope (admission refuses an empty or
+                  structurally invalid entry); unused otherwise.
+                items:
+                  description: |-
+                    CampaignTargetSpec is one sky position a campaign-scoped
+                    DeliveryTarget attributes closing sessions against. Plural on
+                    DeliveryTargetSpec (CampaignTargets) because one campaign can span
+                    more than one pointing (e.g. a mosaic); a session matches if it
+                    falls within MatchRadiusDeg of ANY entry, not all.
+                  properties:
+                    decDeg:
+                      description: DecDeg is this campaign position's declination,
+                        in degrees.
+                      type: number
+                    matchRadiusDeg:
+                      description: |-
+                        MatchRadiusDeg is the great-circle cone radius
+                        (skymatch.MatchesTarget) a closing session's own representative
+                        coordinate must fall within to attribute to this position. Must
+                        be > 0 -- admission refuses a non-positive radius
+                        (deliverytarget_controller.go), rather than silently matching
+                        nothing or (at radius 0 with an exact coordinate match) everything
+                        depending on float equality.
+                      type: number
+                    raDeg:
+                      description: |-
+                        RADeg is this campaign position's right ascension, in degrees --
+                        the same ICRS-like convention skymatch.Point and the catalog's
+                        target_ra_deg carry.
+                      type: number
+                  required:
+                  - decDeg
+                  - matchRadiusDeg
+                  - raDeg
+                  type: object
+                type: array
               consentRecord:
                 description: |-
                   ConsentRecord captures what the member was shown before
@@ -222,8 +263,14 @@ spec:
                   never defaulted on by the framework.
                 type: boolean
               memberID:
-                description: MemberID is the owning member. Required and immutable.
-                minLength: 1
+                description: |-
+                  MemberID is the owning member for Scope=member (required), and is
+                  stamped directly onto every Delivery Scope=everything spawns.
+                  Unused, and refused if set, for Scope=campaign (ADR 0011) -- a
+                  campaign-scoped target is fleet-wide by construction, and each
+                  attributed session's Delivery carries ITS OWN owning member
+                  instead (delivery_trigger.go), resolved the same way member-scope
+                  resolution already does. Immutable once set.
                 type: string
                 x-kubernetes-validations:
                 - message: memberID is immutable
@@ -259,6 +306,18 @@ spec:
                     minimum: 1
                     type: integer
                 type: object
+              scope:
+                description: |-
+                  Scope discriminates member/everything/campaign attribution (ADR
+                  0011). Optional on the wire for backward compatibility: an unset
+                  Scope is never defaulted by the CRD (no kubebuilder default) --
+                  EffectiveScope resolves it instead, so a target written before
+                  this field existed keeps behaving exactly as it did before.
+                enum:
+                - member
+                - everything
+                - campaign
+                type: string
               settings:
                 additionalProperties:
                   type: string
@@ -267,12 +326,23 @@ spec:
                   (e.g. a future scrub_location-style flag) as opaque string
                   key/value pairs — the framework never interprets these itself.
                 type: object
+              sourceAllowList:
+                description: |-
+                  SourceAllowList restricts which sources' closing sessions a
+                  Scope=campaign target attributes to itself (ADR 0011) -- the same
+                  shape and semantics as FleetMasterSpec.SourceAllowList
+                  (targetmaster.Allowed), reused directly rather than reimplemented.
+                  Empty (the default) means any source in a matching CampaignTargets
+                  cone is attributed. Unused for member/everything scope.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
             required:
             - adapterKind
             - artifactClasses
             - credentialRef
             - credentialScheme
-            - memberID
             type: object
           status:
             description: |-
