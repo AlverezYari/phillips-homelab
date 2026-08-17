@@ -107,7 +107,7 @@ spec:
               # feature was live everywhere except the container that
               # reads it (tycho #154). Bump this whenever combine/
               # changes, and check it moved after ArgoCD syncs.
-              value: "zot.phillips-homelab.net/tycho-combine:6bc387e"
+              value: "zot.phillips-homelab.net/tycho-combine:7a6308a1"
             # ADR 0010 outbound delivery. Both are REQUIRED: the
             # operator fails closed at startup without them, so this
             # block must land in the same commit as the image bump.
