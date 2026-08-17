@@ -29,7 +29,8 @@ TEMPLATE="$REPO_ROOT/loops/templates/loop-sandbox.yaml"
 
 die() { echo "loopctl: $*" >&2; exit 1; }
 
-image_from_template() { grep -oE 'zot\.phillips-homelab\.net/loop-dev:[a-zA-Z0-9._-]+' "$TEMPLATE" | head -1; }
+default_image_tag() { sed -n 's/.*# default-image-tag: //p' "$TEMPLATE" | head -1; }
+image_from_template() { echo "zot.phillips-homelab.net/loop-dev:$(default_image_tag)"; }
 
 # Run $2 (bash script text) in a short-lived in-cluster pod named loopctl-$1-*
 # with loop-secrets in env. Prints the pod's logs. Optional $3 = extra pod
@@ -78,15 +79,12 @@ cmd_spawn() {
   kubectl -n "$NS" get sandbox "$name" >/dev/null 2>&1 && die "sandbox '$name' already exists (reap it first)"
 
   LOOP=$name REPO=$repo MAX_ITER=$max_iter ENGINE=$engine GATE="${gate:-make build test lint}" \
+    IMAGE="${image:-$(default_image_tag)}" \
     python3 - "$TEMPLATE" <<'EOF' | kubectl apply -f - >/dev/null
 import os, re, sys
 t = open(sys.argv[1]).read()
 print(re.sub(r'\$\{(\w+)\}', lambda m: os.environ[m.group(1)], t))
 EOF
-  if [ -n "$image" ]; then
-    kubectl -n "$NS" patch sandbox "$name" --type=json \
-      -p "[{\"op\":\"replace\",\"path\":\"/spec/podTemplate/spec/containers/0/image\",\"value\":\"zot.phillips-homelab.net/loop-dev:${image}\"}]" >/dev/null
-  fi
   echo "spawned sandbox/$name; waiting for pod..."
   kubectl -n "$NS" wait --for=condition=Ready "pod/$name" --timeout=300s >/dev/null
   kubectl -n "$NS" cp "$spec" "$name:/workspace/SPEC.md" >/dev/null 2>&1
