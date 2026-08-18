@@ -28,8 +28,8 @@ export KUBECONFIG=${KUBECONFIG:-$HOME/.kube/tycho-sa.yaml}
 # names are the S3-SDK convention release-publish reads; the values are
 # the B2 key. Override labels via env if the item changes.
 OP_ITEM=${OP_ITEM:-tycho}
-OP_FIELD_KEY_ID=${OP_FIELD_KEY_ID:-tf-releases-key-id}
-OP_FIELD_APP_KEY=${OP_FIELD_APP_KEY:-tf-releases-app-key}
+OP_FIELD_KEY_ID=${OP_FIELD_KEY_ID:-b2_releases_key_id}
+OP_FIELD_APP_KEY=${OP_FIELD_APP_KEY:-b2_releases_application_key}
 
 say() { printf '\n== %s\n' "$*"; }
 
