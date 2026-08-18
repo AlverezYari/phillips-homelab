@@ -74,6 +74,11 @@ spec:
               memory: "512Mi"
               cpu: "1000m"
           env:
+            # Master ingest pause for the collection-consent migration
+            # (loop-bot/tycho#249). Flip to "false" at per-scope
+            # re-enable time; remove after the migration completes.
+            - name: INGEST_FROZEN
+              value: "true"
             - name: LISTEN_ADDR
               value: ":8080"
             - name: S3_ENDPOINT
