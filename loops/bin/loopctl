@@ -55,7 +55,7 @@ helper_pod() {
     [ -n "$extra_container" ] && printf '%s\n' "$extra_container"
     echo "    command: [bash, -c, $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$script")]"
   } | kubectl apply -f - >/dev/null
-  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout=180s >/dev/null 2>&1 \
+  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout=900s >/dev/null 2>&1 \
     || { kubectl -n "$NS" logs "$pod" 2>/dev/null; kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1; die "helper pod $verb failed"; }
   kubectl -n "$NS" logs "$pod" 2>/dev/null
   kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1
@@ -226,6 +226,24 @@ case \"\$code\" in
 esac"
 }
 
+cmd_issue() {
+  local repo=${1:?usage: loopctl issue <owner/repo> <title> <body-file>}
+  local title=${2:?title required}
+  local bodyfile=${3:?body-file required}
+  local body
+  body=$(cat "$bodyfile")
+  helper_pod issue "
+F=$FJO_API
+PAYLOAD=\$(jq -n --arg t \"$title\" --arg b \"\$ISSUE_BODY\" '{title: \$t, body: \$b}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/issues\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) echo \"issue #\$(jq -r .number /tmp/r) filed: \$(jq -r .html_url /tmp/r)\";;
+  *) echo \"issue create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
+esac" "" "    env:
+    - name: ISSUE_BODY
+      value: $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$body")"
+}
+
 cmd_merge() {
   local repo=${1:?usage: loopctl merge <owner/repo> <pr#>}
   local idx=${2:?PR number required}
@@ -264,6 +282,7 @@ case $cmd in
   reap) cmd_reap "$@";;
   cat) cmd_cat "$@";;
   pr) cmd_pr "$@";;
+  issue) cmd_issue "$@";;
   merge) cmd_merge "$@";;
   release) cmd_release "$@";;
   *) sed -n '2,14p' "$0";;
