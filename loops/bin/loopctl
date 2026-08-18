@@ -55,7 +55,7 @@ helper_pod() {
     [ -n "$extra_container" ] && printf '%s\n' "$extra_container"
     echo "    command: [bash, -c, $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$script")]"
   } | kubectl apply -f - >/dev/null
-  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout=180s >/dev/null 2>&1 \
+  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout=900s >/dev/null 2>&1 \
     || { kubectl -n "$NS" logs "$pod" 2>/dev/null; kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1; die "helper pod $verb failed"; }
   kubectl -n "$NS" logs "$pod" 2>/dev/null
   kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1
