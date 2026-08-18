@@ -198,3 +198,10 @@ a green gate on anything SQL.
 **Correct yourself in public.** Several times the founder was right and
 the confident answer was wrong — about operator capabilities, about
 architecture that already existed. Go and check.
+
+## Standing code style: ponytail
+
+Every loop reads `loop-bot/memory` at spawn; `ponytail.md` there carries
+the rig-wide code-minimalism rules (founder-adopted 2026-08-18, vendored
+from github.com/dietrichgebert/ponytail). Specs outrank it where they
+conflict. When writing SPECs, do not re-state its rules; reference it.
