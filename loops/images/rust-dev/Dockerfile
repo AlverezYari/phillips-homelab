@@ -16,9 +16,15 @@ FROM rust:1-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git make jq curl ca-certificates ripgrep unzip \
       pkg-config libudev-dev libdbus-1-dev \
+      gcc-mingw-w64-x86-64 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rustup component add clippy rustfmt
+# Windows cross-check target: `cargo check --target x86_64-pc-windows-gnu`
+# in the gate catches windows.rs breakage that otherwise ships blind
+# (the sandbox has no Windows; check compiles everything incl. native
+# build scripts, hence the mingw cross-gcc above, but never links).
+RUN rustup component add clippy rustfmt && \
+    rustup target add x86_64-pc-windows-gnu
 
 # claude CLI (native installer drops it in ~/.local/bin; promote to PATH)
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
