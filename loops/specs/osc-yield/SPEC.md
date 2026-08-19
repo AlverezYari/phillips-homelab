@@ -1,4 +1,24 @@
-# SPEC — osc-yield: yield-to-Steam arbitration (wave 4, daemon)
+# SPEC — osc-yield: yield-to-Steam arbitration (PRIORITY — founder hit the conflict live)
+
+**2026-08-19 amendment — the USB-ownership world changes §4's
+evidence model.** Since osc-haptics-2/2b/2d landed, the daemon OWNS
+the triton's interface 2 via libusb: while we hold it, the puck's
+hidraw nodes DO NOT EXIST, so the original "Steam holds a hidraw
+fd" evidence can never occur. Founder repro: launching Steam while
+the daemon held the device made Steam prompt to re-set-up the
+controller — we fought it. The corrected evidence rule for the
+triton: **a running Steam client process IS the yield trigger.**
+Steam-launches → PARK immediately (release interface, rebind
+kernel driver — loop 2's landed release path); Steam-exits →
+reacquire. "Steam always wins the tie" (founder law). The §4.1/§4.2
+machine below still governs states/cadence/force-hold; read
+"evidence" as steam-process-exists for the USB-owned triton, with
+the fd-based rule retained only for hidraw-transport devices. The
+30 s baseline scan is the launch detector's upper latency bound;
+tighten to 5 s ALWAYS (a /proc comm sweep is microseconds) so the
+park happens before Steam's device probe in practice. State the
+race honestly in PR.md: a park can still lose to Steam's first
+probe by milliseconds; Steam recovers on its next enumeration.
 
 Repo: `loop-bot/OpenSteamController`. Gate: `make build test lint`.
 Image: rust-2.
