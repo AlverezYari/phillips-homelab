@@ -32,9 +32,16 @@ Image: rust-2.
    poll only while open, 1 Hz grey-out retry, selector from
    GetControllers with the 5 s bounded refresh and single-candidate
    fallback, sleeping/unreachable overlays.
-5. - [ ] **Preview tour**: diagram + tester steps (tester renders
-   against a fake snapshot source — the poll layer is a trait so
-   the tour never needs a daemon).
+5. - [ ] **Zone-layout visuals** (founder request 2026-08-19, after
+   confirming zone buttons in-game): the trackpad behavior card
+   shows a small inline glyph of the active zone layout (the
+   4-split cross with the bound directions highlighted), so the
+   difference between layouts is visible at a glance, not inferred
+   from labels. Same pre-rendered-asset pipeline as the diagram —
+   no runtime SVG. Also shown in the behavior dropdown's hint row.
+6. - [ ] **Preview tour**: diagram + tester + zone-glyph steps
+   (tester renders against a fake snapshot source — the poll layer
+   is a trait so the tour never needs a daemon).
 
 ## Warts / traps
 
