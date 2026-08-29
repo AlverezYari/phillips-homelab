@@ -77,8 +77,19 @@ spec:
             # Master ingest pause for the collection-consent migration
             # (loop-bot/tycho#249). Flip to "false" at per-scope
             # re-enable time; remove after the migration completes.
+            #
+            # Lifted 2026-08-28 for the dual-scope bench run (seestar-1
+            # + the ASI2600MC-Air on M57). Safe to lift ahead of the
+            # client migration because consent is enforced server-side
+            # and defaults to deny: upload.go authorizes every sub
+            # against the uploading scope's CollectionScope projection
+            # (gateway/internal/upload/upload.go, Consent.Authorize),
+            # and a scope with no projection gets no_enrolled_campaign.
+            # So ingest is open only to scopes we have explicitly
+            # enrolled, and only on the targets they are enrolled for --
+            # archive-everything does not come back with this flip.
             - name: INGEST_FROZEN
-              value: "true"
+              value: "false"
             - name: LISTEN_ADDR
               value: ":8080"
             - name: S3_ENDPOINT
