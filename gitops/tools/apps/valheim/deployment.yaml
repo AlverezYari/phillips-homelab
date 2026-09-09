@@ -52,11 +52,16 @@ spec:
             # join via the crossplay join code printed in the pod log.
             - name: SERVER_PUBLIC
               value: "false"
-            # Routes through Valheim's PlayFab relay, so the server dials out
-            # and no WAN port has to be opened. Drop this (and add the UDP
-            # 2456-2457 forward on the UCG-Fiber) to switch to direct connect.
+            # Empty, i.e. no -crossplay. Under crossplay the server never binds
+            # 2456 at all -- play is relayed through PlayFab Party via Azure
+            # (eastus/eastus2), which flapped constantly: repeated "failed to
+            # establish or maintain a connection" errors, lobby re-creation,
+            # and a join code that changed on every reconnect. Everyone here is
+            # on PC, so the Steam backend costs nothing in reach and takes the
+            # relay out of the path. Restoring "-crossplay" reverts to relay
+            # play and makes the LoadBalancer below inert.
             - name: SERVER_ARGS
-              value: "-crossplay"
+              value: ""
             - name: SERVER_PASS
               valueFrom:
                 secretKeyRef:
@@ -93,26 +98,33 @@ spec:
             limits:
               cpu: "4000m"
               memory: "8Gi"
-          # First boot downloads the server via steamcmd and generates the
-          # world, which takes several minutes. startupProbe buys 15 minutes
-          # before the liveness probe is allowed to start killing the pod.
+          # Probing /status.json was wrong twice over: the status updater asks
+          # A2S on 2457, which stays silent while -public 0, so it reports
+          # TimeoutError permanently; and the httpd serving it is up ~10s after
+          # container start, long before steamcmd has finished, so the pod went
+          # Ready while still mid-download. The game binary is the honest
+          # signal -- spawned only once the download completes, gone when the
+          # server dies.
+          #
+          # First boot pulls ~2.1GB and generates the world, so allow 20
+          # minutes before the pod is considered failed.
           startupProbe:
-            httpGet:
-              path: /status.json
-              port: status
+            exec:
+              command: ["pgrep", "-f", "valheim_server.x86_64"]
             periodSeconds: 15
             failureThreshold: 80
           readinessProbe:
-            httpGet:
-              path: /status.json
-              port: status
+            exec:
+              command: ["pgrep", "-f", "valheim_server.x86_64"]
             periodSeconds: 15
+          # Deliberately lenient: supervisor restarts the server process inside
+          # the container, so give it ~5 minutes to recover on its own before
+          # escalating to a pod restart that would re-run the whole boot.
           livenessProbe:
-            httpGet:
-              path: /status.json
-              port: status
+            exec:
+              command: ["pgrep", "-f", "valheim_server.x86_64"]
             periodSeconds: 30
-            failureThreshold: 4
+            failureThreshold: 10
           # The image starts as root to run steamcmd and fix ownership, then
           # drops to its own unprivileged user via supervisor.
           securityContext:
