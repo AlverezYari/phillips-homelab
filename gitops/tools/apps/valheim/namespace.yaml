@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: valheim
+  labels:
+    name: valheim
+    # The lloesche image starts as root to run steamcmd, so it cannot satisfy
+    # "restricted". Baseline is the cluster default and permits root; setting
+    # it explicitly documents the intent and silences the restricted warning
+    # on every sync.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline

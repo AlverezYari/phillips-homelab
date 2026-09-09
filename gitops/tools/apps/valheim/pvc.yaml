@@ -1,0 +1,29 @@
+# World saves, backups and adminlist. This is the volume that matters --
+# syno-iscsi-default is Retain, so the LUN outlives the PVC.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valheim-config
+  namespace: valheim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 20Gi
+---
+# steamcmd's server install. Disposable -- if this is ever lost the image
+# re-downloads it on next boot, it just costs a few minutes of startup.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valheim-server
+  namespace: valheim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-delete
+  resources:
+    requests:
+      storage: 10Gi

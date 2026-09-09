@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valheim
+  namespace: valheim
+  labels:
+    app: valheim
+  annotations:
+    # Restart the server when the SERVER_PASS secret is rotated; env vars from
+    # a secretRef are read once at container start and never refreshed.
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  # Both PVCs are RWO. RollingUpdate would start the replacement pod before
+  # tearing down the old one and deadlock on a multi-attach error.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: valheim
+  template:
+    metadata:
+      labels:
+        app: valheim
+    spec:
+      # homelab-03 has the headroom and is one of the nodes the 1G L2
+      # announcement policy covers, so the LB IP is announced from the same
+      # node the pod runs on. Valheim needs ~150 kbps per player; 1G is ample.
+      nodeSelector:
+        kubernetes.io/hostname: homelab-03
+      containers:
+        - name: valheim
+          image: ghcr.io/lloesche/valheim-server:latest
+          ports:
+            - name: game
+              containerPort: 2456
+              protocol: UDP
+            - name: query
+              containerPort: 2457
+              protocol: UDP
+            - name: status
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SERVER_NAME
+              value: "Phillips Homelab"
+            - name: WORLD_NAME
+              value: "Midgard"
+            - name: SERVER_PORT
+              value: "2456"
+            # false = not listed in the public community browser. Friends still
+            # join via the crossplay join code printed in the pod log.
+            - name: SERVER_PUBLIC
+              value: "false"
+            # Routes through Valheim's PlayFab relay, so the server dials out
+            # and no WAN port has to be opened. Drop this (and add the UDP
+            # 2456-2457 forward on the UCG-Fiber) to switch to direct connect.
+            - name: SERVER_ARGS
+              value: "-crossplay"
+            - name: SERVER_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: valheim-server
+                  key: SERVER_PASS
+            # Steam64 IDs, space separated, for /kick, /ban and console access.
+            - name: ADMINLIST_IDS
+              value: ""
+            - name: UPDATE_CRON
+              value: "0 5 * * *"
+            - name: BACKUPS_CRON
+              value: "0 * * * *"
+            - name: BACKUPS_DIRECTORY
+              value: "/config/backups"
+            - name: BACKUPS_MAX_AGE
+              value: "3"
+            - name: STATUS_HTTP
+              value: "true"
+            - name: STATUS_HTTP_PORT
+              value: "8080"
+            - name: PERMISSIONS_UMASK
+              value: "022"
+            - name: TZ
+              value: "America/Chicago"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: server
+              mountPath: /opt/valheim
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+          # First boot downloads the server via steamcmd and generates the
+          # world, which takes several minutes. startupProbe buys 15 minutes
+          # before the liveness probe is allowed to start killing the pod.
+          startupProbe:
+            httpGet:
+              path: /status.json
+              port: status
+            periodSeconds: 15
+            failureThreshold: 80
+          readinessProbe:
+            httpGet:
+              path: /status.json
+              port: status
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /status.json
+              port: status
+            periodSeconds: 30
+            failureThreshold: 4
+          # The image starts as root to run steamcmd and fix ownership, then
+          # drops to its own unprivileged user via supervisor.
+          securityContext:
+            runAsUser: 0
+      # World saves flush on shutdown; give the server room to finish so a
+      # redeploy never costs progress.
+      terminationGracePeriodSeconds: 120
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: valheim-config
+        - name: server
+          persistentVolumeClaim:
+            claimName: valheim-server

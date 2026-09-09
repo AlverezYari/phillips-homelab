@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: valheim
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: valheim
+  project: default
+  source:
+    path: gitops/tools/apps/valheim
+    repoURL: 'https://github.com/AlverezYari/phillips-homelab.git'
+    targetRevision: main
+  syncPolicy:
+    automated:
+      # prune stays on to match the other tools, but the world lives on
+      # syno-iscsi-default (Retain), so a bad prune releases the PV without
+      # deleting the LUN -- the world survives and can be re-bound by hand.
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
