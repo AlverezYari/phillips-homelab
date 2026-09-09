@@ -43,9 +43,13 @@ spec:
               protocol: TCP
           env:
             - name: SERVER_NAME
-              value: "Phillips Homelab"
+              value: "Motherless Gentlemen"
+            # Changing this generates a NEW world rather than renaming the old
+            # one. "Midgard" was the throwaway used to prove out routing and
+            # still sits in /config/worlds_local on the config PVC -- pointing
+            # this back at it restores that world untouched.
             - name: WORLD_NAME
-              value: "Midgard"
+              value: "Motherless Gentlemen"
             - name: SERVER_PORT
               value: "2456"
             # false = not listed in the public community browser. Friends still
