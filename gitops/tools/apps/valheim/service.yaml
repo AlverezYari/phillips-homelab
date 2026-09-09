@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: valheim
+  namespace: valheim
+  labels:
+    app: valheim
+  annotations:
+    # .210-.216 are taken; pool runs to .220.
+    lbipam.cilium.io/ips: "192.168.10.217"
+spec:
+  type: LoadBalancer
+  selector:
+    app: valheim
+  ports:
+    - name: game
+      port: 2456
+      targetPort: game
+      protocol: UDP
+    - name: query
+      port: 2457
+      targetPort: query
+      protocol: UDP
+    - name: status
+      port: 8080
+      targetPort: status
+      protocol: TCP
