@@ -94,7 +94,7 @@ loopctl logs <name> [-f]
 loopctl answer <name> <text>
 loopctl reap <name>                # files the PR, PR.md becomes the body
 loopctl merge <owner/repo> <pr#>
-loopctl pr <owner/repo> <branch> [title]
+loopctl pr <owner/repo> <branch> [--body-file FILE] [title]   # body file = reviewer-facing markdown; re-run to update an existing PR's body
 loopctl release <owner/repo> <tag> [title]
 ```
 

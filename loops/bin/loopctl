@@ -8,7 +8,7 @@
 #   loopctl answer <name> <json-or-text>
 #   loopctl pause <name> | resume <name>
 #   loopctl reap <name> [--no-pr]
-#   loopctl pr <owner/repo> <branch> [title...]
+#   loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]
 #   loopctl merge <owner/repo> <pr#>
 #   loopctl release <owner/repo> <tag> [title...]
 #
@@ -212,18 +212,39 @@ fi" \
 # conductor never has to improvise raw token curls — the FJO token
 # stays in-cluster, same invariant as every other verb.
 cmd_pr() {
-  local repo=${1:?usage: loopctl pr <owner/repo> <branch> [title...]}
+  local repo=${1:?usage: loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]}
   local branch=${2:?branch required}; shift 2
+  local bodyfile=""
+  if [ "${1:-}" = "--body-file" ]; then
+    bodyfile=${2:?--body-file needs a path}; shift 2
+    [ -f "$bodyfile" ] || die "--body-file $bodyfile not found"
+  fi
   local title=${*:-$branch}
+  local body
+  body=$( [ -n "$bodyfile" ] && cat "$bodyfile" || echo "Filed by loopctl pr." )
+  # Body rides in as a pod env var (same route as cmd_issue) so it never
+  # goes through shell quoting inside the helper script. If the PR already
+  # exists and a body file was given, the body is replaced, so a reap's
+  # placeholder or an earlier bare `pr` can be filled in afterwards.
   helper_pod pr "
 F=$FJO_API
-PAYLOAD=\$(jq -n --arg t \"$title\" --arg h \"$branch\" '{title: \$t, head: \$h, base: \"main\", body: \"Filed by loopctl pr.\"}')
+PAYLOAD=\$(jq -n --arg t \"$title\" --arg h \"$branch\" --arg b \"\$PR_BODY\" '{title: \$t, head: \$h, base: \"main\", body: \$b}')
 code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
 case \"\$code\" in
   201) echo \"PR #\$(jq -r .number /tmp/r) filed: \$(jq -r .html_url /tmp/r)\";;
-  409) idx=\$(curl -s \"\$F/repos/${repo}/pulls?state=open\" -H \"Authorization: token \${FORGEJO_TOKEN}\" | jq -r '.[] | select(.head.ref==\"${branch}\") | .number' | head -1); echo \"PR already exists: #\$idx\";;
+  409) idx=\$(curl -s \"\$F/repos/${repo}/pulls?state=open\" -H \"Authorization: token \${FORGEJO_TOKEN}\" | jq -r '.[] | select(.head.ref==\"${branch}\") | .number' | head -1)
+       if [ -n \"\$PR_BODY_FROM_FILE\" ] && [ -n \"\$idx\" ]; then
+         pcode=\$(jq -n --arg b \"\$PR_BODY\" '{body: \$b}' | curl -s -o /tmp/p -w '%{http_code}' -X PATCH \"\$F/repos/${repo}/pulls/\$idx\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d @-)
+         echo \"PR already exists: #\$idx; body updated (\$pcode)\"
+       else
+         echo \"PR already exists: #\$idx\"
+       fi;;
   *) echo \"PR create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
-esac"
+esac" "" "    env:
+    - name: PR_BODY
+      value: $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$body")
+    - name: PR_BODY_FROM_FILE
+      value: \"${bodyfile:+1}\""
 }
 
 cmd_issue() {
