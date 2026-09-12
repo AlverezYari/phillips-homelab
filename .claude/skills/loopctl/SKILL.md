@@ -24,7 +24,7 @@ loops/bin/loopctl logs <name> [-f]  # harness stdout
 loops/bin/loopctl answer <name> '<json-or-text>'  # -> loops.<name>.inbox (durable)
 loops/bin/loopctl pause <name> / resume <name>    # Suspended keeps the PVC
 loops/bin/loopctl reap <name> [--no-pr]  # PR (PR.md body + PROGRESS comment + review request) then delete
-loops/bin/loopctl pr <owner/repo> <branch> [title...]  # file a PR for ANY branch (fix/docs too, not just loop/*)
+loops/bin/loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]  # file a PR for ANY branch (fix/docs too, not just loop/*); --body-file also refreshes the body of an existing PR on that branch
 loops/bin/loopctl merge <owner/repo> <pr#>             # merge a PR — the conductor's landing verb
 ```
 
