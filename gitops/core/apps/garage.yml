@@ -19,9 +19,10 @@ spec:
     kind: StatefulSet
     jsonPointers:
     - /spec/template/metadata/annotations
-    # The data PVC was expanded from 20Gi -> 50Gi after initial deploy.
-    # StatefulSet volumeClaimTemplates are immutable, so the template field
-    # stays at 20Gi forever even though the live PVC is at 50Gi.
+    # PVCs have been expanded in place after initial deploy: data is now 150Gi
+    # live, and meta was expanded 1Gi -> 10Gi on 2026-09-22 (see persistence
+    # below). StatefulSet volumeClaimTemplates are immutable, so the template
+    # fields never match the live PVCs and must be ignored here.
     - /spec/volumeClaimTemplates
 
   source:
@@ -67,7 +68,14 @@ spec:
           enabled: true
           meta:
             storageClass: "syno-iscsi-default"
-            size: 1Gi
+            # 2026-09-22: the 1Gi meta PVC filled (98%) and LMDB began returning
+            # "No space left on device", which failed every Garage write AND
+            # delete. That took down forgejo (CNPG could not archive WALs, so
+            # pgdata filled and PostgreSQL refused to start) and stalled Loki
+            # chunk flushes. Live PVC was expanded 1Gi -> 10Gi to recover.
+            # As with data below, volumeClaimTemplates are immutable, so this
+            # value only applies if the StatefulSet is ever recreated.
+            size: 10Gi
           data:
             storageClass: "syno-iscsi-default"
             size: 150Gi

@@ -1,0 +1,28 @@
+# Cluster-wide PVC fullness alerting. Added after the 2026-09-22 Garage meta
+# volume incident, where a full 1Gi PVC took down forgejo and stalled Loki with
+# no alert firing beforehand.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: volume-alerts
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "-8"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: default
+  source:
+    path: gitops/core/apps/volume-alerts
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
