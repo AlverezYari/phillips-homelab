@@ -1,0 +1,82 @@
+# Cluster-wide PersistentVolume fullness alerts.
+#
+# Motivated by the 2026-09-22 incident: Garage's meta PVC was provisioned at
+# 1Gi, silently filled to 98%, and LMDB started returning "No space left on
+# device" for every write AND delete. Because Garage backs CNPG WAL archiving
+# and Loki chunk storage, that single 1Gi volume cascaded into forgejo being
+# fully down (PostgreSQL refused to start once pgdata filled with unarchived
+# WALs) and Loki dropping logs. Nothing paged — the first signal was a human
+# noticing forgejo was unreachable.
+#
+# Series come from the kubelet (already scraped by vmstack, no new exporters).
+# vmalert selects all VMRules by default.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: volume-fullness
+  namespace: monitoring
+spec:
+  groups:
+    - name: volume.fullness
+      rules:
+        - alert: PersistentVolumeFillingUp
+          expr: |
+            100 * kubelet_volume_stats_used_bytes
+              / kubelet_volume_stats_capacity_bytes
+              > 80
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              is {{ $value | printf "%.0f" }}% full
+            description: >-
+              Volume has been above 80% for 15m. Small volumes (Garage meta was
+              1Gi) reach 100% fast and fail writes hard. Expand via
+              `kubectl -n {{ $labels.namespace }} patch pvc
+              {{ $labels.persistentvolumeclaim }} --type=merge -p
+              '{"spec":{"resources":{"requests":{"storage":"<new>"}}}}'` —
+              storageClass syno-iscsi-default has allowVolumeExpansion=true and
+              resizes online.
+
+        - alert: PersistentVolumeAlmostFull
+          expr: |
+            100 * kubelet_volume_stats_used_bytes
+              / kubelet_volume_stats_capacity_bytes
+              > 95
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              is {{ $value | printf "%.0f" }}% full — writes about to fail
+            description: >-
+              Above 95%. At 100% the workload's writes fail with ENOSPC. If this
+              is a shared store (Garage, an object backend) the failure fans out
+              to every dependent service, and self-healing paths that need to
+              *delete* data fail too, so it cannot recover on its own. Expand now.
+
+        # Projects 4h ahead so a volume filling steadily is caught before it is
+        # already critical. Guarded on >70% so slow-growing volumes with plenty
+        # of headroom stay quiet.
+        - alert: PersistentVolumeWillFillIn4h
+          expr: |
+            (
+              100 * kubelet_volume_stats_used_bytes
+                / kubelet_volume_stats_capacity_bytes
+              > 70
+            )
+            and
+            predict_linear(kubelet_volume_stats_available_bytes[6h], 4 * 3600) < 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}
+              projected to fill within 4h
+            description: >-
+              Linear projection over the last 6h has this volume reaching 100%
+              within 4 hours. Expand it or reclaim space before it does.
