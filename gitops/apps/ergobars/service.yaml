@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ergobars-site
+  namespace: ergobars
+  labels:
+    app: ergobars-site
+spec:
+  selector:
+    app: ergobars-site
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP

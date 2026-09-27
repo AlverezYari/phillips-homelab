@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ergobars-nginx
+  namespace: ergobars
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+        server_tokens off;
+        root /usr/share/nginx/html;
+        index index.html;
+        autoindex off;
+
+        location = /healthz {
+            access_log off;
+            default_type text/plain;
+            return 200 "ok\n";
+        }
+
+        # "/" resolves here via the index directive, so this covers both.
+        location = /index.html {
+            add_header Cache-Control "no-cache" always;
+            add_header X-Content-Type-Options "nosniff" always;
+        }
+
+        location ~* \.zip$ {
+            default_type application/zip;
+            add_header Content-Disposition "attachment" always;
+            add_header Cache-Control "no-cache" always;
+            add_header X-Content-Type-Options "nosniff" always;
+        }
+
+        location / {
+            try_files $uri $uri/ =404;
+            add_header X-Content-Type-Options "nosniff" always;
+        }
+    }
