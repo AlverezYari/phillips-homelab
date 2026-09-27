@@ -11,6 +11,8 @@
 #   loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]
 #   loopctl merge <owner/repo> <pr#>
 #   loopctl release <owner/repo> <tag> [title...]
+#   loopctl repoinfo <owner/repo>
+#   loopctl mkrepo <name> [description...]
 #
 # Secrets never touch the laptop: FJO/NATS calls run in short-lived helper
 # pods that read the loop-secrets Secret in-cluster.
@@ -274,6 +276,43 @@ code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls/${
 if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge failed: \$code\"; head -c 300 /tmp/r; exit 1; fi"
 }
 
+# repoinfo: read-only look at a repo's settings, branch protection and collaborators.
+cmd_repoinfo() {
+  local repo=${1:?usage: loopctl repoinfo <owner/repo>}
+  helper_pod repoinfo "
+F=$FJO_API
+A=\"Authorization: token \${FORGEJO_TOKEN}\"
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -H \"\$A\" \"\$F/repos/${repo}\")
+[ \"\$code\" = 200 ] || { echo \"${repo}: not found (\$code)\"; exit 0; }
+jq -c '{private, default_branch, empty}' /tmp/r
+curl -s -H \"\$A\" \"\$F/repos/${repo}/branch_protections\" | jq -c '.[] | {rule_name, enable_push, enable_push_whitelist, push_whitelist_usernames, required_approvals, enable_approvals_whitelist, approvals_whitelist_username}'
+curl -s -H \"\$A\" \"\$F/repos/${repo}/collaborators\" | jq -c '[.[] | .login]'"
+}
+
+# mkrepo: a new loop-bot repo set up like the existing ones (private, default branch main,
+# the reviewer as admin collaborator so Casey can push over SSH and review). Replaces the
+# one-off tokens minted by hand for earlier repos (OSC's mkrepo-osc-tmp). Needs the loop-bot
+# token (loop-rig/forgejo-token) to carry the write:user scope: without it Forgejo answers 403
+# "token does not have at least one of required scope(s): [write:user]" (hit 2026-09-27).
+cmd_mkrepo() {
+  local name=${1:?usage: loopctl mkrepo <name> [description...]}; shift
+  local desc=${*:-}
+  helper_pod mkrepo "
+F=$FJO_API
+A=\"Authorization: token \${FORGEJO_TOKEN}\"
+PAYLOAD=\$(jq -n --arg n \"$name\" --arg d \"$desc\" '{name: \$n, description: \$d, private: true, default_branch: \"main\", auto_init: false}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/user/repos\" -H \"\$A\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) echo \"created loop-bot/$name\";;
+  409) echo \"loop-bot/$name already exists\";;
+  *) echo \"create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
+esac
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X PUT \"\$F/repos/loop-bot/$name/collaborators/$REVIEWER\" -H \"\$A\" -H 'Content-Type: application/json' -d '{\"permission\":\"admin\"}')
+case \"\$code\" in 204) echo \"$REVIEWER: admin collaborator\";; *) echo \"collaborator add failed: \$code\"; head -c 300 /tmp/r; exit 1;; esac
+echo \"push: git remote add fjo git@code.phillips-homelab.net:loop-bot/$name.git && git push fjo <branch>:main\""
+  ping_phone "repo loop-bot/$name" "package" "created by loopctl mkrepo"
+}
+
 # release: cut a Forgejo release with cross-built client binaries. The
 # build runs inside the helper pod (loop-dev carries Go), so source,
 # toolchain and token all stay in-cluster -- the same invariant every
@@ -306,5 +345,7 @@ case $cmd in
   issue) cmd_issue "$@";;
   merge) cmd_merge "$@";;
   release) cmd_release "$@";;
-  *) sed -n '2,14p' "$0";;
+  repoinfo) cmd_repoinfo "$@";;
+  mkrepo) cmd_mkrepo "$@";;
+  *) sed -n '2,16p' "$0";;
 esac
