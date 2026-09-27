@@ -15,7 +15,7 @@
 #   buildctl --addr tcp://127.0.0.1:1234 build \
 #     --frontend dockerfile.v0 \
 #     --local context=loops/images/lua-dev --local dockerfile=loops/images/lua-dev \
-#     --output type=image,name=zot.phillips-homelab.net/loop-dev:lua-1,push=true,oci-mediatypes=true
+#     --output type=image,name=zot.phillips-homelab.net/loop-dev:lua-<n>,push=true,oci-mediatypes=true
 # (buildctl v0.18.1 = the server's version: github.com/moby/buildkit/releases)
 FROM python:3.12-bookworm
 
@@ -35,6 +35,13 @@ RUN git clone -q https://github.com/imperial64/forever-addon-dev /opt/forever-ad
 RUN curl -fsSL https://claude.ai/install.sh | bash && \
     install -m 0755 /root/.local/bin/claude /usr/local/bin/claude && \
     rm -rf /root/.local
+
+# OpenAI Codex CLI: the harness's ENGINE=codex lane (review loops on the ChatGPT-sub budget).
+# lua-1 lacked it and every codex iteration died rc=127 in 5s (2026-09-27) — needs Node.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/* && \
+    npm install -g @openai/codex && codex --version
 
 # nats CLI (releases ship zips)
 RUN NATS_CLI_VERSION=0.4.0 && \

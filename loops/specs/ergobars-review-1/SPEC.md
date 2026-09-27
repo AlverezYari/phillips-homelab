@@ -1,7 +1,7 @@
 # SPEC — ergobars-review-1: hardening review (REVIEW ONLY)
 
 Repo: `loop-bot/ErgoBars`. Gate: `test -s /workspace/repo/REVIEW.md`.
-Engine: codex. You change NOTHING except creating `REVIEW.md`.
+Engine: claude. You change NOTHING except creating `REVIEW.md`.
 
 Read `CLAUDE.md` first: it lists the Forever client's hard rules, each learned from a bug that
 reached the game. The addon is `wow/ErgoBars/` (~10k lines of Lua, built in three days, so
