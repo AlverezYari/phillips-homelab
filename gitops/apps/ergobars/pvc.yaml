@@ -1,0 +1,16 @@
+# Site content (index.html + addon zips). Not in git: written by the publish
+# step through the uploader sidecar (see README). syno-iscsi-default to match
+# the other public apps; it's RWO, hence the Recreate strategy on the
+# Deployment.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ergobars-site
+  namespace: ergobars
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 1Gi

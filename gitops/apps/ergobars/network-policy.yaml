@@ -1,0 +1,32 @@
+# Lockdown: ingress only from the Cloudflare tunnel (cloudflared pods in the
+# cloudflare namespace) on the nginx port. Static site, so egress is DNS
+# only -- declaring an egress section puts the pod in default-deny egress.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ergobars-site
+  namespace: ergobars
+spec:
+  endpointSelector:
+    matchLabels:
+      app: ergobars-site
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflare
+            app: cloudflared
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

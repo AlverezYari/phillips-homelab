@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ergobars-site
+  namespace: ergobars
+  labels:
+    app: ergobars-site
+spec:
+  replicas: 1
+  # RWO volume: never run two pods against it.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ergobars-site
+  template:
+    metadata:
+      labels:
+        app: ergobars-site
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # uid/gid 101 = the nginx user in nginx-unprivileged; the uploader
+        # runs as the same ids so files it writes are readable by nginx.
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          env:
+            - name: NGINX_ENTRYPOINT_QUIET_LOGS
+              value: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: site
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+            # pid file and *_temp dirs live under /tmp in this image
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 10m
+            limits:
+              # worker_processes is auto (one per node CPU) and nginx.conf
+              # is on the read-only rootfs, so leave headroom.
+              memory: 128Mi
+              cpu: 200m
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+        # Idle target for `kubectl cp ... -c uploader` (publish step). The
+        # only writer of the site volume; nginx mounts it read-only.
+        - name: uploader
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - "trap 'exit 0' TERM INT; while :; do sleep 3600 & wait $!; done"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: site
+              mountPath: /srv/site
+            # kubectl cp's tar may want a writable scratch dir
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 8Mi
+              cpu: 5m
+            limits:
+              memory: 64Mi
+              cpu: 200m
+      volumes:
+        - name: site
+          persistentVolumeClaim:
+            claimName: ergobars-site
+        - name: nginx-conf
+          configMap:
+            name: ergobars-nginx
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
