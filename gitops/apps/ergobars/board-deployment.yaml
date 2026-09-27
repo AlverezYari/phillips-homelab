@@ -1,0 +1,96 @@
+# Feedback board (FastAPI + SQLite). Not exposed directly: the site nginx
+# proxies /board, /board/* and /api/* here (see configmap.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ergobars-board
+  namespace: ergobars
+  labels:
+    app: ergobars-board
+spec:
+  replicas: 1
+  # Single SQLite writer on an RWO volume: never run two pods.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ergobars-board
+  template:
+    metadata:
+      labels:
+        app: ergobars-board
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # uid 10001 = the "board" user baked into the image.
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: board
+          image: zot.phillips-homelab.net/ergobars:board-2414b81
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            # TYPESAFE_API_KEY, BOARD_ADMIN_TOKEN, TURNSTILE_SECRET
+            - secretRef:
+                name: ergobars-board
+          env:
+            - name: PORT
+              value: "8000"
+            - name: BOARD_DB
+              value: /data/board.db
+            # Client address = rightmost X-Forwarded-For entry, which the
+            # site nginx sets to CF-Connecting-IP (one hop, overwritten).
+            - name: BOARD_TRUST_PROXY
+              value: "1"
+            # Addon versions for the report form: scraped from the download
+            # page's ErgoBars-*.zip links (cached 10 min); falls back to
+            # [form].versions in board.toml if the site is unreachable.
+            - name: BOARD_SITE_URL
+              value: http://ergobars-site.ergobars.svc.cluster.local/
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 20m
+            limits:
+              memory: 256Mi
+              cpu: 500m
+          # /healthz runs a SELECT against the db, so it also covers the volume.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ergobars-board-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
