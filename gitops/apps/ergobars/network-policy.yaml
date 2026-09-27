@@ -1,6 +1,8 @@
-# Lockdown: ingress only from the Cloudflare tunnel (cloudflared pods in the
-# cloudflare namespace) on the nginx port. Static site, so egress is DNS
-# only -- declaring an egress section puts the pod in default-deny egress.
+# Lockdown: ingress from the Cloudflare tunnel (cloudflared pods in the
+# cloudflare namespace) on the nginx port, plus the board pod (it reads the
+# download page for the addon version list). Egress is DNS and the board
+# (nginx proxies /board and /api to it) -- declaring an egress section puts
+# the pod in default-deny egress.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -19,6 +21,14 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+    # ergobars-board scrapes index.html for ErgoBars-*.zip (BOARD_SITE_URL).
+    - fromEndpoints:
+        - matchLabels:
+            app: ergobars-board
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
   egress:
     - toEndpoints:
         - matchLabels:
@@ -29,4 +39,12 @@ spec:
             - port: "53"
               protocol: UDP
             - port: "53"
+              protocol: TCP
+    # /board, /board/* and /api/* are proxied to ergobars-board.
+    - toEndpoints:
+        - matchLabels:
+            app: ergobars-board
+      toPorts:
+        - ports:
+            - port: "8000"
               protocol: TCP

@@ -1,0 +1,56 @@
+# Board lockdown: ingress only from the site nginx (the only public path is
+# cloudflared -> nginx -> board). Egress: DNS, the site (version list), and
+# HTTPS to the two external hosts it calls, scoped by name the way
+# tychofleet scopes api.tailscale.com: the L7 DNS rule turns on Cilium's DNS
+# proxy for this endpoint only, which is what lets toFQDNs be enforced.
+# Kubelet probes need no rule (same as the site policy).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ergobars-board
+  namespace: ergobars
+spec:
+  endpointSelector:
+    matchLabels:
+      app: ergobars-board
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: ergobars-site
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # api.typesafe.ai: Jev triage/duplicate checks. Blocked = every report
+    # sits in "pending" and the retry loop backs off -- the site otherwise
+    # looks healthy, so check this rule first if nothing ever publishes.
+    # challenges.cloudflare.com: Turnstile siteverify (phase 2, unused yet).
+    - toFQDNs:
+        - matchName: "api.typesafe.ai"
+        - matchName: "challenges.cloudflare.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    # Download page for the addon version list (BOARD_SITE_URL).
+    - toEndpoints:
+        - matchLabels:
+            app: ergobars-site
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

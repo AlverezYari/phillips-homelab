@@ -17,6 +17,10 @@ spec:
     metadata:
       labels:
         app: ergobars-site
+      annotations:
+        # nginx does not reload when the mounted ConfigMap changes; bump this
+        # with every configmap.yaml edit so Argo rolls the pod.
+        ergobars.com/nginx-conf-rev: "2-board-proxy"
     spec:
       automountServiceAccountToken: false
       securityContext:

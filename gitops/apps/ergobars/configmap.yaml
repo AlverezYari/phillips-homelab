@@ -5,6 +5,15 @@ metadata:
   namespace: ergobars
 data:
   default.conf: |
+    # Real client address for the board. Only cloudflared can reach this pod
+    # (network-policy.yaml) and Cloudflare always overwrites CF-Connecting-IP,
+    # so it can be trusted; $remote_addr (the cloudflared pod) is the fallback.
+    # This file is included inside http {}, so map is legal here.
+    map $http_cf_connecting_ip $board_client_ip {
+        ""      $remote_addr;
+        default $http_cf_connecting_ip;
+    }
+
     server {
         listen 8080;
         server_name _;
@@ -32,8 +41,39 @@ data:
             add_header X-Content-Type-Options "nosniff" always;
         }
 
+        # Feedback board (ergobars-board, FastAPI): /board, /board/* (incl.
+        # /board/static) and /api/*. The board takes the client address from
+        # the rightmost X-Forwarded-For entry (BOARD_TRUST_PROXY=1), so XFF is
+        # overwritten with the single real address, never appended to.
+        location = /board {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+        }
+
+        location /board/ {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+        }
+
+        location /api/ {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+        }
+
         location / {
             try_files $uri $uri/ =404;
             add_header X-Content-Type-Options "nosniff" always;
         }
     }
+  # Not *.conf, so nginx's conf.d/*.conf glob doesn't load it at http level.
+  board-proxy.inc: |
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $board_client_ip;
+    proxy_set_header X-Real-IP $board_client_ip;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header Connection "";
+    # Submit waits on up to two Jev calls (8 s timeout each).
+    proxy_read_timeout 60s;
+    client_max_body_size 256k;

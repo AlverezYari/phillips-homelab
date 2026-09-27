@@ -1,0 +1,14 @@
+# Board database (SQLite, WAL) at /data/board.db. Same StorageClass as the
+# site PVC; RWO, hence the Recreate strategy on ergobars-board.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ergobars-board-data
+  namespace: ergobars
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 1Gi
