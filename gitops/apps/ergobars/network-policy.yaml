@@ -40,7 +40,7 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    # /board, /board/* and /api/* are proxied to ergobars-board.
+    # /board, /setups and /api are proxied to ergobars-board.
     - toEndpoints:
         - matchLabels:
             app: ergobars-board

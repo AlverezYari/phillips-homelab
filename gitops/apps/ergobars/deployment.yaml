@@ -20,7 +20,7 @@ spec:
       annotations:
         # nginx does not reload when the mounted ConfigMap changes; bump this
         # with every configmap.yaml edit so Argo rolls the pod.
-        ergobars.com/nginx-conf-rev: "2-board-proxy"
+        ergobars.com/nginx-conf-rev: "3-setups"
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -113,6 +113,7 @@ spec:
         - name: nginx-conf
           configMap:
             name: ergobars-nginx
+        # pid file, *_temp dirs, and buffered setup uploads (up to 24 MB each)
         - name: tmp
           emptyDir:
-            sizeLimit: 64Mi
+            sizeLimit: 256Mi

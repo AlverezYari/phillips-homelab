@@ -1,5 +1,6 @@
-# Feedback board (FastAPI + SQLite). Not exposed directly: the site nginx
-# proxies /board, /board/* and /api/* here (see configmap.yaml).
+# Feedback board (FastAPI + SQLite) and the "Share your setup" gallery. Not
+# exposed directly: the site nginx proxies /board, /setups and /api here
+# (see configmap.yaml).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: board
-          image: zot.phillips-homelab.net/ergobars:board-0e6b67a
+          image: zot.phillips-homelab.net/ergobars:board-1761626
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -51,6 +52,9 @@ spec:
               value: "8000"
             - name: BOARD_DB
               value: /data/board.db
+            # Setup screenshots (re-encoded WebP), on their own PVC.
+            - name: BOARD_MEDIA_DIR
+              value: /media
             # Client address = rightmost X-Forwarded-For entry, which the
             # site nginx sets to CF-Connecting-IP (one hop, overwritten).
             - name: BOARD_TRUST_PROXY
@@ -63,6 +67,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: media
+              mountPath: /media
             - name: tmp
               mountPath: /tmp
           resources:
@@ -70,7 +76,9 @@ spec:
               memory: 64Mi
               cpu: 20m
             limits:
-              memory: 256Mi
+              # Decoding a screenshot (up to 40 megapixels) and resizing it
+              # takes a few hundred MB for a moment.
+              memory: 768Mi
               cpu: 500m
           # /healthz runs a SELECT against the db, so it also covers the volume.
           livenessProbe:
@@ -91,6 +99,10 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: ergobars-board-data
+        - name: media
+          persistentVolumeClaim:
+            claimName: ergobars-board-media
+        # Uploads over 1 MB are spooled here while a setup is checked.
         - name: tmp
           emptyDir:
-            sizeLimit: 64Mi
+            sizeLimit: 256Mi

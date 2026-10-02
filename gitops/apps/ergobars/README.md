@@ -12,8 +12,10 @@ https://ergobars.com. Public, no login.
 - `uploader` (busybox, same uid) idles with the same PVC mounted read-write at
   `/srv/site`. It is the only writer and exists so publishing is a plain
   `kubectl cp`.
-- nginx proxies `/board`, `/board/*` (incl. `/board/static`) and `/api/*` to
-  the board (below). Everything else is the static site.
+- nginx proxies `/board`, `/board/*` (incl. `/board/static`), `/setups`,
+  `/setups/*` and `/api/*` to the board (below). Everything else is the
+  static site. Request bodies are capped at 256k, except `/setups/new`
+  (screenshot uploads, 24m).
 - Ingress is locked to the cloudflared pods (plus the board, for the version
   list); egress is DNS and the board.
 
@@ -37,6 +39,21 @@ triage (TypeSafe). Source and full docs: `cachyos-setup/ergodox/board/`.
   `challenges.cloudflare.com` only (toFQDNs, DNS proxy enabled for this pod
   alone, as in tychofleet).
 
+### Setups gallery ("Share your setup")
+
+`/setups/` is served by the same board pod: players share their in-game
+`!EB1!` setup string with 1-4 screenshots, everyone can browse, copy and
+upvote. Design: `cachyos-setup/ergodox/docs/design/share-your-setup.md`.
+
+- Screenshots (re-encoded WebP, metadata stripped) live on the
+  `ergobars-board-media` PVC (5Gi, RWO) at `/media` (`BOARD_MEDIA_DIR`);
+  the rows are in the board db.
+- Every setup is held until approved at `https://ergobars.com/setups/admin`
+  (sign in with the board admin link first; same cookie).
+- No new secrets: it uses `TURNSTILE_SECRET` and `BOARD_ADMIN_TOKEN`.
+- The board's memory limit is 768Mi and `/tmp` 256Mi for image decoding and
+  spooled uploads; the site nginx `/tmp` is 256Mi for buffered uploads.
+
 ### Secrets (1Password item `ergobars`)
 
 Synced by `board-external-secret.yaml` into Secret `ergobars-board`:
@@ -45,7 +62,7 @@ Synced by `board-external-secret.yaml` into Secret `ergobars-board`:
 |---------------------|---------------------|-------|
 | `typesafe-api-key`  | `TYPESAFE_API_KEY`  | Jev key. |
 | `board-admin-token` | `BOARD_ADMIN_TOKEN` | Maintainer token: a long random string (`openssl rand -hex 32`). **Add it before the first sync**, or the ExternalSecret errors and the pod waits on the missing Secret. |
-| `turnstile-secret`  | `TURNSTILE_SECRET`  | Not used yet (phase 2 captcha). |
+| `turnstile-secret`  | `TURNSTILE_SECRET`  | Cloudflare Turnstile (votes, comments, reports, setups). |
 
 `BOARD_SECRET` (hash/CSRF salt) is left unset: the app generates one and keeps
 it in the db. Env is read at start, so after changing a field:

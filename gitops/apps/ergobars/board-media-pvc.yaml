@@ -1,0 +1,16 @@
+# Setup screenshots for the "Share your setup" gallery (/setups): re-encoded
+# WebP files, mounted at /media (BOARD_MEDIA_DIR). Kept apart from the board
+# database so the db volume stays small and the screenshots can grow (or be
+# wiped) on their own. Same StorageClass and RWO as ergobars-board-data.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ergobars-board-media
+  namespace: ergobars
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 5Gi
