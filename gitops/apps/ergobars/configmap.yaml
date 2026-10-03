@@ -42,22 +42,48 @@ data:
         }
 
         # Feedback board (ergobars-board, FastAPI): /board, /board/* (incl.
-        # /board/static) and /api/*. The board takes the client address from
-        # the rightmost X-Forwarded-For entry (BOARD_TRUST_PROXY=1), so XFF is
-        # overwritten with the single real address, never appended to.
+        # /board/static), /setups, /setups/* (the "Share your setup"
+        # gallery and its screenshots) and /api/*. The board takes the client
+        # address from the rightmost X-Forwarded-For entry
+        # (BOARD_TRUST_PROXY=1), so XFF is overwritten with the single real
+        # address, never appended to.
         location = /board {
             proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
             include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 256k;
         }
 
         location /board/ {
             proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
             include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 256k;
+        }
+
+        location = /setups {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 256k;
+        }
+
+        location /setups/ {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 256k;
+        }
+
+        # The submit form carries up to 4 screenshots (5 MB each, checked
+        # again by the board: [setups].max_request_bytes = 23 MiB). nginx
+        # buffers the body in /tmp before passing it on.
+        location = /setups/new {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 24m;
         }
 
         location /api/ {
             proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
             include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 256k;
         }
 
         location / {
@@ -66,6 +92,8 @@ data:
         }
     }
   # Not *.conf, so nginx's conf.d/*.conf glob doesn't load it at http level.
+  # client_max_body_size is set per location (not here): /setups/new needs
+  # more than the rest, and nginx refuses the same directive twice.
   board-proxy.inc: |
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -76,4 +104,3 @@ data:
     proxy_set_header Connection "";
     # Submit waits on up to two Jev calls (8 s timeout each).
     proxy_read_timeout 60s;
-    client_max_body_size 256k;

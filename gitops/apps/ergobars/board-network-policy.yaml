@@ -1,4 +1,4 @@
-# Board lockdown: ingress only from the site nginx (the only public path is
+# Board lockdown (feedback board + setups gallery): ingress only from the site nginx (the only public path is
 # cloudflared -> nginx -> board). Egress: DNS, the site (version list), and
 # HTTPS to the two external hosts it calls, scoped by name the way
 # tychofleet scopes api.tailscale.com: the L7 DNS rule turns on Cilium's DNS
