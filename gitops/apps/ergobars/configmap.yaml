@@ -35,10 +35,26 @@ data:
         }
 
         location ~* \.zip$ {
+            # the homepage download counter: each request is copied to the
+            # board (board/app/downloads.py), which counts addon zips only
+            mirror /_dlcount;
+            mirror_request_body off;
             default_type application/zip;
             add_header Content-Disposition "attachment" always;
             add_header Cache-Control "no-cache" always;
             add_header X-Content-Type-Options "nosniff" always;
+        }
+
+        # The counter's copy of a zip request: internal only, so nobody can
+        # reach /internal/download-hit from outside. The board reads the
+        # original path from X-Download and the method/Range as sent.
+        location = /_dlcount {
+            internal;
+            rewrite ^ /internal/download-hit break;
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+            proxy_set_header X-Download $request_uri;
+            proxy_connect_timeout 2s;
         }
 
         # Feedback board (ergobars-board, FastAPI): /board, /board/* (incl.
