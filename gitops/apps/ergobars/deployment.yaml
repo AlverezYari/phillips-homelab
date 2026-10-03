@@ -20,7 +20,7 @@ spec:
       annotations:
         # nginx does not reload when the mounted ConfigMap changes; bump this
         # with every configmap.yaml edit so Argo rolls the pod.
-        ergobars.com/nginx-conf-rev: "3-setups"
+        ergobars.com/nginx-conf-rev: "4-dlcount"
     spec:
       automountServiceAccountToken: false
       securityContext:
