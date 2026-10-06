@@ -43,6 +43,8 @@ spec:
         - matchName: "api.typesafe.ai"
         - matchName: "challenges.cloudflare.com"
         - matchName: "discord.com"   # release posts and tallies (Discord's REST API)
+        - matchName: "cdn.discordapp.com"     # /bug and /idea screenshots
+        - matchName: "media.discordapp.net"
       toPorts:
         - ports:
             - port: "443"
