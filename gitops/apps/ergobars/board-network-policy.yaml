@@ -42,6 +42,7 @@ spec:
     - toFQDNs:
         - matchName: "api.typesafe.ai"
         - matchName: "challenges.cloudflare.com"
+        - matchName: "discord.com"   # release posts and tallies (Discord's REST API)
       toPorts:
         - ports:
             - port: "443"

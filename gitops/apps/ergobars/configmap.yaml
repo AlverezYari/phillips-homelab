@@ -102,6 +102,13 @@ data:
             client_max_body_size 256k;
         }
 
+        # Discord's button clicks and comment boxes (signed: the board checks the raw body)
+        location /discord/ {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 256k;
+        }
+
         location / {
             try_files $uri $uri/ =404;
             add_header X-Content-Type-Options "nosniff" always;
