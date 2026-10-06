@@ -1,0 +1,12 @@
+# Dagster's run/event/schedule storage. Wave 0 of iso-lab (see argocd/iso-lab-db.yml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: iso-lab
+resources:
+  - namespace.yaml
+  - externalsecret.yaml
+  - cluster.yaml
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: iso-lab

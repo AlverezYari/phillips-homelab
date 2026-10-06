@@ -1,0 +1,20 @@
+# iso-lab core: ClickHouse (serving store), secrets, network policy, tailnet
+# services. Dagster itself is the Helm chart in argocd/iso-lab-dagster.yml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: iso-lab
+resources:
+  - externalsecret.yaml
+  - clickhouse-statefulset.yaml
+  - clickhouse-service.yaml
+  - tailnet-services.yaml
+  - network-policy.yaml
+configMapGenerator:
+  - name: clickhouse-config
+    files:
+      - clickhouse/lake.xml
+      - clickhouse/users.xml
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: iso-lab

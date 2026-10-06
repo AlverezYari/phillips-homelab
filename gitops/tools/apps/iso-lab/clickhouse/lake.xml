@@ -1,0 +1,22 @@
+<!-- Cluster copy of deploy/local/clickhouse/lake.xml. Garage only accepts SigV4 signed for its own region ("garage"); ClickHouse
+     defaults to us-east-1 and gets HTTP 400. The per-endpoint <s3> section sets
+     the region, and the `lake` named collection keeps keys out of SQL:
+       SELECT * FROM s3(lake, filename = 'raw/miso/.../*.parquet') -->
+<clickhouse>
+    <s3>
+        <lake>
+            <endpoint from_env="LAKE_S3_ENDPOINT_FOR_CH"/>
+            <region>garage</region>
+            <access_key_id from_env="LAKE_ACCESS_KEY_ID"/>
+            <secret_access_key from_env="LAKE_SECRET_ACCESS_KEY"/>
+        </lake>
+    </s3>
+    <named_collections>
+        <lake>
+            <url from_env="LAKE_S3_ENDPOINT_FOR_CH"/>
+            <access_key_id from_env="LAKE_ACCESS_KEY_ID"/>
+            <secret_access_key from_env="LAKE_SECRET_ACCESS_KEY"/>
+            <format>Parquet</format>
+        </lake>
+    </named_collections>
+</clickhouse>
