@@ -1,0 +1,81 @@
+# Single-node ClickHouse. Rebuildable from the Parquet lake at any time, so
+# one replica on iSCSI is fine: losing the PVC costs a reload, not data.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clickhouse
+  labels:
+    app.kubernetes.io/name: clickhouse
+spec:
+  serviceName: clickhouse
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clickhouse
+    spec:
+      securityContext:
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: clickhouse
+          image: clickhouse/clickhouse-server:26.9
+          env:
+            - name: CLICKHOUSE_SKIP_USER_SETUP
+              value: "1"
+            - name: LAKE_S3_ENDPOINT_FOR_CH
+              value: http://garage.garage.svc:3900/iso-market-data/
+          envFrom:
+            - secretRef:
+                name: iso-lab-env
+          ports:
+            - {name: http, containerPort: 8123}
+            - {name: native, containerPort: 9000}
+          startupProbe:
+            httpGet: {path: /ping, port: http}
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /ping, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /ping, port: http}
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/clickhouse}
+            - {name: logs, mountPath: /var/log/clickhouse-server}
+            - {name: config, mountPath: /etc/clickhouse-server/config.d/lake.xml, subPath: lake.xml}
+            - {name: config, mountPath: /etc/clickhouse-server/users.d/users.xml, subPath: users.xml}
+      volumes:
+        - name: logs
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: clickhouse-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: syno-iscsi-default
+        resources:
+          requests:
+            storage: 50Gi

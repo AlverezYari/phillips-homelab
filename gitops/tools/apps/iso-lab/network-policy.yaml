@@ -1,0 +1,92 @@
+# Ingest (Dagster code server, where runs execute under DefaultRunLauncher):
+# the only pod that talks to the internet, and only to MISO hosts.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: iso-lab-ingest
+spec:
+  endpointSelector:
+    matchLabels:
+      iso-lab/role: ingest
+  ingress:
+    # webserver + daemon reach the gRPC code server
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+      toPorts:
+        - ports: [{port: "4000", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+          # DNS visibility for this endpoint only, so toFQDNs below can match.
+          rules:
+            dns:
+              - matchPattern: "*"
+    # public-api (tier 1 JSON), docs (report files), apim (Data Exchange,
+    # tier 2), www (report index search).
+    - toFQDNs:
+        - matchName: public-api.misoenergy.org
+        - matchName: docs.misoenergy.org
+        - matchName: apim.misoenergy.org
+        - matchName: www.misoenergy.org
+      toPorts:
+        - ports: [{port: "443", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: garage
+            app.kubernetes.io/name: garage
+      toPorts:
+        - ports: [{port: "3900", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: clickhouse
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]
+    # run/event storage: runs execute in this pod and write events directly
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: iso-lab-pg
+      toPorts:
+        - ports: [{port: "5432", protocol: TCP}]
+---
+# ClickHouse: no internet. Reads the lake on Garage; serves the namespace
+# (pipeline, MCP server) and the tailnet proxy.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: iso-lab-clickhouse
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: tailscale
+      toPorts:
+        - ports:
+            - {port: "8123", protocol: TCP}
+            - {port: "9000", protocol: TCP}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: garage
+            app.kubernetes.io/name: garage
+      toPorts:
+        - ports: [{port: "3900", protocol: TCP}]

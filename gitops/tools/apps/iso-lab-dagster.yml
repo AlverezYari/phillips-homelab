@@ -1,0 +1,105 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: iso-lab-dagster
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Needs iso-lab-pg (wave 0) and iso-lab-env + ClickHouse (wave 1).
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: iso-lab
+  project: default
+  source:
+    repoURL: https://dagster-io.github.io/helm
+    chart: dagster
+    # Keep in step with the dagster version pinned in iso-market-data-lab's uv.lock.
+    targetRevision: "1.13.25"
+    helm:
+      releaseName: dagster
+      values: |-
+        global:
+          postgresqlSecretName: iso-lab-pg
+        generatePostgresqlPasswordSecret: false
+        postgresql:
+          enabled: false
+          postgresqlHost: iso-lab-pg-rw
+          postgresqlUsername: dagster
+          postgresqlDatabase: dagster
+          service:
+            port: 5432
+
+        # Runs execute in the code-server pod (DefaultRunLauncher) instead of
+        # a Job per run: the feeds are small HTTP pulls every few minutes, and
+        # a pod per run would be ~60 pod starts an hour for no isolation we need.
+        runLauncher:
+          type: CustomRunLauncher
+          config:
+            customRunLauncher:
+              module: dagster._core.launcher
+              class: DefaultRunLauncher
+              config: {}
+
+        dagsterWebserver:
+          replicaCount: 1
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 1Gi}
+
+        dagsterDaemon:
+          enabled: true
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 1Gi}
+          runRetries:
+            enabled: true
+            maxRetries: 1
+          runCoordinator:
+            enabled: true
+            type: QueuedRunCoordinator
+            config:
+              queuedRunCoordinator:
+                maxConcurrentRuns: 10
+                tagConcurrencyLimits:
+                  - key: iso-lab/poll
+                    limit: 1
+
+        dagster-user-deployments:
+          enabled: true
+          enableSubchart: true
+          deployments:
+            - name: iso-lab
+              image:
+                repository: zot.phillips-homelab.net/iso-lab
+                tag: "8c6805a"   # bump to deploy a new build
+                pullPolicy: IfNotPresent
+              dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
+              port: 4000
+              envSecrets:
+                - name: iso-lab-env
+              env:
+                - {name: LAKE_S3_ENDPOINT, value: "http://garage.garage.svc:3900"}
+                - {name: LAKE_BUCKET, value: iso-market-data}
+                - {name: CLICKHOUSE_HOST, value: clickhouse}
+                - {name: CLICKHOUSE_USER, value: iso}
+              resources:
+                requests: {cpu: 100m, memory: 512Mi}
+                limits: {memory: 2Gi}
+              podSecurityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                seccompProfile: {type: RuntimeDefault}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities: {drop: ["ALL"]}
+              labels:
+                iso-lab/role: ingest
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

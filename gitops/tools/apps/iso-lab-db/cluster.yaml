@@ -1,0 +1,26 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: iso-lab-pg
+spec:
+  instances: 1
+
+  # Dagster metadata only (runs, events, schedules): small. Market data
+  # lives in Garage/ClickHouse, and losing this loses run history, not data.
+  storage:
+    storageClass: syno-iscsi-default
+    size: 10Gi
+
+  bootstrap:
+    initdb:
+      database: dagster
+      owner: dagster
+      secret:
+        name: iso-lab-pg
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
