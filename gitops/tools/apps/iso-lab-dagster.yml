@@ -52,12 +52,48 @@ spec:
           resources:
             requests: {cpu: 50m, memory: 256Mi}
             limits: {memory: 1Gi}
+          # Chart image runs as root by default; verified non-root + read-only root with
+          # only /tmp writable (webserver serves UI/GraphQL, daemon ticks automation).
+          # Init containers (check-db-ready, init-user-deployment) inherit securityContext.
+          podSecurityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile: {type: RuntimeDefault}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumes:
+            - name: tmp
+              emptyDir: {sizeLimit: 256Mi}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
 
         dagsterDaemon:
           enabled: true
           resources:
             requests: {cpu: 50m, memory: 256Mi}
             limits: {memory: 1Gi}
+          # Chart image runs as root by default; verified non-root + read-only root with
+          # only /tmp writable (webserver serves UI/GraphQL, daemon ticks automation).
+          # Init containers (check-db-ready, init-user-deployment) inherit securityContext.
+          podSecurityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile: {type: RuntimeDefault}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumes:
+            - name: tmp
+              emptyDir: {sizeLimit: 256Mi}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           runRetries:
             enabled: true
             maxRetries: 1

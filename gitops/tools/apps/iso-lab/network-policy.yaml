@@ -96,3 +96,69 @@ spec:
             app.kubernetes.io/name: garage
       toPorts:
         - ports: [{port: "3900", protocol: TCP}]
+---
+# Dagster webserver: served by the shared gateway (reserved:ingress); talks to its
+# Postgres and the code server's gRPC port. No internet.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: iso-lab-dagster-webserver
+spec:
+  endpointSelector:
+    matchLabels:
+      component: dagster-webserver
+  ingress:
+    - fromEntities: [ingress]
+      toPorts:
+        - ports: [{port: "80", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: iso-lab-pg
+      toPorts:
+        - ports: [{port: "5432", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            iso-lab/role: ingest
+      toPorts:
+        - ports: [{port: "4000", protocol: TCP}]
+---
+# Dagster daemon: no ingress; same egress as the webserver (Postgres, code server).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: iso-lab-dagster-daemon
+spec:
+  endpointSelector:
+    matchLabels:
+      component: dagster-daemon
+  # Cilium default-deny form: an empty rule enables ingress enforcement and allows nothing.
+  ingress:
+    - {}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: iso-lab-pg
+      toPorts:
+        - ports: [{port: "5432", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            iso-lab/role: ingest
+      toPorts:
+        - ports: [{port: "4000", protocol: TCP}]
