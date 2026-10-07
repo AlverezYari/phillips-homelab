@@ -1,0 +1,1650 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-iso-lab-pipeline
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "true"
+data:
+  iso-lab-pipeline.json: |
+    {
+      "uid": "iso-lab-pipeline",
+      "title": "ISO Lab: pipeline health",
+      "description": "Is the iso-lab pipeline healthy, and is MISO publishing? Feed lag, polls, quarantined rows, report coverage, table sizes, cluster resources.",
+      "tags": [
+        "iso-lab"
+      ],
+      "timezone": "utc",
+      "editable": true,
+      "graphTooltip": 1,
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {
+        "refresh_intervals": [
+          "1m",
+          "5m",
+          "15m",
+          "1h"
+        ]
+      },
+      "fiscalYearStartMonth": 0,
+      "liveNow": false,
+      "annotations": {
+        "list": []
+      },
+      "templating": {
+        "list": []
+      },
+      "links": [
+        {
+          "title": "Dagster",
+          "type": "link",
+          "url": "https://dagster.phillips-homelab.net",
+          "targetBlank": true,
+          "icon": "external link"
+        },
+        {
+          "title": "iso-lab dashboards",
+          "type": "dashboards",
+          "tags": [
+            "iso-lab"
+          ],
+          "asDropdown": true,
+          "includeVars": false,
+          "keepTime": true
+        }
+      ],
+      "panels": [
+        {
+          "type": "row",
+          "id": 1,
+          "title": "Is MISO publishing? Real-time feeds (5-min polls)",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "type": "table",
+          "id": 2,
+          "title": "Real-time feeds: lag now",
+          "description": "Per real-time mart: newest UTC interval start and how far it trails now (interval_lag_min), and when the last poll landed rows (since_last_load_min). Freshness check `data_freshness` fails at 20 min for lmp, hub_lmp, load, fuel_mix, interchange (yellow at 12 = the asset freshness warn window). An upstream stall (quirk #18) shows here as lmp/hub_lmp/constraints interval lag climbing while load/fuel_mix stay a few minutes; a stopped poller shows as since_last_load_min climbing for every feed. constraints: no rows when nothing binds (quirk #4), so its lag can be high legitimately. load_forecast uses snapshot_utc (forecast vintage); load_cleared holds future hours, so only its load time is shown. Marts, minutes. See docs/miso-quirks.md.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "-- grafana-check: snapshot\nSELECT feed, newest_interval_utc,\n       if(feed = 'load_cleared', NULL, dateDiff('second', newest_interval_utc, now()) / 60) AS interval_lag_min,\n       last_loaded_utc, dateDiff('second', last_loaded_utc, now()) / 60 AS since_last_load_min\nFROM (\n  SELECT 'lmp' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.lmp\n  UNION ALL SELECT 'hub_lmp' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.hub_lmp\n  UNION ALL SELECT 'load' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.load\n  UNION ALL SELECT 'load_cleared' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.load_cleared\n  UNION ALL SELECT 'load_forecast' AS feed, max(snapshot_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.load_forecast\n  UNION ALL SELECT 'fuel_mix' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.fuel_mix\n  UNION ALL SELECT 'interchange' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.interchange\n  UNION ALL SELECT 'constraints' AS feed, max(interval_start_utc) AS newest_interval_utc, max(_loaded_at) AS last_loaded_utc FROM iso.constraints\n)\nORDER BY interval_lag_min DESC"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 1,
+            "w": 12,
+            "h": 9
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto"
+              },
+              "decimals": 1
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "interval_lag_min"
+                },
+                "properties": [
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "value": null,
+                          "color": "green"
+                        },
+                        {
+                          "value": 12,
+                          "color": "yellow"
+                        },
+                        {
+                          "value": 20,
+                          "color": "red"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
+                    }
+                  },
+                  {
+                    "id": "unit",
+                    "value": "m"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "since_last_load_min"
+                },
+                "properties": [
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "value": null,
+                          "color": "green"
+                        },
+                        {
+                          "value": 12,
+                          "color": "yellow"
+                        },
+                        {
+                          "value": 20,
+                          "color": "red"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
+                    }
+                  },
+                  {
+                    "id": "unit",
+                    "value": "m"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 3,
+          "title": "Interval lag at each poll (min)",
+          "description": "At every poll: poll time minus the newest UTC interval start each feed has landed so far (staging, max per bucket). Healthy: lmp/hub_lmp ~2-7 min, load/fuel_mix ~7 min, interchange ~12 min. Quirk #18 (MISO LMP/constraint API stall, 2026-10-07): lmp and hub_lmp climb by 5 min per poll while load and fuel_mix stay flat. Red line = 20 min data_freshness limit. Staging tables, minutes. See docs/miso-quirks.md.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "timeseries",
+              "format": 0,
+              "rawSql": "WITH\n  feeds AS (\n    SELECT 'lmp' AS feed, _loaded_at, max(interval_start_utc) AS newest FROM iso.stg_miso__rt_lmp_5min WHERE _loaded_at >= $__fromTime - INTERVAL 1 DAY AND _loaded_at <= $__toTime GROUP BY _loaded_at\n    UNION ALL SELECT 'hub_lmp' AS feed, _loaded_at, max(interval_start_utc) AS newest FROM iso.stg_miso__hub_lmp_5min WHERE _loaded_at >= $__fromTime - INTERVAL 1 DAY AND _loaded_at <= $__toTime GROUP BY _loaded_at\n    UNION ALL SELECT 'load' AS feed, _loaded_at, max(interval_start_utc) AS newest FROM iso.stg_miso__load_actual_5min WHERE _loaded_at >= $__fromTime - INTERVAL 1 DAY AND _loaded_at <= $__toTime GROUP BY _loaded_at\n    UNION ALL SELECT 'fuel_mix' AS feed, _loaded_at, max(interval_start_utc) AS newest FROM iso.stg_miso__fuel_mix WHERE _loaded_at >= $__fromTime - INTERVAL 1 DAY AND _loaded_at <= $__toTime GROUP BY _loaded_at\n    UNION ALL SELECT 'interchange' AS feed, _loaded_at, max(interval_start_utc) AS newest FROM iso.stg_miso__interchange_nsi_5min WHERE _loaded_at >= $__fromTime - INTERVAL 1 DAY AND _loaded_at <= $__toTime GROUP BY _loaded_at\n  ),\n  -- newest interval landed so far, per feed, as of each of its loads\n  cum AS (SELECT feed, _loaded_at, max(newest) OVER (PARTITION BY feed ORDER BY _loaded_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS newest FROM feeds),\n  -- the poll clock: every load of any feed (a stalled feed lands nothing, the others still do)\n  polls AS (SELECT DISTINCT _loaded_at AS t FROM feeds WHERE $__timeFilter(_loaded_at)),\n  grid AS (SELECT t, feed FROM polls CROSS JOIN (SELECT DISTINCT feed FROM feeds) AS f)\nSELECT $__timeInterval(g.t) AS time, g.feed AS feed,\n       max(if(toYear(c._loaded_at) < 2000, NULL, dateDiff('second', c.newest, g.t) / 60)) AS lag_min\nFROM grid AS g ASOF LEFT JOIN cum AS c ON g.feed = c.feed AND g.t >= c._loaded_at\nGROUP BY time, feed\nORDER BY time"
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 1,
+            "w": 12,
+            "h": 9
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "m",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "transparent"
+                  },
+                  {
+                    "value": 20,
+                    "color": "red"
+                  }
+                ]
+              },
+              "min": 0,
+              "displayName": "${__field.labels.feed}"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 4,
+          "title": "Rows landed in staging, real-time feeds",
+          "description": "Rows each real-time staging table received, summed per time bucket (one poll every 5 min, so at <=5 min buckets this is rows per poll). rt_lmp_5min ~2,628 rows per new interval (all CPnodes); load/interchange re-send the whole day each poll, so they grow through the day. A feed dropping to nothing while others continue = upstream stall (quirk #18) or a dropped table. Staging (stg_miso__*), rows, log scale.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "timeseries",
+              "format": 0,
+              "rawSql": "SELECT $__timeInterval(_loaded_at) AS time, model, sum(n) AS rows FROM (\n  SELECT 'rt_lmp_5min' AS model, _loaded_at, count() AS n FROM iso.stg_miso__rt_lmp_5min WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'hub_lmp_5min' AS model, _loaded_at, count() AS n FROM iso.stg_miso__hub_lmp_5min WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'load_actual_5min' AS model, _loaded_at, count() AS n FROM iso.stg_miso__load_actual_5min WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'load_cleared_hourly' AS model, _loaded_at, count() AS n FROM iso.stg_miso__load_cleared_hourly WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'load_forecast_hourly' AS model, _loaded_at, count() AS n FROM iso.stg_miso__load_forecast_hourly WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'fuel_mix' AS model, _loaded_at, count() AS n FROM iso.stg_miso__fuel_mix WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'interchange_nsi_5min' AS model, _loaded_at, count() AS n FROM iso.stg_miso__interchange_nsi_5min WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n  UNION ALL SELECT 'binding_constraints' AS model, _loaded_at, count() AS n FROM iso.stg_miso__binding_constraints WHERE $__timeFilter(_loaded_at) GROUP BY _loaded_at\n)\nGROUP BY time, model\nORDER BY time"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 10,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "scaleDistribution": {
+                  "type": "log",
+                  "log": 10
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "displayName": "${__field.labels.model}"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 5,
+          "title": "Polls that landed rows",
+          "description": "Distinct load times (_loaded_at) per bucket. Expected: one poll per 5 min (bucket width / 5 min). 'any feed' falling = the poller stopped (Dagster, code server, MISO down: check the Dagster UI and ntfy); 'polls with new LMP' falling alone = MISO stall (quirk #18). Staging, polls per bucket.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "timeseries",
+              "format": 0,
+              "rawSql": "SELECT $__timeInterval(_loaded_at) AS time,\n       uniqExact(_loaded_at) AS `polls landing rows (any feed)`,\n       uniqExactIf(_loaded_at, src = 'rt_lmp') AS `polls with new LMP`\nFROM (\n  SELECT 'fuel_mix' AS src, _loaded_at FROM iso.stg_miso__fuel_mix WHERE $__timeFilter(_loaded_at)\n  UNION ALL SELECT 'load', _loaded_at FROM iso.stg_miso__load_actual_5min WHERE $__timeFilter(_loaded_at)\n  UNION ALL SELECT 'rt_lmp', _loaded_at FROM iso.stg_miso__rt_lmp_5min WHERE $__timeFilter(_loaded_at)\n)\nGROUP BY time\nORDER BY time"
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 10,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "row",
+          "id": 6,
+          "title": "Quarantined rows (iso.miso_rejects)",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 18,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "type": "stat",
+          "id": 7,
+          "title": "Quarantined rows in window",
+          "description": "Staging rows with unparseable values (_parse_errors > 0) loaded in the time window. They are kept out of the marts, listed in iso.miso_rejects and alerted to ntfy by the quarantined_rows check; they don't fail the feed (CLAUDE.md rule 3). Rows.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "SELECT count() AS rows FROM iso.miso_rejects WHERE $__timeFilter(_loaded_at)"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 19,
+            "w": 4,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "orange"
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 8,
+          "title": "Quarantined rows by model",
+          "description": "iso.miso_rejects rows per time bucket by staging model, by load time (_loaded_at). Empty is healthy. Rows.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "timeseries",
+              "format": 0,
+              "rawSql": "-- grafana-check: allow-empty (no rejects is the normal state)\nSELECT $__timeInterval(_loaded_at) AS time, model, count() AS rows\nFROM iso.miso_rejects\nWHERE $__timeFilter(_loaded_at)\nGROUP BY time, model\nORDER BY time"
+            }
+          ],
+          "gridPos": {
+            "x": 4,
+            "y": 19,
+            "w": 10,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0,
+              "displayName": "${__field.labels.model}"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "table",
+          "id": 9,
+          "title": "Recent rejects",
+          "description": "Newest 200 quarantined rows in the window: model, entity (node / hub / category / constraint), UTC interval start, number of unparseable fields. The raw strings are in the lake; fix the parser in dbt staging, then `reprocess` (CLAUDE.md rules 1-4). Never edit ClickHouse rows.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "-- grafana-check: allow-empty (no rejects is the normal state)\nSELECT _loaded_at AS loaded_utc, model, entity, interval_start_utc, _parse_errors AS bad_fields\nFROM iso.miso_rejects\nWHERE $__timeFilter(_loaded_at)\nORDER BY _loaded_at DESC\nLIMIT 200"
+            }
+          ],
+          "gridPos": {
+            "x": 14,
+            "y": 19,
+            "w": 10,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "type": "row",
+          "id": 10,
+          "title": "Daily reports and history (since 2026-07-01)",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 27,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "type": "table",
+          "id": 11,
+          "title": "Daily report marts: coverage since 2026-07-01",
+          "description": "Per daily-report mart, market dates (EST, UTC-5 no DST; quirk #3/#11: keyed by the in-file date) present since 2026-07-01: count, newest, days behind today (EST), dates missing between 2026-07-01 and the newest (gaps a back-fill must fill), and dates with fewer than 24 hours. Normal: DA and RT prelim reports land at D+1, so days_behind 1-2 is expected. days_under_24h is expected for rt_binding_constraints (hours with nothing binding); for the LMP marts it means a partial file. Marts, days.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "-- grafana-check: snapshot\nWITH toDate('2026-07-01') AS since, toDate(now() - INTERVAL 5 HOUR) AS today_est\nSELECT mart,\n       count() AS days_present,\n       max(d) AS newest_market_date,\n       dateDiff('day', max(d), today_est) AS days_behind,\n       arrayStringConcat(arrayMap(x -> toString(x), arrayFilter(x -> NOT has(groupArray(d), x), arrayMap(i -> since + i, range(toUInt32(dateDiff('day', since, max(d)) + 1))))), ', ') AS missing_days,\n       arrayStringConcat(arrayMap(x -> toString(x), arraySort(arrayFilter((x, h) -> h < 24, groupArray(d), groupArray(hours)))), ', ') AS days_under_24h\nFROM (\n  SELECT 'da_lmp_hourly' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.da_lmp_hourly WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'rt_lmp_hourly' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.rt_lmp_hourly WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'da_binding_constraints' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.da_binding_constraints WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'rt_binding_constraints' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.rt_binding_constraints WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n)\nGROUP BY mart\nORDER BY mart"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 28,
+            "w": 24,
+            "h": 6
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto",
+                  "wrapText": true
+                }
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "days_behind"
+                },
+                "properties": [
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "value": null,
+                          "color": "green"
+                        },
+                        {
+                          "value": 3,
+                          "color": "yellow"
+                        },
+                        {
+                          "value": 5,
+                          "color": "red"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
+                    }
+                  },
+                  {
+                    "id": "unit",
+                    "value": "none"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "mart"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 200
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "missing_days"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 260
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 12,
+          "title": "Rows per market date, daily marts (last 30 days)",
+          "description": "Rows per market date (EST day, plotted at its 05:00 UTC start) for each daily-report mart. A missing bar is a missing report; a short bar a partial one. LMP marts ~63k node-hours per day. Fixed 30-day window. Marts, rows, log scale.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "timeseries",
+              "format": 0,
+              "rawSql": "SELECT toStartOfDay(interval_start_utc - INTERVAL 5 HOUR) + INTERVAL 5 HOUR AS time, mart, count() AS rows FROM (\n  SELECT 'da_lmp_hourly' AS mart, interval_start_utc FROM iso.da_lmp_hourly WHERE $__timeFilter(interval_start_utc)\n  UNION ALL SELECT 'rt_lmp_hourly' AS mart, interval_start_utc FROM iso.rt_lmp_hourly WHERE $__timeFilter(interval_start_utc)\n  UNION ALL SELECT 'da_binding_constraints' AS mart, interval_start_utc FROM iso.da_binding_constraints WHERE $__timeFilter(interval_start_utc)\n  UNION ALL SELECT 'rt_binding_constraints' AS mart, interval_start_utc FROM iso.rt_binding_constraints WHERE $__timeFilter(interval_start_utc)\n)\nGROUP BY time, mart\nORDER BY time"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 34,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "scaleDistribution": {
+                  "type": "log",
+                  "log": 10
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "displayName": "${__field.labels.mart}"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "timeFrom": "30d",
+          "interval": "1d"
+        },
+        {
+          "type": "table",
+          "id": 13,
+          "title": "RT hourly LMP: final vs prelim",
+          "description": "iso.rt_lmp_hourly by settlement since 2026-07-01: final replaces prelim (quirk #15: prelim at D+1, final ~5 days later). A prelim day older than ~7 days means the final file never landed. Mart, market dates (EST).",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "-- grafana-check: snapshot\nSELECT settlement, uniqExact(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS market_days, min(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS first_day, max(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS newest_day, count() AS node_hours\nFROM iso.rt_lmp_hourly\nWHERE interval_start_utc >= toDateTime('2026-07-01 05:00:00', 'UTC')\nGROUP BY settlement\nORDER BY settlement"
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 34,
+            "w": 6,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "type": "table",
+          "id": 14,
+          "title": "FTR auctions loaded",
+          "description": "Monthly FTR auctions present per FTR mart (all three should list the same auctions). No time column: auctions are monthly, keyed by name. Marts, auctions / rows.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "-- grafana-check: snapshot\nSELECT mart, count() AS auctions, arrayStringConcat(arraySort(groupArray(auction)), ', ') AS auction_list, sum(n) AS rows FROM (\n  SELECT 'ftr_market_results' AS mart, auction, count() AS n FROM iso.ftr_market_results GROUP BY auction\n  UNION ALL SELECT 'ftr_source_sink_shadow_prices' AS mart, auction, count() AS n FROM iso.ftr_source_sink_shadow_prices GROUP BY auction\n  UNION ALL SELECT 'ftr_binding_constraints' AS mart, auction, count() AS n FROM iso.ftr_binding_constraints GROUP BY auction\n)\nGROUP BY mart\nORDER BY mart"
+            }
+          ],
+          "gridPos": {
+            "x": 18,
+            "y": 34,
+            "w": 6,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "cellOptions": {
+                  "type": "auto",
+                  "wrapText": true
+                }
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
+            }
+          }
+        },
+        {
+          "type": "row",
+          "id": 15,
+          "title": "ClickHouse tables (database iso)",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 42,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "type": "table",
+          "id": 16,
+          "title": "Table rows and size",
+          "description": "Every table in database iso from system.tables (visible to iso_ro for the tables it may read): layer, rows, compressed bytes on disk. Staging and marts should track each other (mart <= staging when sources re-send snapshots). Views (miso_rejects) have no size. Rows, bytes.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "queryType": "table",
+              "format": 1,
+              "rawSql": "-- grafana-check: snapshot\nSELECT name AS table, multiIf(engine = 'View', 'view', startsWith(name, 'stg_'), 'staging', 'mart') AS layer,\n       total_rows AS rows, total_bytes AS bytes_on_disk\nFROM system.tables\nWHERE database = 'iso'\nORDER BY layer, table"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 43,
+            "w": 24,
+            "h": 10
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "bytes_on_disk"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm",
+            "footer": {
+              "show": true,
+              "reducer": [
+                "sum"
+              ],
+              "fields": [
+                "rows",
+                "bytes_on_disk"
+              ]
+            }
+          }
+        },
+        {
+          "type": "row",
+          "id": 17,
+          "title": "Cluster: iso-lab namespace (VictoriaMetrics)",
+          "collapsed": false,
+          "panels": [],
+          "gridPos": {
+            "x": 0,
+            "y": 53,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 18,
+          "title": "Memory working set, % of limit",
+          "description": "cAdvisor container_memory_working_set_bytes / kube-state-metrics memory limit, per container. ClickHouse caps itself at 90% of its 8Gi limit and fails queries with Code 241 there (it did during the first history build), which is NOT a kernel OOM kill: watch this line, not the OOM counter. Lines at 80% / 90%. Percent of limit.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (pod, container) (container_memory_working_set_bytes{namespace=\"iso-lab\", container!=\"\", container!=\"POD\"})\n/ on (pod, container)\nmax by (pod, container) (kube_pod_container_resource_limits{namespace=\"iso-lab\", resource=\"memory\"})",
+              "legendFormat": "{{container}} ({{pod}})",
+              "range": true
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 54,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "transparent"
+                  },
+                  {
+                    "value": 0.8,
+                    "color": "orange"
+                  },
+                  {
+                    "value": 0.9,
+                    "color": "red"
+                  }
+                ]
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 19,
+          "title": "ClickHouse and code server memory vs limit",
+          "description": "Working set of ClickHouse (limit 8Gi) and the Dagster code server (every run executes there: dlt, dbt, checks; limit 2Gi), with their limits dashed. Bytes.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (container) (container_memory_working_set_bytes{namespace=\"iso-lab\", container=~\"clickhouse|dagster-user-deployments\"})",
+              "legendFormat": "{{container}}",
+              "range": true
+            },
+            {
+              "refId": "B",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (container) (kube_pod_container_resource_limits{namespace=\"iso-lab\", resource=\"memory\", container=~\"clickhouse|dagster-user-deployments\"})",
+              "legendFormat": "{{container}} limit",
+              "range": true
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 54,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* limit"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineStyle",
+                    "value": {
+                      "fill": "dash",
+                      "dash": [
+                        10,
+                        10
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 20,
+          "title": "CPU by workload vs request",
+          "description": "rate(container_cpu_usage_seconds_total) per workload (pod name without the ReplicaSet / ordinal suffix), CPU requests dashed. No iso-lab container has a CPU limit, so there is no throttling ceiling; dbt builds are CPU-bound on the code server. Cores.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (workload) (label_replace(rate(container_cpu_usage_seconds_total{namespace=\"iso-lab\", container!=\"\", container!=\"POD\"}[$__rate_interval]), \"workload\", \"$1\", \"pod\", \"(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)\"))",
+              "legendFormat": "{{workload}}",
+              "range": true
+            },
+            {
+              "refId": "B",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (workload) (label_replace(kube_pod_container_resource_requests{namespace=\"iso-lab\", resource=\"cpu\"}, \"workload\", \"$1\", \"pod\", \"(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)\"))",
+              "legendFormat": "{{workload}} request",
+              "range": true
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 62,
+            "w": 12,
+            "h": 8
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".* request"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineStyle",
+                    "value": {
+                      "fill": "dash",
+                      "dash": [
+                        10,
+                        10
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "stat",
+          "id": 21,
+          "title": "Container restarts in window",
+          "description": "sum(increase(kube_pod_container_status_restarts_total)) over the dashboard range, all iso-lab containers. Count.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"iso-lab\"}[$__range])) or vector(0)",
+              "legendFormat": "restarts",
+              "range": false,
+              "instant": true
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 62,
+            "w": 4,
+            "h": 4
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "orange"
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          }
+        },
+        {
+          "type": "stat",
+          "id": 22,
+          "title": "OOM kills in window",
+          "description": "Kernel OOM kills (cAdvisor container_oom_events_total) over the range. ClickHouse's own memory cap (Code 241) does not count here; see the % of limit panel. Count.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(increase(container_oom_events_total{namespace=\"iso-lab\"}[$__range])) or vector(0)",
+              "legendFormat": "oom kills",
+              "range": false,
+              "instant": true
+            }
+          ],
+          "gridPos": {
+            "x": 16,
+            "y": 62,
+            "w": 4,
+            "h": 4
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "red"
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          }
+        },
+        {
+          "type": "stat",
+          "id": 23,
+          "title": "Containers not ready",
+          "description": "Containers in Running pods whose readiness is false (kube-state-metrics), now. Completed job pods are excluded. Count.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "count((kube_pod_container_status_ready{namespace=\"iso-lab\"} == 0) * on (namespace, pod) group_left() (kube_pod_status_phase{namespace=\"iso-lab\", phase=\"Running\"} == 1)) or vector(0)",
+              "legendFormat": "not ready",
+              "range": false,
+              "instant": true
+            }
+          ],
+          "gridPos": {
+            "x": 20,
+            "y": 62,
+            "w": 4,
+            "h": 4
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 1,
+                    "color": "red"
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "value"
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 24,
+          "title": "Restarts by workload",
+          "description": "increase(kube_pod_container_status_restarts_total) per workload per step. Crash loops show as repeated bars. Count.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (workload) (label_replace(increase(kube_pod_container_status_restarts_total{namespace=\"iso-lab\"}[$__rate_interval]), \"workload\", \"$1\", \"pod\", \"(.+?)(-[a-z0-9]{6,10}-[a-z0-9]{5}|-[0-9]+)\")) > 0",
+              "legendFormat": "{{workload}}",
+              "range": true
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 66,
+            "w": 12,
+            "h": 4
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 25,
+          "title": "PVC usage",
+          "description": "kubelet_volume_stats_used_bytes / capacity per PVC: data-clickhouse-0 (50Gi iSCSI; rebuildable from the lake) and iso-lab-pg-1 (Dagster run storage). Percent.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=\"iso-lab\"} / kubelet_volume_stats_capacity_bytes{namespace=\"iso-lab\"})",
+              "legendFormat": "{{persistentvolumeclaim}}",
+              "range": true
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 70,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                },
+                "axisSoftMin": 0
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "transparent"
+                  },
+                  {
+                    "value": 0.8,
+                    "color": "orange"
+                  },
+                  {
+                    "value": 0.9,
+                    "color": "red"
+                  }
+                ]
+              },
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "type": "bargauge",
+          "id": 26,
+          "title": "PVC used now",
+          "description": "Used bytes per PVC now (kubelet volume stats), against capacity. Bytes.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "max by (persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=\"iso-lab\"})",
+              "legendFormat": "{{persistentvolumeclaim}}",
+              "range": false,
+              "instant": true
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 70,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "horizontal",
+            "displayMode": "basic",
+            "showUnfilled": true
+          }
+        }
+      ]
+    }
