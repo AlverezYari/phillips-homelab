@@ -1,0 +1,107 @@
+# iso-analysis: the brief's fixed-schema analysis tools (rollup, regression, cointegration,
+# anomaly, seasonality) as an MCP server. Code: iso_lab.analysis in the iso-lab image.
+#
+# Sandboxed compute: runs under the gVisor RuntimeClass (runsc, homelab-04 only; the
+# RuntimeClass carries the nodeSelector), so the statistics execute against gVisor's
+# user-space kernel, not the host's. No tool takes SQL or code; data comes only from
+# whitelisted queries as ClickHouse user iso_ro. Network: gateway in, ClickHouse out.
+#
+# Served at https://iso-analysis.phillips-homelab.net/mcp (LAN). Same bearer token as
+# the `iso` MCP server (1Password iso-lab/mcp_auth_token).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iso-analysis
+  labels:
+    app.kubernetes.io/name: iso-analysis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iso-analysis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iso-analysis
+        iso-lab/role: analysis
+    spec:
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: analysis
+          image: iso-lab  # rewritten by kustomization.yaml (same tag as the Dagster code server)
+          command: ["python", "-m", "iso_lab.analysis.server"]
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            - {name: CLICKHOUSE_HOST, value: clickhouse}
+            - {name: CLICKHOUSE_PORT, value: "8123"}
+            - {name: CLICKHOUSE_USER, value: iso_ro}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom: {secretKeyRef: {name: iso-lab-mcp, key: CLICKHOUSE_PASSWORD}}
+            - name: ISO_ANALYSIS_AUTH_TOKEN
+              valueFrom: {secretKeyRef: {name: iso-lab-mcp, key: CLICKHOUSE_MCP_AUTH_TOKEN}}
+            - {name: ISO_ANALYSIS_ALLOWED_HOSTS, value: "iso-analysis.phillips-homelab.net"}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 100m, memory: 384Mi}
+            limits: {memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iso-analysis
+  labels:
+    app.kubernetes.io/name: iso-analysis
+spec:
+  selector:
+    app.kubernetes.io/name: iso-analysis
+  ports:
+    - {name: http, port: 80, targetPort: http}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: iso-lab-analysis
+spec:
+  endpointSelector:
+    matchLabels:
+      iso-lab/role: analysis
+  ingress:
+    - fromEntities: [ingress]
+      toPorts:
+        - ports: [{port: "8000", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: clickhouse
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]

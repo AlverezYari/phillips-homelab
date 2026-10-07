@@ -9,7 +9,13 @@ resources:
   - clickhouse-service.yaml
   - reference-grant.yaml
   - mcp-clickhouse.yaml
+  - iso-analysis.yaml
   - network-policy.yaml
+# Same image and tag as the Dagster code server (../iso-lab-dagster.yml); bump both.
+images:
+  - name: iso-lab
+    newName: zot.phillips-homelab.net/iso-lab
+    newTag: "80a793c"
 configMapGenerator:
   - name: clickhouse-config
     files:

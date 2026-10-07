@@ -1,5 +1,6 @@
 # Lets the shared tls-gateway's HTTPRoutes (gitops/core/apps/gateways.yml:
-# https-13 -> dagster.phillips-homelab.net, https-14 -> iso-mcp.phillips-homelab.net)
+# https-13 -> dagster.phillips-homelab.net, https-14 -> iso-mcp.phillips-homelab.net,
+# https-15 -> iso-analysis.phillips-homelab.net)
 # reach these Services in this namespace, and nothing else here.
 # Lives here rather than in gateways.yml (where the other grants are) because
 # this namespace is created by iso-lab-db: a grant in gateways.yml would fail
@@ -20,3 +21,6 @@ spec:
   - group: ""
     kind: Service
     name: mcp-clickhouse
+  - group: ""
+    kind: Service
+    name: iso-analysis
