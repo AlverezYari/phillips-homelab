@@ -113,6 +113,11 @@ spec:
             # Every run is a subprocess of the one code-server pod (DefaultRunLauncher),
             # so keep this low enough not to OOM it.
             maxConcurrentRuns: 3
+            # A history back-fill queues hundreds of runs; one at a time leaves the other
+            # slots for the live 5-min polls (and MISO gets one report request at a time).
+            tagConcurrencyLimits:
+              - key: dagster/backfill
+                limit: 1
 
         telemetry:
           enabled: false
@@ -135,7 +140,7 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "a3cc337"   # bump to deploy a new build
+                tag: "ea980f7"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000
