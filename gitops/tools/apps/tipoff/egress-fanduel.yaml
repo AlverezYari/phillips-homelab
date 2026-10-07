@@ -16,7 +16,7 @@
 # to Loki like every other source.
 #
 # We target the device by its MagicDNS FQDN (tailnet-fqdn), matching the
-# proven egress pattern already running in this cluster (tatl/dev-rails)
+# egress pattern proven by tatl/dev-rails (removed 2026-10-07)
 # on operator v1.90.9.
 #
 # IMPORTANT: the operator REWRITES spec.externalName below to the proxy's

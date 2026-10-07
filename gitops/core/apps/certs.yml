@@ -132,19 +132,6 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: tatl-tls
-  namespace: gateways
-spec:
-  dnsNames:
-  - tatl.phillips-homelab.net
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  secretName: tatl-tls
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
   name: dagster-tls
   namespace: gateways
 spec:
