@@ -17,6 +17,15 @@ spec:
       labels:
         app.kubernetes.io/name: clickhouse
     spec:
+      # Prefer homelab-04: off the control-plane node (etcd shares homelab-01's NVMe).
+      # Data lives on the iSCSI PVC, so the pod can move; preferred, not required.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - {key: kubernetes.io/hostname, operator: In, values: [homelab-04]}
       securityContext:
         runAsUser: 101
         runAsGroup: 101

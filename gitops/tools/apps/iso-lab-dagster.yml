@@ -117,6 +117,17 @@ spec:
         telemetry:
           enabled: false
 
+        # Schedule/sensor/automation tick history (runs themselves are purged by the
+        # run_retention job in the code location, 14 days).
+        retention:
+          enabled: true
+          schedule:
+            purgeAfterDays: 14
+          sensor:
+            purgeAfterDays: {failure: 14, skipped: 2, started: 14, success: 14}
+          autoMaterialize:
+            purgeAfterDays: {failure: 14, skipped: 2, started: 14, success: 14}
+
         dagster-user-deployments:
           enabled: true
           enableSubchart: true
@@ -124,7 +135,7 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "5e1ee18"   # bump to deploy a new build (and iso-lab/kustomization.yaml images:)
+                tag: "a3cc337"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000
@@ -158,6 +169,16 @@ spec:
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities: {drop: ["ALL"]}
+              # Prefer homelab-04 (Ryzen 7 9700X, mostly idle): dbt is CPU-bound (~95% of a
+              # run is dbt's own work, ~5% ClickHouse), and homelab-01 also hosts etcd on a
+              # busy NVMe. Preferred, not required, so runs still schedule if homelab-04 is down.
+              affinity:
+                nodeAffinity:
+                  preferredDuringSchedulingIgnoredDuringExecution:
+                    - weight: 100
+                      preference:
+                        matchExpressions:
+                          - {key: kubernetes.io/hostname, operator: In, values: [homelab-04]}
               labels:
                 iso-lab/role: ingest
   syncPolicy:
