@@ -15,7 +15,7 @@ resources:
 images:
   - name: iso-lab
     newName: zot.phillips-homelab.net/iso-lab
-    newTag: "5ffaf35"
+    newTag: "3640799"
 configMapGenerator:
   - name: clickhouse-config
     files:
