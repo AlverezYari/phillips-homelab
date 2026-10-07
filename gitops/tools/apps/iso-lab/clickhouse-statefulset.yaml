@@ -33,9 +33,11 @@ spec:
               value: "1"
             - name: LAKE_S3_ENDPOINT_FOR_CH
               value: http://garage.garage.svc:3900/iso-market-data/
+          # Read-only lake key + ClickHouse user passwords only (not the pipeline's
+          # read/write lake key in iso-lab-env).
           envFrom:
             - secretRef:
-                name: iso-lab-env
+                name: iso-lab-clickhouse
           ports:
             - {name: http, containerPort: 8123}
             - {name: native, containerPort: 9000}
