@@ -74,6 +74,16 @@ spec:
           annotations:
             tailscale.com/expose: "true"
             tailscale.com/hostname: grafana
+        # grafana-clickhouse-datasource for the iso-lab dashboards. 4.14.0 is the newest
+        # release that supports Grafana 11.5 (4.15.0+ require >= 11.6.0). Bump with Grafana.
+        plugins:
+          - grafana-clickhouse-datasource 4.14.0
+        # iso_ro ClickHouse password (ExternalSecret grafana-iso-clickhouse, key
+        # ISO_CLICKHOUSE_RO_PASSWORD), expanded by the iso-clickhouse datasource provisioning.
+        # optional: a missing secret breaks that datasource, not Grafana's startup.
+        envFromSecrets:
+          - name: grafana-iso-clickhouse
+            optional: true
         sidecar:
           dashboards:
             enabled: true

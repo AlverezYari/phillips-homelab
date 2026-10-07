@@ -1,0 +1,50 @@
+# Grafana -> iso-lab ClickHouse, read only. Vendored into gitops core/grafana-dashboards/
+# (picked up by the Grafana datasources sidecar: label grafana_datasource="true").
+#
+# Guardrails: ClickHouse user iso_ro (readonly=1, SELECT on iso.* only, no lake/s3 access,
+# 30 s / 100k rows / 2 GB caps; deploy/k8s/iso-lab/clickhouse/users.xml), network policy
+# (iso-lab-clickhouse admits Grafana pods on 8123 only), editable: false (the UI can't
+# repoint it or swap the user).
+#
+# Needs the users.xml constraint that lets iso_ro lower max_execution_time
+# (changeable_in_readonly): without it every query fails with Code 164 "Cannot modify
+# 'max_execution_time' setting in readonly mode". Deploy that ClickHouse change first.
+#
+# Password: env var ISO_CLICKHOUSE_RO_PASSWORD on the grafana container, from Secret
+# grafana-iso-clickhouse (externalsecret.yaml; helm values in grafana-values.patch.md).
+# Grafana expands $VAR in provisioning files when it (re)loads them, so the password
+# never sits in this ConfigMap.
+#
+# Plugin: grafana-clickhouse-datasource 4.14.0, the newest release that supports
+# Grafana 11.5 (4.15.0+ require >= 11.6.0).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-iso-clickhouse
+  namespace: monitoring
+  labels:
+    grafana_datasource: "true"
+data:
+  iso-clickhouse.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: ISO ClickHouse
+        type: grafana-clickhouse-datasource
+        uid: iso-clickhouse
+        access: proxy
+        editable: false
+        jsonData:
+          host: clickhouse.iso-lab.svc.cluster.local
+          port: 8123
+          protocol: http
+          secure: false
+          username: iso_ro
+          defaultDatabase: iso
+          # The plugin sends max_execution_time (a little above queryTimeout) on every query.
+          # iso_ro is readonly=1 and may only *lower* it, to <= 30 s (users.xml constraint);
+          # measured with 4.14.0 against ClickHouse 26.9: 25 and 26 pass, 28 and 30 fail with
+          # Code 452 on every panel. Keep 25.
+          dialTimeout: "10"
+          queryTimeout: "25"
+        secureJsonData:
+          password: $ISO_CLICKHOUSE_RO_PASSWORD
