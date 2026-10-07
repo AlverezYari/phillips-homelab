@@ -48,7 +48,6 @@ data:
         blocky.phillips-homelab.net: 192.168.10.211
         code.phillips-homelab.net: 192.168.10.211
         tatl.phillips-homelab.net: 192.168.10.211
-        stockbot.phillips-homelab.net: 192.168.10.211
         dagster.phillips-homelab.net: 192.168.10.211
         iso-mcp.phillips-homelab.net: 192.168.10.211
         iso-analysis.phillips-homelab.net: 192.168.10.211
