@@ -44,8 +44,6 @@ data:
                     url: https://files.phillips-homelab.net
                   - title: OpenWebUI
                     url: https://openwebui.phillips-homelab.net
-                  - title: Stockbot
-                    url: https://stockbot.phillips-homelab.net
                   - title: Dagster
                     url: https://dagster.phillips-homelab.net
 
@@ -82,8 +80,6 @@ data:
                         url: https://files.phillips-homelab.net
                       - title: OpenWebUI
                         url: https://openwebui.phillips-homelab.net
-                      - title: Stockbot
-                        url: https://stockbot.phillips-homelab.net
                       - title: Dagster
                         url: https://dagster.phillips-homelab.net
 

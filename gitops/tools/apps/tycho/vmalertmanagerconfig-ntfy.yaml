@@ -6,13 +6,14 @@
 #
 # vmstack's VMAlertmanager runs selectAllByDefault: true, so this config
 # is merged into the running Alertmanager with no extra selectors/labels
-# needed (exactly like the stock-bot config, which carries none).
+# needed.
 #
 # SCOPE / IMPORTANT — this routes ONLY namespace=tycho alerts, and that
 # is a hard limit of the mechanism, not a choice:
 #   * The VictoriaMetrics operator injects an enforced
 #     `namespace = "<this config's namespace>"` matcher into every route
-#     of a VMAlertmanagerConfig (tenant isolation). Proof: the stock-bot
+#     of a VMAlertmanagerConfig (tenant isolation). Proof (2026, when stock-bot
+#     existed): the stock-bot
 #     config's route declares only `app = "stock-bot"`, but the merged
 #     Alertmanager config shows `app="stock-bot"` AND
 #     `namespace="stock-bot"`. There is no per-config or operator-flag
