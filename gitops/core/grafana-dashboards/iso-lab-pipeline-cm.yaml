@@ -1675,8 +1675,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (job, status) (iso_lab_runs_finished{job!=\"\"})",
-              "legendFormat": "{{job}} {{status}}",
+              "expr": "max by (dagster_job, status) (iso_lab_runs_finished)",
+              "legendFormat": "{{dagster_job}} {{status}}",
               "range": true
             }
           ],
@@ -1822,8 +1822,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (job) (iso_lab_last_success_age_seconds) / 60",
-              "legendFormat": "{{job}}",
+              "expr": "max by (dagster_job) (iso_lab_last_success_age_seconds) / 60",
+              "legendFormat": "{{dagster_job}}",
               "range": true
             }
           ],
