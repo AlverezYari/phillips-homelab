@@ -137,7 +137,11 @@ spec:
               limits: {memory: 500Mi}
         fullnameOverride: "vmstack"
   syncPolicy:
-    automated: {}
+    # prune: without it, anything the chart stops rendering keeps running. Turning off the
+    # Talos controller-manager/scheduler scrapes (2026-10-07) left 9 objects behind (scrapes,
+    # Services, VMRules) that kept the very alerts firing that the change was meant to clear.
+    automated:
+      prune: true
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
