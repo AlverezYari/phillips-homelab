@@ -49,10 +49,10 @@ spec:
             app.kubernetes.io/name: clickhouse
       toPorts:
         - ports: [{port: "8123", protocol: TCP}]
-    # alerts -> in-cluster ntfy (stock-bot ns), topic iso-lab
+    # alerts -> homelab ntfy (gitops tools/apps/ntfy), topic iso-lab
     - toEndpoints:
         - matchLabels:
-            k8s:io.kubernetes.pod.namespace: stock-bot
+            k8s:io.kubernetes.pod.namespace: ntfy
             app.kubernetes.io/name: ntfy
       toPorts:
         - ports: [{port: "8080", protocol: TCP}]

@@ -24,9 +24,6 @@ resources:
   - dashboard-deployment.yaml
   - dashboard-service.yaml
   - dashboard-rbac.yaml
-  - ntfy-deployment.yaml
-  - ntfy-service.yaml
-  - ntfy-ingress.yaml
   - vmrule-jobs.yaml
   - vmalertmanagerconfig-ntfy.yaml
 

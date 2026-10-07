@@ -30,7 +30,7 @@ Cloudflare tunnel). Glance has a link.
 - **Secrets:** 1Password item `iso-lab` (vault `phillips-homelab`), created by `deploy/k8s/provision.sh`
   in the code repo. That script also created Garage bucket `iso-market-data` and key `iso-lab`.
 - **Alerts:** failed runs (schema drift, MISO down, dbt test failures, stale data) push to ntfy topic
-  `iso-lab` on the stock-bot ntfy.
+  `iso-lab` on the homelab ntfy (tools/apps/ntfy).
 - **ClickHouse:** in-cluster only. `iso` is the pipeline user, `iso_ro` the read-only user for the
   MCP server. It's rebuildable from the lake (`dbt build --full-refresh`), so one replica on iSCSI is
   deliberate. Garage requires SigV4 region `garage`, which `clickhouse/lake.xml` sets.

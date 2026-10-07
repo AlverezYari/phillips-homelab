@@ -1,4 +1,4 @@
-# Relays loop events from NATS to the existing ntfy instance (stock-bot ns,
+# Relays loop events from NATS to the homelab ntfy (tools/apps/ntfy,
 # already routed to Casey's phone via ntfy.tail852f61.ts.net). One container
 # per subject so a dead subscription restarts independently.
 # Convention: harness publishes single-line JSON payloads.
@@ -19,7 +19,7 @@ data:
       echo "bridge: relaying ${SUBJECT}: ${line}"
       status=$(curl -s -o /dev/null -w '%{http_code}' -m 10 \
         -H "Title: ${TITLE}" -H "Priority: ${PRIORITY}" \
-        -d "${line}" "http://ntfy.stock-bot.svc.cluster.local/loops" || echo curl-fail)
+        -d "${line}" "http://ntfy.ntfy.svc.cluster.local/loops" || echo curl-fail)
       [ "$status" = "200" ] || echo "bridge: ntfy POST FAILED status=${status}"
     done
     echo "bridge: subscription ${SUBJECT} ended" >&2
