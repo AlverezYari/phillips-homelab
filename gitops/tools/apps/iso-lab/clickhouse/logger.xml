@@ -1,0 +1,11 @@
+<!-- Log to stdout only (kubectl logs / Vector -> Loki). The image default writes
+     rotating files to /var/log/clickhouse-server, which nothing reads and which can
+     fill ephemeral storage. -->
+<clickhouse>
+    <logger>
+        <level>information</level>
+        <console>1</console>
+        <log remove="remove"/>
+        <errorlog remove="remove"/>
+    </logger>
+</clickhouse>

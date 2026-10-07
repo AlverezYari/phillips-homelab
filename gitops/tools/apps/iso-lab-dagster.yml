@@ -5,8 +5,12 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: iso-lab
   annotations:
-    # Needs iso-lab-pg (wave 0) and iso-lab-env + ClickHouse (wave 1).
+    # Ordering intent: iso-lab-pg (wave 0), iso-lab-env + ClickHouse (wave 1). argocd-cm
+    # has no Application health check, so waves don't gate; init containers and ESO
+    # retries cover the gap on first sync.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   destination:
@@ -62,10 +66,19 @@ spec:
             type: QueuedRunCoordinator
             config:
               queuedRunCoordinator:
-                maxConcurrentRuns: 10
-                tagConcurrencyLimits:
-                  - key: iso-lab/poll
-                    limit: 1
+                # Every run is a subprocess of the one code-server pod (DefaultRunLauncher),
+                # so keep this low enough not to OOM it.
+                maxConcurrentRuns: 3
+
+        # Pools: `miso_ingest` (dlt) and `clickhouse_dbt` (dbt) each run one at a
+        # time, so a slow MISO poll can't overlap the next and race on dlt state.
+        concurrency:
+          enabled: true
+          pools:
+            defaultLimit: 1
+
+        telemetry:
+          enabled: false
 
         dagster-user-deployments:
           enabled: true
@@ -74,7 +87,7 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "8c6805a"   # bump to deploy a new build
+                tag: "1f72191"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000
@@ -85,6 +98,16 @@ spec:
                 - {name: LAKE_BUCKET, value: iso-market-data}
                 - {name: CLICKHOUSE_HOST, value: clickhouse}
                 - {name: CLICKHOUSE_USER, value: iso}
+                - {name: ALERT_NTFY_URL, value: "http://ntfy.stock-bot.svc.cluster.local/iso-lab"}
+                - {name: DAGSTER_UI_URL, value: "https://dagster.phillips-homelab.net"}
+              # The chart points DAGSTER_HOME here without mounting anything in this pod;
+              # runs execute here (DefaultRunLauncher) and write step storage under it.
+              volumes:
+                - name: dagster-home
+                  emptyDir: {sizeLimit: 1Gi}
+              volumeMounts:
+                - name: dagster-home
+                  mountPath: /opt/dagster/dagster_home
               resources:
                 requests: {cpu: 100m, memory: 512Mi}
                 limits: {memory: 2Gi}
@@ -103,3 +126,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true

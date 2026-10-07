@@ -155,3 +155,15 @@ spec:
     kind: ClusterIssuer
   secretName: stockbot-tls
 ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: dagster-tls
+  namespace: gateways
+spec:
+  dnsNames:
+  - dagster.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: dagster-tls

@@ -21,6 +21,7 @@ spec:
         runAsUser: 101
         runAsGroup: 101
         fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch  # don't re-chown 50Gi on every restart
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
@@ -62,11 +63,12 @@ spec:
           volumeMounts:
             - {name: data, mountPath: /var/lib/clickhouse}
             - {name: logs, mountPath: /var/log/clickhouse-server}
+            - {name: config, mountPath: /etc/clickhouse-server/config.d/logger.xml, subPath: logger.xml}
             - {name: config, mountPath: /etc/clickhouse-server/config.d/lake.xml, subPath: lake.xml}
             - {name: config, mountPath: /etc/clickhouse-server/users.d/users.xml, subPath: users.xml}
       volumes:
         - name: logs
-          emptyDir: {}
+          emptyDir: {sizeLimit: 256Mi}  # console logging; kept for anything that still writes here
         - name: config
           configMap:
             name: clickhouse-config
