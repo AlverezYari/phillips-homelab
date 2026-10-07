@@ -56,6 +56,13 @@ spec:
             app.kubernetes.io/name: ntfy
       toPorts:
         - ports: [{port: "8080", protocol: TCP}]
+    # pipeline gauges -> VictoriaMetrics import API (defs/metrics.py)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: vmsingle
+      toPorts:
+        - ports: [{port: "8429", protocol: TCP}]
     # run/event storage: runs execute in this pod and write events directly
     - toEndpoints:
         - matchLabels:
@@ -90,6 +97,13 @@ spec:
             app.kubernetes.io/instance: grafana
       toPorts:
         - ports: [{port: "8123", protocol: TCP}]
+    # vmagent scrapes the metrics-only Prometheus endpoint (clickhouse/prometheus.xml).
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: vmagent
+      toPorts:
+        - ports: [{port: "9363", protocol: TCP}]
   egress:
     - toEndpoints:
         - matchLabels:

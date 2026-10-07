@@ -50,6 +50,7 @@ spec:
           ports:
             - {name: http, containerPort: 8123}
             - {name: native, containerPort: 9000}
+            - {name: metrics, containerPort: 9363}
           startupProbe:
             httpGet: {path: /ping, port: http}
             periodSeconds: 2
@@ -79,6 +80,7 @@ spec:
             - {name: logs, mountPath: /var/log/clickhouse-server}
             - {name: config, mountPath: /etc/clickhouse-server/config.d/logger.xml, subPath: logger.xml}
             - {name: config, mountPath: /etc/clickhouse-server/config.d/lake.xml, subPath: lake.xml}
+            - {name: config, mountPath: /etc/clickhouse-server/config.d/prometheus.xml, subPath: prometheus.xml}
             - {name: config, mountPath: /etc/clickhouse-server/users.d/users.xml, subPath: users.xml}
       volumes:
         - name: logs

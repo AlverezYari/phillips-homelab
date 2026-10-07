@@ -140,7 +140,7 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "bb6884d"   # bump to deploy a new build
+                tag: "4717c01"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000
@@ -156,6 +156,8 @@ spec:
                 - {name: CLICKHOUSE_USER, value: iso}
                 - {name: ALERT_NTFY_URL, value: "http://ntfy.stock-bot.svc.cluster.local/iso-lab"}
                 - {name: DAGSTER_UI_URL, value: "https://dagster.phillips-homelab.net"}
+                # Run-outcome / lake-size gauges (defs/metrics.py sensor) -> VictoriaMetrics.
+                - {name: METRICS_IMPORT_URL, value: "http://vmsingle-vmstack.monitoring.svc:8429/api/v1/import/prometheus"}
               # The chart points DAGSTER_HOME here without mounting anything in this pod;
               # runs execute here (DefaultRunLauncher) and write step storage under it.
               volumes:

@@ -1,0 +1,13 @@
+<!-- ClickHouse's built-in Prometheus endpoint (:9363/metrics), scraped by vmagent
+     (vmpodscrape-clickhouse.yaml). Memory tracking vs the server cap is what shows a Code 241
+     coming; errors count failed queries by code. Metrics only: no query access on this port. -->
+<clickhouse>
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+        <metrics>true</metrics>
+        <events>true</events>
+        <asynchronous_metrics>true</asynchronous_metrics>
+        <errors>true</errors>
+    </prometheus>
+</clickhouse>
