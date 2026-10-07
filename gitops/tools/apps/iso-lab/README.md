@@ -20,7 +20,13 @@ Cloudflare tunnel). Glance has a link.
   `run_query`, `list_databases`, `list_tables`) as the read-only user `iso_ro`, behind a bearer token
   (1Password `iso-lab` / `mcp_auth_token`). Gateway listener https-14. Connect Claude Code with
   `claude mcp add --transport http iso https://iso-mcp.phillips-homelab.net/mcp --header "Authorization: Bearer <token>"`.
-- **Deploy a new build:** bump `tag:` in `../iso-lab-dagster.yml`.
+- **Analysis MCP server:** https://iso-analysis.phillips-homelab.net/mcp. `iso-analysis` (code `iso_lab.analysis`, same
+  image as the code server) serves fixed-schema tools: `list_metrics`, `rollup`, `regression`,
+  `cointegration`, `anomaly` and `seasonality`. None takes SQL or code. It runs under the **gVisor**
+  RuntimeClass (homelab-04), reads ClickHouse as `iso_ro`, and its network policy allows gateway in and
+  ClickHouse out only. It uses the same bearer token as `iso-mcp`. Gateway listener https-15.
+- **Deploy a new build:** bump `tag:` in `../iso-lab-dagster.yml` *and* `images:` in `kustomization.yaml`
+  (iso-analysis runs the same image).
 - **Secrets:** 1Password item `iso-lab` (vault `phillips-homelab`), created by `deploy/k8s/provision.sh`
   in the code repo. That script also created Garage bucket `iso-market-data` and key `iso-lab`.
 - **Alerts:** failed runs (schema drift, MISO down, dbt test failures, stale data) push to ntfy topic

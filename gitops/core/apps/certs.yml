@@ -180,3 +180,16 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   secretName: iso-mcp-tls
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: iso-analysis-tls
+  namespace: gateways
+spec:
+  dnsNames:
+  - iso-analysis.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: iso-analysis-tls
