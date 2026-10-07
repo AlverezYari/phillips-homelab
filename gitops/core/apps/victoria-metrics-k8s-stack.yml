@@ -108,6 +108,33 @@ spec:
               enabled: true
             node-exporter-full:
               enabled: true
+        # Talos runs kube-controller-manager and kube-scheduler as static pods with metrics
+        # bound to 127.0.0.1, so the chart's scrapes of :10257/:10259 can never connect.
+        # They fired KubeControllerManagerDown, KubeSchedulerDown, 2x TargetDown and
+        # TooManyScrapeErrors continuously from 2026-06-19 until 2026-10-07. Exposing
+        # them would need a Talos patch (bind-address) + control-plane restart on the
+        # single CP node, for little value over the apiserver/etcd metrics already
+        # scraped, so the scrapes and their rule groups are off instead.
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        defaultRules:
+          groups:
+            kubernetesSystemControllerManager:
+              create: false
+            kubernetesSystemScheduler:
+              create: false
+            kubeScheduler:
+              create: false
+        vmagent:
+          spec:
+            # The operator's default CPU limit (200m) throttled vmagent in ~31% of CFS
+            # periods (CPUThrottlingHigh since 2026-09-30) at ~0.05 cores average: scrape
+            # bursts, not load. Keep the request, drop the CPU limit.
+            resources:
+              requests: {cpu: 50m, memory: 200Mi}
+              limits: {memory: 500Mi}
         fullnameOverride: "vmstack"
   syncPolicy:
     automated: {}
