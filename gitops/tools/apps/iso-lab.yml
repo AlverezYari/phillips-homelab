@@ -14,6 +14,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: iso-lab
   project: default
+  # ESO defaults these fields server-side; without the ignore the app never reports Synced.
+  ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
   source:
     path: gitops/tools/apps/iso-lab
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
@@ -25,3 +33,5 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - ServerSideDiff=true
+      - RespectIgnoreDifferences=true

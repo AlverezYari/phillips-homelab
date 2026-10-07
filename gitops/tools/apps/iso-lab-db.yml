@@ -14,6 +14,12 @@ spec:
   project: default
   # Same CNPG defaulting noise as tipoff-db.yml.
   ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
   - group: postgresql.cnpg.io
     kind: Cluster
     jsonPointers:
@@ -51,3 +57,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - ServerSideDiff=true
+      - RespectIgnoreDifferences=true

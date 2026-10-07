@@ -1,5 +1,6 @@
-# Ingest (Dagster code server, where runs execute under DefaultRunLauncher):
-# the only pod that talks to the internet, and only to MISO hosts.
+# Ingest (Dagster code server). Every run executes here (DefaultRunLauncher): dlt
+# ingestion, dbt builds, freshness checks, alerting. The only pod in iso-lab with
+# internet egress, and only to MISO hosts.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -48,6 +49,13 @@ spec:
             app.kubernetes.io/name: clickhouse
       toPorts:
         - ports: [{port: "8123", protocol: TCP}]
+    # alerts -> in-cluster ntfy (stock-bot ns), topic iso-lab
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: stock-bot
+            app.kubernetes.io/name: ntfy
+      toPorts:
+        - ports: [{port: "8080", protocol: TCP}]
     # run/event storage: runs execute in this pod and write events directly
     - toEndpoints:
         - matchLabels:
@@ -55,8 +63,8 @@ spec:
       toPorts:
         - ports: [{port: "5432", protocol: TCP}]
 ---
-# ClickHouse: no internet. Reads the lake on Garage; serves the namespace
-# (pipeline, MCP server) and the tailnet proxy.
+# ClickHouse: no internet. Reads the lake on Garage; serves this namespace only
+# (dbt + freshness checks in the code server; the MCP server later).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -69,8 +77,6 @@ spec:
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: iso-lab
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: tailscale
       toPorts:
         - ports:
             - {port: "8123", protocol: TCP}

@@ -1,24 +1,29 @@
 # iso-lab
 
-ISO Market Data Lab: public MISO market data, ingested by Dagster into immutable
-Parquet on Garage (`s3://iso-market-data/raw/...`), served from ClickHouse. Code and
-image: private repo `AlverezYari/iso-market-data-lab` (`zot.phillips-homelab.net/iso-lab:<sha>`).
-These manifests are vendored from that repo's `deploy/k8s/`; this copy is what runs.
+ISO Market Data Lab: public MISO market data. dlt lands raw Parquet on Garage
+(`s3://iso-market-data/raw/miso/...`, every field a string, append-only), dbt builds typed,
+tested tables in ClickHouse (database `iso`), and Dagster orchestrates both. Code and image:
+private repo `AlverezYari/iso-market-data-lab` (`zot.phillips-homelab.net/iso-lab:<sha>`). These
+manifests are vendored from that repo's `deploy/k8s/`; this copy is what runs.
 
-| App | Wave | What |
-|---|---|---|
-| `iso-lab-db` | 0 | namespace `iso-lab`, CNPG `iso-lab-pg` (Dagster run/event storage) |
-| `iso-lab` | 1 | ClickHouse StatefulSet, ExternalSecret `iso-lab-env`, CiliumNetworkPolicies, tailnet Services |
-| `iso-lab-dagster` | 2 | Dagster Helm chart 1.13.25: webserver, daemon, `iso-lab` code server (runs execute in it, DefaultRunLauncher) |
+| App | What |
+|---|---|
+| `iso-lab-db` | namespace `iso-lab`, CNPG `iso-lab-pg` (Dagster run/event storage only) |
+| `iso-lab` | ClickHouse StatefulSet, ExternalSecret `iso-lab-env`, CiliumNetworkPolicies, ReferenceGrant for the gateway route |
+| `iso-lab-dagster` | Dagster Helm chart 1.13.25. Runs execute in the `iso-lab` code-server pod (DefaultRunLauncher): dlt every 2 min, dbt after it, freshness checks every 5 min |
 
-- Secrets: 1Password item `iso-lab` (vault `phillips-homelab`), created with
-  `deploy/k8s/provision.sh` in the code repo, which also made Garage bucket `iso-market-data` +
-  key `iso-lab`.
-- Deploy a new build: bump `tag:` in `../iso-lab-dagster.yml`.
-- Access (tailnet): Dagster UI `http://iso-dagster`, ClickHouse HTTP `http://iso-clickhouse:8123`
-  (`iso` pipeline user, `iso_ro` read-only for the MCP server).
-- ClickHouse is rebuildable from the lake (`SELECT ... FROM s3(lake, filename='raw/miso/...')`), so
-  one replica on iSCSI is deliberate. Garage requires SigV4 region `garage`, which
-  `clickhouse/lake.xml` sets.
-- Network: only the code-server pod (`iso-lab/role: ingest`) has internet egress, limited to
-  `*.misoenergy.org` hosts by toFQDNs; ClickHouse can reach Garage only.
+Outside these apps, in core: the blocky mapping, `dagster-tls` Certificate, and the `tls-gateway`
+listener https-13 + HTTPRoute for **https://dagster.phillips-homelab.net** (LAN only, not on the
+Cloudflare tunnel). Glance has a link.
+
+- **Deploy a new build:** bump `tag:` in `../iso-lab-dagster.yml`.
+- **Secrets:** 1Password item `iso-lab` (vault `phillips-homelab`), created by `deploy/k8s/provision.sh`
+  in the code repo. That script also created Garage bucket `iso-market-data` and key `iso-lab`.
+- **Alerts:** failed runs (schema drift, MISO down, dbt test failures, stale data) push to ntfy topic
+  `iso-lab` on the stock-bot ntfy.
+- **ClickHouse:** in-cluster only. `iso` is the pipeline user, `iso_ro` the read-only user for the
+  MCP server. It's rebuildable from the lake (`dbt build --full-refresh`), so one replica on iSCSI is
+  deliberate. Garage requires SigV4 region `garage`, which `clickhouse/lake.xml` sets.
+- **Network:** only the code-server pod (`iso-lab/role: ingest`) has internet egress, limited to
+  `*.misoenergy.org` by toFQDNs. It may also reach Garage, ClickHouse, its Postgres and ntfy.
+  ClickHouse may reach only Garage. Webserver and daemon have no policy yet.
