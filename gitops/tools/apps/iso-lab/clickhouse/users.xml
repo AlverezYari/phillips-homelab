@@ -1,6 +1,6 @@
 <!-- Users replace the image defaults (CLICKHOUSE_SKIP_USER_SETUP=1).
      iso     pipeline: owns database iso, reads the lake via s3(lake, ...).
-     iso_ro  MCP server: SELECT on iso.* only, no S3/lake access, hard limits.
+     iso_ro  MCP servers + Grafana: SELECT on iso.* only, no S3/lake access, hard limits.
              The MCP tools add their own limits; these are the backstop.
      default localhost only (probes, clickhouse-client in the pod). -->
 <clickhouse>
@@ -18,6 +18,15 @@
             <result_overflow_mode>break</result_overflow_mode>
             <max_memory_usage>2000000000</max_memory_usage>
             <max_rows_to_read>2000000000</max_rows_to_read>
+            <constraints>
+                <!-- Grafana's ClickHouse driver sends max_execution_time = query timeout + 5 s
+                     with every query; readonly=1 rejects any setting unless it's marked
+                     changeable, and the max keeps the 30 s cap. Datasource queryTimeout <= 25. -->
+                <max_execution_time>
+                    <max>30</max>
+                    <changeable_in_readonly/>
+                </max_execution_time>
+            </constraints>
         </readonly_agent>
     </profiles>
     <users>

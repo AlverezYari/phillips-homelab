@@ -63,8 +63,8 @@ spec:
       toPorts:
         - ports: [{port: "5432", protocol: TCP}]
 ---
-# ClickHouse: no internet. Reads the lake on Garage; serves this namespace only
-# (dbt + freshness checks in the code server; the MCP server later).
+# ClickHouse: no internet. Reads the lake on Garage; serves this namespace (dbt +
+# freshness checks in the code server, the MCP servers) and the homelab Grafana.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -81,6 +81,15 @@ spec:
         - ports:
             - {port: "8123", protocol: TCP}
             - {port: "9000", protocol: TCP}
+    # Grafana (gitops core/apps/grafana.yml) on the HTTP port only, as user iso_ro
+    # (deploy/grafana/datasource-clickhouse.yaml).
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: grafana
+            app.kubernetes.io/instance: grafana
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]
   egress:
     - toEndpoints:
         - matchLabels:
