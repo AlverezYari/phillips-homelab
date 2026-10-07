@@ -1,0 +1,25 @@
+# Deletes pods left in phase Failed by kubelet terminations (node reboots / graceful
+# shutdown on Talos). Their ReplicaSets already replaced them, but they linger (the
+# controller-manager only GCs terminated pods past 12,500), and the stock KubePodNotReady
+# rule counts Failed pods, so each reboot left alerts firing forever (vmalert,
+# hubble-relay, snapshot-controller: 2026-09-08 -> 2026-10-07).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: failed-pod-reaper
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  project: default
+  source:
+    path: gitops/core/apps/failed-pod-reaper
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

@@ -1,0 +1,57 @@
+# Hourly: delete Failed pods that finished over an hour ago and that no Job owns (Jobs keep
+# their failed pods for debugging and have their own TTL/backoff). Logs every deletion.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: failed-pod-reaper
+spec:
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: failed-pod-reaper
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: reaper
+              image: alpine/k8s:1.35.4  # kubectl + jq + sh; matches the cluster version
+              env:
+                - {name: HOME, value: /tmp}  # kubectl's discovery cache; root fs is read-only
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -euo pipefail  # a failed kubectl get must fail the Job, not report "done"
+                  cutoff=$(( $(date +%s) - 3600 ))
+                  kubectl get pods -A --field-selector=status.phase=Failed -o json \
+                  | jq -r --argjson cutoff "$cutoff" '
+                      .items[]
+                      | select([(.metadata.ownerReferences // [])[].kind] | index("Job") | not)
+                      | ([.status.containerStatuses[]?.state.terminated.finishedAt // empty] | max) as $fin
+                      | select(($fin // .metadata.creationTimestamp) | fromdateiso8601 < $cutoff)
+                      | "\(.metadata.namespace) \(.metadata.name) \(.status.reason // "-")"' \
+                  | while read -r ns pod reason; do
+                      echo "deleting Failed pod $ns/$pod (reason $reason)"
+                      kubectl -n "$ns" delete pod "$pod" --wait=false
+                    done
+                  echo done
+              resources:
+                requests: {cpu: 10m, memory: 32Mi}
+                limits: {memory: 128Mi}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: ["ALL"]}
+              volumeMounts:
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: tmp
+              emptyDir: {sizeLimit: 64Mi}
