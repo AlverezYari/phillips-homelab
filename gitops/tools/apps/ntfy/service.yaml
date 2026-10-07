@@ -1,0 +1,19 @@
+# ntfy ClusterIP service. Tailnet exposure is via the tailscale Ingress
+# (ingress.yaml), which serves HTTPS at https://ntfy.<tailnet>.ts.net.
+# In-cluster publishers use ntfy.ntfy.svc.cluster.local directly.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy
+  namespace: ntfy
+  labels:
+    app.kubernetes.io/name: ntfy
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ntfy
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

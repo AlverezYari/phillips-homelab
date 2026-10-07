@@ -24,14 +24,16 @@ spec:
           # (no namespace label), garage/storage PVCs, node/kube-system — was
           # silently dropped.
           #
-          # Fix: point the top-level default receiver at the SAME ntfy webhook
-          # stock-bot/tycho use (stock-bot-serve's /alerthook formats the
-          # Alertmanager payload into a readable ntfy message). Now every
-          # unmatched cluster-level alert notifies instead of vanishing.
+          # Fix: point the top-level default receiver at ntfy's homelab-alerts
+          # topic. Alertmanager posts its raw webhook JSON; ntfy's built-in
+          # ?template=alertmanager formats it (title + summary + labels). Now
+          # every unmatched cluster-level alert notifies instead of vanishing.
+          # (Until 2026-10-07 this went through stock-bot-serve's /alerthook,
+          # which formatted it the same way; stock-bot is gone.)
           #
           # The operator APPENDS each VMAlertmanagerConfig's route as a child
           # of this root (selectAllByDefault: true), so the existing
-          # stock-bot (namespace=stock-bot) and tycho (namespace=tycho) routes
+          # per-app routes (e.g. tycho, namespace=tycho)
           # keep working unchanged and are NOT duplicated here: an alert that
           # matches a child route is handled there and never reaches this
           # root receiver (Alertmanager only uses the root receiver when NO
@@ -53,7 +55,7 @@ spec:
               - name: blackhole
               - name: ntfy-cluster
                 webhook_configs:
-                  - url: "http://stock-bot-serve.stock-bot.svc.cluster.local:8080/alerthook"
+                  - url: "http://ntfy.ntfy.svc.cluster.local/homelab-alerts?template=alertmanager"
                     send_resolved: true
         kube-state-metrics:
           # Gateway API custom-resource metrics, for tls-alerts' GatewayConfigNotApplied:

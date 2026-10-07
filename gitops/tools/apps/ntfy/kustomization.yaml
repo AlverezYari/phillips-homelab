@@ -1,0 +1,21 @@
+# Homelab notification bus (self-hosted ntfy). Was part of the stock-bot app until
+# 2026-10-07; now its own app because everything uses it:
+#   homelab-alerts  vmstack Alertmanager root route (all unmatched cluster alerts)
+#   tycho-alerts    tycho (operator/gateway NTFY_URL + its VMAlertmanagerConfig)
+#   iso-lab         iso-lab run-failure / quarantine alerts
+#   loops           loops nats-ntfy-bridge + loopctl
+# Publish in-cluster: http://ntfy.ntfy.svc.cluster.local/<topic>
+# Subscribe (phone):  https://ntfy.tail852f61.ts.net/<topic>
+# Alertmanager posts its raw webhook JSON with ?template=alertmanager; ntfy's
+# built-in template (verified on 2.29.0; 2.11 lacked it) turns it into a readable title + body.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ntfy
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: ntfy

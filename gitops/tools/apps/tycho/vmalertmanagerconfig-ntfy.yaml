@@ -1,8 +1,8 @@
-# Route tycho-namespace alerts out of the vmstack Alertmanager's default
-# "blackhole" (null) receiver and into the same ntfy webhook stock-bot
-# uses (stock-bot-serve's /alerthook formats the Alertmanager payload
-# into a readable ntfy message). Copied from
-# tools/apps/stock-bot/vmalertmanagerconfig-ntfy.yaml.
+# Route tycho-namespace alerts to ntfy's tycho-alerts topic (the one Casey
+# subscribes to for tycho; operator/gateway NTFY_URL post there too).
+# Alertmanager posts its raw webhook JSON and ntfy's built-in
+# ?template=alertmanager formats it (tools/apps/ntfy). Until 2026-10-07 this
+# went through stock-bot-serve's /alerthook; stock-bot is gone.
 #
 # vmstack's VMAlertmanager runs selectAllByDefault: true, so this config
 # is merged into the running Alertmanager with no extra selectors/labels
@@ -50,5 +50,5 @@ spec:
   receivers:
     - name: ntfy
       webhook_configs:
-        - url: "http://stock-bot-serve.stock-bot.svc.cluster.local:8080/alerthook"
+        - url: "http://ntfy.ntfy.svc.cluster.local/tycho-alerts?template=alertmanager"
           send_resolved: true

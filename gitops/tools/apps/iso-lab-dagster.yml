@@ -154,7 +154,7 @@ spec:
                 # `clickhouse` Service (service links), which the code and dbt profile read.
                 - {name: CLICKHOUSE_PORT, value: "8123"}
                 - {name: CLICKHOUSE_USER, value: iso}
-                - {name: ALERT_NTFY_URL, value: "http://ntfy.stock-bot.svc.cluster.local/iso-lab"}
+                - {name: ALERT_NTFY_URL, value: "http://ntfy.ntfy.svc.cluster.local/iso-lab"}
                 - {name: DAGSTER_UI_URL, value: "https://dagster.phillips-homelab.net"}
                 # Run-outcome / lake-size gauges (defs/metrics.py sensor) -> VictoriaMetrics.
                 - {name: METRICS_IMPORT_URL, value: "http://vmsingle-vmstack.monitoring.svc:8429/api/v1/import/prometheus"}
