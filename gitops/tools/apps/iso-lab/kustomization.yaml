@@ -8,6 +8,7 @@ resources:
   - clickhouse-statefulset.yaml
   - clickhouse-service.yaml
   - reference-grant.yaml
+  - mcp-clickhouse.yaml
   - network-policy.yaml
 configMapGenerator:
   - name: clickhouse-config

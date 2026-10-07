@@ -9,13 +9,17 @@ manifests are vendored from that repo's `deploy/k8s/`; this copy is what runs.
 | App | What |
 |---|---|
 | `iso-lab-db` | namespace `iso-lab`, CNPG `iso-lab-pg` (Dagster run/event storage only) |
-| `iso-lab` | ClickHouse StatefulSet, ExternalSecret `iso-lab-env`, CiliumNetworkPolicies, ReferenceGrant for the gateway route |
+| `iso-lab` | ClickHouse StatefulSet, ExternalSecrets `iso-lab-env` / `iso-lab-mcp`, the MCP server (`mcp-clickhouse`), CiliumNetworkPolicies, ReferenceGrant for the gateway routes |
 | `iso-lab-dagster` | Dagster Helm chart 1.13.25. Runs execute in the `iso-lab` code-server pod (DefaultRunLauncher): dlt every 2 min, dbt after it, freshness checks every 5 min |
 
 Outside these apps, in core: the blocky mapping, `dagster-tls` Certificate, and the `tls-gateway`
 listener https-13 + HTTPRoute for **https://dagster.phillips-homelab.net** (LAN only, not on the
 Cloudflare tunnel). Glance has a link.
 
+- **MCP server:** https://iso-mcp.phillips-homelab.net/mcp runs ClickHouse's official `mcp-clickhouse` (tools
+  `run_query`, `list_databases`, `list_tables`) as the read-only user `iso_ro`, behind a bearer token
+  (1Password `iso-lab` / `mcp_auth_token`). Gateway listener https-14. Connect Claude Code with
+  `claude mcp add --transport http iso https://iso-mcp.phillips-homelab.net/mcp --header "Authorization: Bearer <token>"`.
 - **Deploy a new build:** bump `tag:` in `../iso-lab-dagster.yml`.
 - **Secrets:** 1Password item `iso-lab` (vault `phillips-homelab`), created by `deploy/k8s/provision.sh`
   in the code repo. That script also created Garage bucket `iso-market-data` and key `iso-lab`.
