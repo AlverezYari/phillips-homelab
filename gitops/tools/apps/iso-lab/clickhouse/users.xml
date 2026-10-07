@@ -5,6 +5,12 @@
      default localhost only (probes, clickhouse-client in the pod). -->
 <clickhouse>
     <profiles>
+        <!-- Pipeline (dbt): large aggregations and sorts spill to disk past ~1.5 GB instead of
+             failing the whole build with "memory limit exceeded". -->
+        <pipeline>
+            <max_bytes_before_external_group_by>1500000000</max_bytes_before_external_group_by>
+            <max_bytes_before_external_sort>1500000000</max_bytes_before_external_sort>
+        </pipeline>
         <readonly_agent>
             <readonly>1</readonly>
             <max_execution_time>30</max_execution_time>
@@ -24,7 +30,7 @@
         <iso>
             <password from_env="CLICKHOUSE_PASSWORD"/>
             <networks><ip>::/0</ip></networks>
-            <profile>default</profile>
+            <profile>pipeline</profile>
             <quota>default</quota>
             <!-- No <grants>: ClickHouse refuses them alongside access-control
                  flags, and a user without grants has full access. -->
