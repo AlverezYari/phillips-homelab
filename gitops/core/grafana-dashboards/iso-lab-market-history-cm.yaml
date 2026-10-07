@@ -535,7 +535,20 @@ data:
                 "fixedColor": "blue"
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Hour beginning (EST)"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "string"
+                  }
+                ]
+              }
+            ]
           },
           "options": {
             "xField": "Hour beginning (EST)",
@@ -729,7 +742,7 @@ data:
               "format": 1,
               "queryType": "table",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT constraint_id AS \"ID\",\n    if(d.name != '', d.name, r.name) AS \"Constraint\",\n    if(d.branch != '', d.branch, r.branch) AS \"Monitored branch\",\n    if(d.contingency != '', d.contingency, r.contingency) AS \"Contingency\",\n    d.hours AS \"DA hours\", round(d.cost, 0) AS \"DA Σ|SP| × h\",\n    round(r.n / 12, 1) AS \"RT hours\", round(r.cost / 12, 0) AS \"RT Σ|SP| × h\"\nFROM (\n    SELECT constraint_id, any(constraint_name) AS name, any(branch_name) AS branch, any(contingency) AS contingency,\n        count() AS hours, sum(abs(shadow_price)) AS cost\n    FROM da_binding_constraints WHERE $__timeFilter(interval_start_utc) GROUP BY constraint_id\n) AS d\nFULL OUTER JOIN (\n    SELECT constraint_id, any(constraint_name) AS name, any(branch_name) AS branch, any(contingency) AS contingency,\n        count() AS n, sum(abs(shadow_price)) AS cost\n    FROM rt_binding_constraints WHERE $__timeFilter(interval_start_utc) GROUP BY constraint_id\n) AS r USING (constraint_id)\nORDER BY greatest(d.cost, r.cost / 12) DESC\nLIMIT 25",
+              "rawSql": "SELECT constraint_id AS \"ID\",\n    if(d.name != '', d.name, r.name) AS \"Constraint\",\n    if(d.branch != '', d.branch, r.branch) AS \"Monitored branch\",\n    if(d.contingency != '', d.contingency, r.contingency) AS \"Contingency\",\n    d.hours AS \"DA hours\", round(d.cost, 0) AS \"DA \u03a3|SP| \u00d7 h\",\n    round(r.n / 12, 1) AS \"RT hours\", round(r.cost / 12, 0) AS \"RT \u03a3|SP| \u00d7 h\"\nFROM (\n    SELECT constraint_id, any(constraint_name) AS name, any(branch_name) AS branch, any(contingency) AS contingency,\n        count() AS hours, sum(abs(shadow_price)) AS cost\n    FROM da_binding_constraints WHERE $__timeFilter(interval_start_utc) GROUP BY constraint_id\n) AS d\nFULL OUTER JOIN (\n    SELECT constraint_id, any(constraint_name) AS name, any(branch_name) AS branch, any(contingency) AS contingency,\n        count() AS n, sum(abs(shadow_price)) AS cost\n    FROM rt_binding_constraints WHERE $__timeFilter(interval_start_utc) GROUP BY constraint_id\n) AS r USING (constraint_id)\nORDER BY greatest(d.cost, r.cost / 12) DESC\nLIMIT 25",
               "refId": "A"
             }
           ],
@@ -746,7 +759,7 @@ data:
               {
                 "matcher": {
                   "id": "byRegexp",
-                  "options": "/Σ/"
+                  "options": "/\u03a3/"
                 },
                 "properties": [
                   {

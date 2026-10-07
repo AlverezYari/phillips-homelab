@@ -22,8 +22,8 @@ data:
       "version": 1,
       "id": null,
       "time": {
-        "from": "now-24h",
-        "to": "now+12h"
+        "from": "now-30h",
+        "to": "now+6h"
       },
       "refresh": "5m",
       "fiscalYearStartMonth": 0,
@@ -156,7 +156,7 @@ data:
           },
           "options": {
             "mode": "markdown",
-            "content": "**MISO real-time market, from the 5-minute marts.** Times are **UTC interval starts**; MISO market time is\n**EST = UTC-5, no DST** (so 17:55 EST = 22:55 UTC). Prices are ex-post $/MWh with LMP = energy (MEC) +\ncongestion (MCC) + loss (MLC). Price axes are *symlog* (linear to $200, log above) so a scarcity interval\ndoesn't flatten the rest.\n**Known events**: 2026-10-06 22:55 UTC (17:55 EST) every CPnode cleared at **$10,000/MWh**: genuine\nscarcity pricing, not a parse error (quirk #9; marked by the *Scarcity* annotation). LMP and constraints can\n**stall** for 25+ min while load / fuel / interchange keep updating (quirk #18): check *Data age*.\nInterchange is shown as **net imports** (positive = MISO imports), the reverse of MISO's NSI sign (quirk #10).\n[All quirks](https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md) · pipeline health: *ISO Lab: pipeline* dashboard.",
+            "content": "**MISO real-time market, from the 5-minute marts.** Times are **UTC interval starts**; MISO market time is\n**EST = UTC-5, no DST** (so 17:55 EST = 22:55 UTC). Prices are ex-post $/MWh with LMP = energy (MEC) +\ncongestion (MCC) + loss (MLC). Price axes are *symlog* (linear to $200, log above) so a scarcity interval\ndoesn't flatten the rest.\n**Known events**: 2026-10-06 22:55 UTC (17:55 EST) every CPnode cleared at **$10,000/MWh**: genuine\nscarcity pricing, not a parse error (quirk #9; marked by the *Scarcity* annotation). LMP and constraints can\n**stall** for 25+ min while load / fuel / interchange keep updating (quirk #18): check *Data age*.\nInterchange is shown as **net imports** (positive = MISO imports), the reverse of MISO's NSI sign (quirk #10).\n[All quirks](https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md) \u00b7 pipeline health: *ISO Lab: pipeline* dashboard.",
             "code": {
               "language": "plaintext"
             }
@@ -816,8 +816,8 @@ data:
         {
           "id": 10,
           "type": "timeseries",
-          "title": "$hub ancillary-service MCPs",
-          "description": "hub_lmp, 5-min, $/MWh: market clearing prices for regulation, spinning, supplemental, short-term reserve and ramp capability up/down in $hub's reserve zone.",
+          "title": "Ancillary-service MCPs (highest across reserve zones)",
+          "description": "hub_lmp, 5-min, $/MWh: the highest market clearing price for each reserve product across the pricing nodes in MISO's consolidated table. Hubs carry no reserve prices (always 0); generator nodes carry their reserve zone's, so the max is the system's tightest zone. Reserve scarcity (e.g. 2026-10-06 17:50 EST: spinning $1,198, supplemental $1,100) shows here first.",
           "gridPos": {
             "h": 7,
             "w": 24,
@@ -838,7 +838,7 @@ data:
               "format": 0,
               "queryType": "timeseries",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avg(reg_mcp) AS \"Regulation\", avg(reg_mileage_mcp) AS \"Reg mileage\", avg(spin_mcp) AS \"Spinning\",\n    avg(supp_mcp) AS \"Supplemental\", avg(str_mcp) AS \"Short-term reserve\",\n    avg(rcup_mcp) AS \"Ramp up\", avg(rcdown_mcp) AS \"Ramp down\"\nFROM hub_lmp\nWHERE name = ${hub:singlequote} AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    max(reg_mcp) AS \"Regulation\", max(reg_mileage_mcp) AS \"Reg mileage\", max(spin_mcp) AS \"Spinning\",\n    max(supp_mcp) AS \"Supplemental\", max(str_mcp) AS \"Short-term reserve\",\n    max(rcup_mcp) AS \"Ramp up\", max(rcdown_mcp) AS \"Ramp down\"\nFROM hub_lmp\nWHERE $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
               "refId": "A"
             }
           ],
@@ -969,7 +969,7 @@ data:
           "id": 13,
           "type": "table",
           "title": "Top binding constraints (RT)",
-          "description": "constraints, 5-min, $/MWh: the 20 constraints with the largest total |shadow price| in the window. MISO sign: negative = binding cost. 'Σ SP × h' = sum of shadow prices / 12 ($/MWh x hours). No row = not binding.",
+          "description": "constraints, 5-min, $/MWh: the 20 constraints with the largest total |shadow price| in the window. MISO sign: negative = binding cost. '\u03a3 SP \u00d7 h' = sum of shadow prices / 12 ($/MWh x hours). No row = not binding.",
           "gridPos": {
             "h": 10,
             "w": 12,
@@ -990,7 +990,7 @@ data:
               "format": 1,
               "queryType": "table",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT name AS \"Constraint\",\n    round(count() / 12, 1) AS \"Hours binding\",\n    round(min(shadow_price), 2) AS \"Min SP\",\n    round(avg(shadow_price), 2) AS \"Avg SP\",\n    round(sum(shadow_price) / 12, 0) AS \"Σ SP × h\",\n    any(curve_type) AS \"Curve\",\n    max(interval_start_utc) AS \"Last binding (UTC)\"\nFROM constraints\nWHERE $__timeFilter(interval_start_utc)\nGROUP BY name\nORDER BY sum(abs(shadow_price)) DESC\nLIMIT 20",
+              "rawSql": "SELECT name AS \"Constraint\",\n    round(count() / 12, 1) AS \"Hours binding\",\n    round(min(shadow_price), 2) AS \"Min SP\",\n    round(avg(shadow_price), 2) AS \"Avg SP\",\n    round(sum(shadow_price) / 12, 0) AS \"\u03a3 SP \u00d7 h\",\n    any(curve_type) AS \"Curve\",\n    max(interval_start_utc) AS \"Last binding (UTC)\"\nFROM constraints\nWHERE $__timeFilter(interval_start_utc)\nGROUP BY name\nORDER BY sum(abs(shadow_price)) DESC\nLIMIT 20",
               "refId": "A"
             }
           ],
