@@ -61,12 +61,15 @@ spec:
             httpGet: {path: /ping, port: http}
             periodSeconds: 20
             failureThreshold: 3
+          # 4Gi wasn't enough for the history marts' first build: two concurrent incremental
+          # inserts over ~7.5M rows each hit ClickHouse's server cap (90% of the limit) with
+          # Code 241. homelab-04 has 64 GB; big GROUP BYs also spill to disk (users.xml).
           resources:
             requests:
               cpu: 250m
-              memory: 1Gi
+              memory: 2Gi
             limits:
-              memory: 4Gi
+              memory: 8Gi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
