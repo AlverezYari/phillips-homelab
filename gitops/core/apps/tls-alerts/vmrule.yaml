@@ -1,0 +1,89 @@
+# Alerts route to ntfy via the vmstack Alertmanager root receiver (no namespace
+# route matches cert-manager/gateways). vmalert selects all VMRules by default.
+#
+# Series:
+#   certmanager_certificate_*        cert-manager controller (vmservicescrape-cert-manager.yaml)
+#   gateway_api_gateway_*            kube-state-metrics custom-resource metrics, configured in
+#                                    victoria-metrics-k8s-stack.yml (kube-state-metrics.customResourceState)
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: tls-chain
+  namespace: monitoring
+spec:
+  groups:
+    - name: tls.certificates
+      rules:
+        - alert: CertificateRenewalOverdue
+          # cert-manager renews ~30 days before expiry (renewalTime). A day past that
+          # with no new cert means renewal is failing: the 2026-09 Cloudflare token
+          # expiry would have fired this on 2026-09-10, a month before tatl-tls expired.
+          expr: time() - certmanager_certificate_renewal_timestamp_seconds > 86400
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} is overdue for renewal"
+            description: >-
+              Renewal was due {{ $value | humanizeDuration }} ago and has not succeeded.
+              Check `kubectl -n {{ $labels.namespace }} get certificaterequest,order,challenge`
+              and the challenge's status.reason. Most likely cause: the Cloudflare token
+              (1Password item cloudflare-api-token) expired or lost permissions.
+        - alert: CertificateExpiringSoon
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }}"
+            description: >-
+              Renewal should have happened ~16 days ago. See CertificateRenewalOverdue for the cause.
+        - alert: CertificateNotReady
+          expr: certmanager_certificate_ready_status{condition="True"} == 0
+          for: 2h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} is not Ready"
+            description: >-
+              A new certificate that never issued (e.g. dagster-tls on 2026-10-07), or a broken
+              renewal. `kubectl -n {{ $labels.namespace }} describe certificate {{ $labels.name }}`.
+        - alert: CertManagerMetricsMissing
+          # Guard: if the scrape breaks, every rule above goes silent.
+          expr: absent(certmanager_certificate_expiration_timestamp_seconds)
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No cert-manager certificate metrics for 30m"
+            description: "The cert-manager scrape (tls-alerts/vmservicescrape-cert-manager.yaml) is broken; certificate alerts cannot fire."
+    - name: tls.gateway
+      rules:
+        - alert: GatewayConfigNotApplied
+          # The Gateway's spec has changed but its controller hasn't applied it. On
+          # 2026-09-08 cilium-operator started with its Gateway API controller disabled
+          # ("Required GatewayAPI resources are not found") and silently stopped applying
+          # listener and certificate changes for a month.
+          expr: |
+            gateway_api_gateway_generation
+              - on(namespace, name) gateway_api_gateway_condition_observed_generation{type="Programmed"}
+              > 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Gateway {{ $labels.namespace }}/{{ $labels.name }} has unapplied changes"
+            description: >-
+              metadata.generation is ahead of the Programmed condition's observedGeneration
+              for 30m: new listeners/routes/renewed certs are not being served. Check
+              `kubectl -n kube-system logs deploy/cilium-operator | grep -i gatewayapi`; if
+              it says "Required GatewayAPI resources are not found", restart it:
+              `kubectl -n kube-system rollout restart deploy/cilium-operator`.
+        - alert: GatewayMetricsMissing
+          expr: absent(gateway_api_gateway_generation{name="tls-gateway"})
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No Gateway metrics from kube-state-metrics for 30m"
+            description: "kube-state-metrics customResourceState (victoria-metrics-k8s-stack.yml) isn't exporting gateway_api_gateway_*; GatewayConfigNotApplied cannot fire."

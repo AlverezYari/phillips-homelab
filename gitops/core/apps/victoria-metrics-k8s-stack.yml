@@ -55,6 +55,43 @@ spec:
                 webhook_configs:
                   - url: "http://stock-bot-serve.stock-bot.svc.cluster.local:8080/alerthook"
                     send_resolved: true
+        kube-state-metrics:
+          # Gateway API custom-resource metrics, for tls-alerts' GatewayConfigNotApplied:
+          # spec generation vs the generation its controller (cilium-operator) has
+          # applied. Added after the operator silently stopped reconciling Gateways
+          # (2026-09-08 -> 2026-10-07). Standard KSM resources are unaffected.
+          rbac:
+            extraRules:
+              - apiGroups: ["gateway.networking.k8s.io"]
+                resources: ["gateways"]
+                verbs: ["list", "watch"]
+          customResourceState:
+            enabled: true
+            config:
+              kind: CustomResourceStateMetrics
+              spec:
+                resources:
+                  - groupVersionKind: {group: gateway.networking.k8s.io, version: v1, kind: Gateway}
+                    metricNamePrefix: gateway_api_gateway
+                    labelsFromPath:
+                      name: [metadata, name]
+                      namespace: [metadata, namespace]
+                    metrics:
+                      - name: generation
+                        help: Gateway metadata.generation (the spec version the controller should apply)
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [metadata, generation]
+                      - name: condition_observed_generation
+                        help: observedGeneration on each Gateway status condition, as set by its controller
+                        each:
+                          type: Gauge
+                          gauge:
+                            path: [status, conditions]
+                            labelsFromPath:
+                              type: [type]
+                            valueFrom: [observedGeneration]
         grafana:
           enabled: false
         defaultDashboards:
