@@ -1,0 +1,17 @@
+# cert-manager controller metrics (certmanager_certificate_*). It already serves them
+# on :9402; nothing scraped them before this.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: cert-manager
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [cert-manager]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+      app.kubernetes.io/component: controller
+  endpoints:
+    - port: tcp-prometheus-servicemonitor
+      interval: 60s

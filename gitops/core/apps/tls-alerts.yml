@@ -1,0 +1,31 @@
+# TLS chain alerting: cert-manager certificates and the Cilium Gateway that serves
+# them. Added after 2026-10-07, when two silent failures had stacked for weeks:
+# the cert-manager Cloudflare token expired (2026-08-31, no renewals since), and
+# the Cilium operator had started with its Gateway API controller disabled
+# (2026-09-08, gateway changes and renewed certs no longer applied). tatl-tls got
+# within two days of expiry before a human noticed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tls-alerts
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "-8"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  project: default
+  source:
+    path: gitops/core/apps/tls-alerts
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
