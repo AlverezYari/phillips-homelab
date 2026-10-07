@@ -1,0 +1,13 @@
+# ClickHouse server metrics -> VictoriaMetrics (vmstack selects all scrape objects by default).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: clickhouse
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

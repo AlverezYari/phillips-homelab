@@ -11,17 +11,19 @@ resources:
   - mcp-clickhouse.yaml
   - iso-analysis.yaml
   - network-policy.yaml
+  - vmpodscrape-clickhouse.yaml
 # Same image and tag as the Dagster code server (../iso-lab-dagster.yml); bump both.
 images:
   - name: iso-lab
     newName: zot.phillips-homelab.net/iso-lab
-    newTag: "07e17e2"
+    newTag: "4717c01"
 configMapGenerator:
   - name: clickhouse-config
     files:
       - clickhouse/lake.xml
       - clickhouse/users.xml
       - clickhouse/logger.xml
+      - clickhouse/prometheus.xml
 labels:
   - includeSelectors: false
     pairs:
