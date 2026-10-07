@@ -64,18 +64,19 @@ spec:
           runCoordinator:
             enabled: true
             type: QueuedRunCoordinator
-            config:
-              queuedRunCoordinator:
-                # Every run is a subprocess of the one code-server pod (DefaultRunLauncher),
-                # so keep this low enough not to OOM it.
-                maxConcurrentRuns: 3
 
         # Pools: `miso_ingest` (dlt) and `clickhouse_dbt` (dbt) each run one at a
         # time, so a slow MISO poll can't overlap the next and race on dlt state.
+        # (With a concurrency block, Dagster requires the run limit here, not under
+        # runCoordinator.config; setting both stops the daemon and webserver starting.)
         concurrency:
           enabled: true
           pools:
             defaultLimit: 1
+          runs:
+            # Every run is a subprocess of the one code-server pod (DefaultRunLauncher),
+            # so keep this low enough not to OOM it.
+            maxConcurrentRuns: 3
 
         telemetry:
           enabled: false
