@@ -12,11 +12,13 @@ resources:
   - iso-analysis.yaml
   - network-policy.yaml
   - vmpodscrape-clickhouse.yaml
+  - vmrule.yaml
+  - vmalertmanagerconfig-ntfy.yaml
 # Same image and tag as the Dagster code server (../iso-lab-dagster.yml); bump both.
 images:
   - name: iso-lab
     newName: zot.phillips-homelab.net/iso-lab
-    newTag: "fec93f0"
+    newTag: "15f3fa7"
 configMapGenerator:
   - name: clickhouse-config
     files:

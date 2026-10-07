@@ -1,0 +1,20 @@
+# Route every namespace=iso-lab alert (vmrule.yaml, plus stock cluster rules such as
+# KubePodCrashLooping or KubePersistentVolumeFillingUp for iso-lab objects) to the iso-lab ntfy
+# topic, formatted by ntfy's built-in Alertmanager template. The operator forces a
+# namespace="iso-lab" matcher onto this route; vmalertmanager selects all configs by default.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertmanagerConfig
+metadata:
+  name: iso-lab-ntfy
+spec:
+  route:
+    receiver: ntfy
+    group_by: ["alertname"]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 3h
+  receivers:
+    - name: ntfy
+      webhook_configs:
+        - url: "http://ntfy.ntfy.svc.cluster.local/iso-lab?template=alertmanager"
+          send_resolved: true
