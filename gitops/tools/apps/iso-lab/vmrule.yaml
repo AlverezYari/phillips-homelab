@@ -1,0 +1,96 @@
+# iso-lab alerts -> ntfy topic iso-lab (vmalertmanagerconfig-ntfy.yaml). vmalert selects all
+# VMRules. Every rule carries namespace=iso-lab: the operator only routes a namespace's alerts
+# through that namespace's VMAlertmanagerConfig, and the pushed iso_lab_* series (the
+# export_pipeline_metrics sensor) have no namespace label of their own.
+#
+# Complements the Dagster run-failure sensor (ntfy on every failed run): these catch what it
+# can't see, i.e. nothing running at all, resource pressure before a failure, silent exporters.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: iso-lab
+spec:
+  groups:
+    - name: iso-lab.pipeline
+      rules:
+        - alert: IsoLabLivePollStale
+          expr: max(iso_lab_last_success_age_seconds{dagster_job="__ASSET_JOB"}) > 900
+          for: 5m
+          labels: {severity: critical, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab: no successful live poll for {{ $value | humanizeDuration }}"
+            description: >-
+              No __ASSET_JOB run has succeeded for over 15 min (polls run every 5). Failed runs
+              alert on their own; this firing alone means runs aren't happening: Dagster daemon,
+              code server or automation sensor down, or the run queue wedged.
+              https://dagster.phillips-homelab.net/runs
+        - alert: IsoLabMetricsExporterSilent
+          expr: absent_over_time(iso_lab_last_success_age_seconds{dagster_job="__ASSET_JOB"}[15m])
+          for: 5m
+          labels: {severity: warning, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab: pipeline metrics stopped arriving"
+            description: >-
+              export_pipeline_metrics (a sensor in the Dagster code server) hasn't pushed for
+              15+ min, so the poll-staleness alert is blind. Code server down, sensor stopped, or
+              the push to vmsingle blocked (CNP iso-lab-ingest egress to monitoring/vmsingle:8429).
+        - alert: IsoLabFreshnessChecksStale
+          expr: max(iso_lab_last_success_age_seconds{dagster_job="data_freshness_checks"}) > 2700
+          for: 5m
+          labels: {severity: warning, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab: freshness checks haven't succeeded for {{ $value | humanizeDuration }}"
+            description: >-
+              data_freshness_checks runs every 15 min. Over 45 min without a success means either
+              repeated failures (stale data, already pushed per run) or the schedule not running.
+        - alert: IsoLabQuarantinedPayloads
+          expr: delta(max(iso_lab_lake_objects{prefix="raw/_quarantine"})[1h:]) > 0
+          labels: {severity: warning, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab: a failed load saved {{ $value }} new payload(s) to raw/_quarantine"
+            description: >-
+              A contract or parser failure captured the MISO payloads behind it (CLAUDE.md rule 4).
+              Turn the newest files under raw/_quarantine/ into a fixture and a test before fixing.
+        - alert: IsoLabCompactionOverdue
+          expr: max(iso_lab_last_success_age_seconds{dagster_job="compact_lake"}) > 93600
+          labels: {severity: warning, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab: lake compaction hasn't succeeded for {{ $value | humanizeDuration }}"
+            description: >-
+              compact_lake runs daily at 06:20 UTC. Over 26 h without a success: the lake is
+              accumulating small files again. Check the compact_lake run log; an interrupted run
+              leaves a compacted.*.manifest.json that the next run finishes or rolls back.
+    - name: iso-lab.clickhouse
+      rules:
+        - alert: IsoLabClickHouseMemoryNearCap
+          expr: >-
+            max(ClickHouseMetrics_MemoryTracking{namespace="iso-lab"})
+              / (0.9 * max(kube_pod_container_resource_limits{namespace="iso-lab", container="clickhouse", resource="memory"}))
+              > 0.8
+          for: 10m
+          labels: {severity: warning, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab ClickHouse at {{ $value | humanizePercentage }} of its memory cap"
+            description: >-
+              ClickHouse refuses queries with Code 241 at its server cap (90% of the 8Gi limit).
+              Sustained >80% usually means a large back-fill or history build; see the pipeline
+              dashboard's ClickHouse row.
+        - alert: IsoLabClickHouseMemoryLimitErrors
+          expr: sum(increase(ClickHouseErrorMetric_MEMORY_LIMIT_EXCEEDED{namespace="iso-lab"}[15m])) > 0
+          labels: {severity: critical, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab ClickHouse refused {{ $value }} queries for memory (Code 241)"
+            description: >-
+              Queries hit MEMORY_LIMIT_EXCEEDED in the last 15 min (dbt builds fail with it). The
+              pipeline profile spills big GROUP BYs to disk; if this repeats, check what ran
+              concurrently, or raise the limit (clickhouse-statefulset.yaml).
+        - alert: IsoLabClickHouseScrapeDown
+          expr: max(up{namespace="iso-lab", job="iso-lab/clickhouse"}) < 1 or absent(up{namespace="iso-lab", job="iso-lab/clickhouse"})
+          for: 5m
+          labels: {severity: critical, namespace: iso-lab}
+          annotations:
+            summary: "iso-lab ClickHouse metrics endpoint unreachable"
+            description: >-
+              vmagent can't scrape clickhouse-0:9363 for 5 min: ClickHouse is down or restarting,
+              or the CNP stopped admitting vmagent. Everything downstream (dbt, MCP, Grafana) is
+              likely failing too.
