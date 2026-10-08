@@ -41,6 +41,7 @@ spec:
             - {name: GF_ANALYTICS_REPORTING_ENABLED, value: "false"}
             - {name: GF_ANALYTICS_CHECK_FOR_UPDATES, value: "false"}
             - {name: GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES, value: "false"}
+            - {name: GF_PLUGINS_PREINSTALL_DISABLED, value: "true"}  # no egress: don't try grafana.com
             - {name: GF_NEWS_NEWS_FEED_ENABLED, value: "false"}
             - {name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH, value: /var/lib/grafana/dashboards/iso-lab/iso-lab-market.json}
             - {name: GF_SECURITY_COOKIE_SECURE, value: "true"}

@@ -1,0 +1,15 @@
+# Lets the shared tls-gateway's HTTPRoute https-app-route-16 (gitops core/apps/gateways.yml,
+# miso-lab.phillips-homelab.net) reach the portal gateway Service, and nothing else here.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-gateway-routes
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    namespace: gateways
+  to:
+  - group: ""
+    kind: Service
+    name: gateway

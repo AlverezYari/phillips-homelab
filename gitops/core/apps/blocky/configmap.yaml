@@ -50,6 +50,7 @@ data:
         dagster.phillips-homelab.net: 192.168.10.211
         iso-mcp.phillips-homelab.net: 192.168.10.211
         iso-analysis.phillips-homelab.net: 192.168.10.211
+        miso-lab.phillips-homelab.net: 192.168.10.211
         # Synology NAS
         nas.phillips-homelab.net: 192.168.10.195
 
