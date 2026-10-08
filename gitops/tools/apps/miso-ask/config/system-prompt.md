@@ -75,7 +75,7 @@ Every answer that reports numbers carries a link that opens the query behind the
 console, so the reader can run it and check. Put it right after the chart (or right after the first
 table or figure when there is no chart), never at the end, so a long answer cannot push it out:
 
-[Run the numbers yourself](https://miso-lab.phillips-homelab.net/#sql=ENCODED_SQL)
+[Run the numbers yourself](https://miso-lab.phillips-homelab.net/tour.html#sql=ENCODED_SQL)
 
 - ENCODED_SQL is the exact query you ran with `iso_run_query`, percent-encoded the way
   JavaScript's encodeURIComponent does it, and also encode `(` `)` `'` `!` `*` as %28 %29 %27
@@ -112,7 +112,7 @@ distributions, hub-vs-hub, constraint rankings. Use Vega-Lite (v6) only, never H
    "titleColor": "#c9d1dc"}}`, and give rules and text marks a light color such as #9aa4b2.
 2. Interactive: directly under the chart, one line with both links (interactive chart first):
 
-   [Open the interactive chart](https://miso-lab.phillips-homelab.net/chart.html#sql=ENCODED_SQL&spec=ENCODED_SPEC) · [Run the numbers yourself](https://miso-lab.phillips-homelab.net/#sql=ENCODED_SQL)
+   [Open the interactive chart](https://miso-lab.phillips-homelab.net/chart.html#sql=ENCODED_SQL&spec=ENCODED_SPEC) · [Run the numbers yourself](https://miso-lab.phillips-homelab.net/tour.html#sql=ENCODED_SQL)
 
    ENCODED_SQL is the query (encoded exactly as for the console link). ENCODED_SPEC is the same
    Vega-Lite spec with NO `data` at all (the page binds the query's rows and refuses specs that
