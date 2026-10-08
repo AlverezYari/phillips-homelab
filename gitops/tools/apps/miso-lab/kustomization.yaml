@@ -32,6 +32,7 @@ configMapGenerator:
       - dashboards/iso-lab-pipeline.json
       - dashboards/iso-lab-footprint.json
       - dashboards/iso-lab-event-replay.json
+      - dashboards/iso-lab-virtuals.json
 labels:
   - includeSelectors: false
     pairs:

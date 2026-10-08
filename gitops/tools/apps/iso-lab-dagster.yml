@@ -140,7 +140,7 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "10802e3"   # bump to deploy a new build
+                tag: "60c8e9a"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000

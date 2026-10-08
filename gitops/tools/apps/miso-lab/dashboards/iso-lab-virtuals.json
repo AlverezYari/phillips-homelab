@@ -1,0 +1,565 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "MISO quirks",
+      "type": "link",
+      "url": "https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md",
+      "targetBlank": true,
+      "icon": "doc"
+    },
+    {
+      "title": "iso-lab dashboards",
+      "type": "dashboards",
+      "tags": [
+        "iso-lab"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "liveNow": false,
+  "schemaVersion": 40,
+  "timepicker": {},
+  "weekStart": "",
+  "id": null,
+  "uid": "iso-lab-virtuals",
+  "title": "ISO Lab: virtuals desk (DA vs RT by block)",
+  "tags": [
+    "iso-lab",
+    "miso"
+  ],
+  "description": "Virtuals desk: DA minus RT per node, hour, day and month, by MISO trading block (dart_* marts, miso_hours).",
+  "timezone": "utc",
+  "time": {
+    "from": "now-180d",
+    "to": "now"
+  },
+  "refresh": "",
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "iso-clickhouse"
+        },
+        "description": "Pricing node (dart_monthly); the 8 trading hubs first.",
+        "query": {
+          "editorType": "sql",
+          "rawSql": "SELECT node FROM dart_monthly\nWHERE $__dateFilter(market_month)\nGROUP BY node ORDER BY node NOT LIKE '%.HUB', node LIMIT 5000",
+          "format": 1,
+          "refId": "node"
+        },
+        "definition": "SELECT node FROM dart_monthly\nWHERE $__dateFilter(market_month)\nGROUP BY node ORDER BY node NOT LIKE '%.HUB', node LIMIT 5000",
+        "refresh": 2,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "INDIANA.HUB",
+          "value": "INDIANA.HUB"
+        },
+        "options": [],
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Read me",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "code": {
+          "language": "plaintext"
+        },
+        "content": "**Virtuals desk: day-ahead vs real time, per node and trading block** (marts `dart_hourly`, `dart_daily`, `dart_monthly`,\ncalendar `miso_hours`). **DA - RT** > 0 means day-ahead settled above real time: what 1 MW of **INC** (virtual supply) earned, before fees\nand uplift; a **DEC** earns the opposite. Prices are exact cents. Blocks follow the traded MISO products: **on-peak** = HE08-23 Eastern\nprevailing time, Mon-Fri, excluding NERC holidays (HE07-22 EST in summer); **2x16** = the same hours on weekends and holidays; **7x8** = nights.\nMarket days are MISO's fixed EST (UTC-5). Recent RT is preliminary until final lands ~5 days later.\n[All quirks](https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md)"
+      }
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "One node: $node",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Mean DA - RT by month and block at $node",
+      "description": "dart_monthly, monthly, $/MWh: mean DA minus RT per trading block. Positive = INC (virtual supply) earned; negative = DEC earned.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT toDateTime(market_month) AS time, block, mean_da_minus_rt AS value\nFROM dart_monthly\nWHERE node = ${node:singlequote} AND $__dateFilter(market_month)\nORDER BY time, block",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "displayName": "${__field.labels.block}",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1d"
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "On-peak DA - RT distribution by month at $node (median, p10, p90)",
+      "description": "dart_monthly, monthly, $/MWh, on-peak hours only. Exact quantiles: the median is the typical hour, p10/p90 the tails a scarcity hour lands in.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT toDateTime(market_month) AS time, median_da_minus_rt AS \"median\", p10_da_minus_rt AS \"p10\", p90_da_minus_rt AS \"p90\", mean_da_minus_rt AS \"mean\"\nFROM dart_monthly\nWHERE node = ${node:singlequote} AND block = 'on_peak' AND $__dateFilter(market_month)\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1d"
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Cumulative INC P&L per MW at $node by block ($)",
+      "description": "dart_daily, daily, $ per MW: running sum of DA - RT over every hour of the block since the start of the range = what holding 1 MW of INC in that block every day would have earned, before fees and uplift. A DEC is the mirror image.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT toDateTime(market_date) AS time, block, sum(sum_da_minus_rt) OVER (PARTITION BY block ORDER BY market_date) AS value\nFROM dart_daily\nWHERE node = ${node:singlequote} AND $__dateFilter(market_date)\nORDER BY time, block",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          },
+          "displayName": "${__field.labels.block}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1d"
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Hourly DA - RT at $node",
+      "description": "dart_hourly, hourly (aggregated to the panel interval), $/MWh: DA minus RT, split into energy, congestion and loss. Positive = day-ahead premium.",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avg(da_minus_rt) AS \"DA - RT\", avg(da_minus_rt_congestion) AS \"congestion\", avg(da_minus_rt_loss) AS \"loss\"\nFROM dart_hourly\nWHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "scaleDistribution": {
+              "type": "symlog",
+              "log": 10,
+              "linearThreshold": 50
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1h"
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Across nodes",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      }
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Largest on-peak DA premiums over the range (top 20 nodes)",
+      "description": "dart_monthly, on-peak block, over the dashboard range: mean DA - RT ($/MWh, hour-weighted), INC hit rate and hours. Large positive = INC side; large negative = DEC side.",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(sum(inc_hit_rate * hours) / sum(hours), 3) AS \"INC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node HAVING sum(hours) >= 40\nORDER BY \"mean DA - RT\" DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Largest on-peak RT premiums over the range (top 20 nodes)",
+      "description": "dart_monthly, on-peak block, over the dashboard range: the DEC side, most negative mean DA - RT ($/MWh, hour-weighted).",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(1 - sum(inc_hit_rate * hours) / sum(hours), 3) AS \"DEC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node HAVING sum(hours) >= 40\nORDER BY \"mean DA - RT\" ASC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Trading-block calendar: hours per month",
+      "description": "miso_hours, monthly over the range: hours in each block (on_peak / 2x16 / 7x8) and how many fell in daylight saving. Check here that a month's on-peak count matches 16 x its non-holiday weekdays.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT market_month AS \"month\", countIf(block = 'on_peak') AS \"on-peak\", countIf(block = '2x16') AS \"2x16\", countIf(block = '7x8') AS \"7x8\",\n    countIf(is_dst) AS \"DST hours\", uniqExactIf(ept_date, is_nerc_holiday) AS \"NERC holidays\"\nFROM miso_hours\nWHERE $__dateFilter(market_date)\nGROUP BY market_month ORDER BY market_month DESC\n-- grafana-check: snapshot",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      }
+    }
+  ]
+}

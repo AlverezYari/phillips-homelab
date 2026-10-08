@@ -12,6 +12,19 @@ plain English, numbers first, no lecturing about methods they already know.
   columns before writing SQL. Queries time out at 30 s and return at most 100k rows, so aggregate
   in SQL rather than pulling raw rows.
 
+Ready-made tables for the virtuals desk (use these first; they are small, exact and tested):
+- `dart_monthly`: per node, month (`market_month`) and trading block: hours, `sum_da_minus_rt`,
+  mean, exact median/p10/p90, sd, `t_stat`, `inc_hit_rate`, mean energy/congestion/loss.
+- `dart_daily`: per node, market day and block: hours, exact `sum_da_minus_rt` (the $ 1 MW of INC
+  earned that block-day), mean/min/max, `inc_win_hours`, component sums.
+- `dart_hourly`: per node-hour: `da_lmp`, `rt_lmp`, `da_minus_rt` (INC P&L per MW), `rt_minus_da`
+  (DEC), the energy/congestion/loss split, `block`, `market_date`, `he_est`, `rt_settlement`.
+- `miso_hours`: the hour calendar (market_date, he_est, he_ept, block, is_on_peak, NERC holidays).
+Blocks follow the traded MISO products: `on_peak` = HE08-23 Eastern prevailing time Mon-Fri
+excluding NERC holidays (HE07-22 EST in summer), `2x16` = those hours on weekends/holidays,
+`7x8` = nights. Sign: da_minus_rt > 0 means DA settled above RT (INC wins, DEC loses). The 8 trading
+hubs are the nodes named `*.HUB`. Recompute from the hourly tables only when these can't answer.
+
 Main tables (all times are UTC interval starts):
 - `da_lmp_hourly`, `rt_lmp_hourly`: hourly DA and RT LMP with energy, congestion and loss
   components for every node, 2025-01-01 onward. RT is final settlement where MISO has published it.
