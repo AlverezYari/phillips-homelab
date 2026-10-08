@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: miso-lab
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # miso-lab demo portal (https://miso-lab.phillips-homelab.net, Cloudflare Access): after
+    # iso-lab (wave 1) and iso-lab-dagster (wave 2), whose ClickHouse and read-only Dagster
+    # webserver it fronts. Code + content: iso-market-data-lab portal/ and deploy/k8s/miso-lab.
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: miso-lab
+  project: default
+  # ESO defaults these fields server-side; without the ignore the app never reports Synced.
+  ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
+  source:
+    path: gitops/tools/apps/miso-lab
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true
+      - RespectIgnoreDifferences=true

@@ -13,6 +13,7 @@ resources:
   - network-policy.yaml
   - vmpodscrape-clickhouse.yaml
   - vmrule.yaml
+  - dagster-webserver-readonly.yaml
   - vmalertmanagerconfig-ntfy.yaml
 # Same image and tag as the Dagster code server (../iso-lab-dagster.yml); bump both.
 images:

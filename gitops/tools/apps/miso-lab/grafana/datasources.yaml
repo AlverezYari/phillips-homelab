@@ -1,0 +1,24 @@
+# Same uids as the homelab Grafana, so the iso-lab dashboards work unchanged.
+apiVersion: 1
+datasources:
+  - name: ISO ClickHouse
+    uid: iso-clickhouse
+    type: grafana-clickhouse-datasource
+    access: proxy
+    editable: false
+    isDefault: true
+    jsonData:
+      host: clickhouse.iso-lab.svc.cluster.local
+      port: 8123
+      protocol: http
+      username: iso_ro
+      defaultDatabase: iso
+      queryTimeout: "25"  # driver adds 5 s; iso_ro caps max_execution_time at 30 (docs/dashboards.md)
+    secureJsonData:
+      password: $ISO_CLICKHOUSE_RO_PASSWORD
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    editable: false
+    url: http://vmsingle-vmstack.monitoring.svc:8429

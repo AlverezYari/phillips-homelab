@@ -97,6 +97,13 @@ spec:
             app.kubernetes.io/instance: grafana
       toPorts:
         - ports: [{port: "8123", protocol: TCP}]
+    # miso-lab demo Grafana (gitops tools/apps/miso-lab), HTTP port only, as iso_ro.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: miso-lab
+            app: miso-lab-grafana
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]
     # vmagent scrapes the metrics-only Prometheus endpoint (clickhouse/prometheus.xml).
     - fromEndpoints:
         - matchLabels:
@@ -166,6 +173,43 @@ spec:
   # Cilium default-deny form: an empty rule enables ingress enforcement and allows nothing.
   ingress:
     - {}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: iso-lab-pg
+      toPorts:
+        - ports: [{port: "5432", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            iso-lab/role: ingest
+      toPorts:
+        - ports: [{port: "4000", protocol: TCP}]
+---
+# Read-only Dagster webserver for the miso-lab portal (dagster-webserver-readonly.yaml): only
+# the portal gateway gets in; same egress as the main webserver (DNS, Postgres, code server).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: iso-lab-dagster-webserver-read-only
+spec:
+  endpointSelector:
+    matchLabels:
+      component: dagster-webserver-read-only
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: miso-lab
+            app: miso-lab-gateway
+      toPorts:
+        - ports: [{port: "80", protocol: TCP}]
   egress:
     - toEndpoints:
         - matchLabels:
