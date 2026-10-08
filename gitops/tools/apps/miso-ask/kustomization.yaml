@@ -17,6 +17,7 @@ configMapGenerator:
   - name: miso-ask-config
     files:
       - config/entrypoint.py
+      - config/sync_models.py
       - config/system-prompt.md
       - config/prompt-suggestions.json
 labels:

@@ -7,7 +7,9 @@ assembles the ones Open WebUI wants as JSON:
 - TOOL_SERVER_CONNECTIONS: the two iso-lab MCP servers in-cluster, bearer token from the secret,
   readable by every signed-in user.
 - DEFAULT_MODEL_METADATA: both MCP servers on by default in every chat, uploads/web/images off.
-- DEFAULT_MODEL_PARAMS: the system prompt (system-prompt.md) and native tool calling.
+- DEFAULT_MODEL_PARAMS: native tool calling, max_tokens.
+- The system prompt (system-prompt.md) goes on stored model entries instead: Open WebUI drops a
+  global default 'system'. sync_models.py upserts them once the server is up (a child process).
 - DEFAULT_PROMPT_SUGGESTIONS: prompt-suggestions.json.
 
 ENABLE_PERSISTENT_CONFIG=false (settings.env) makes this env the source of truth: admin UI edits
@@ -62,6 +64,9 @@ def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
                     "web_search": False,
                     "image_generation": False,
                     "code_interpreter": False,
+                    # Open WebUI's own tools (knowledge bases, chat search, tasks, time): off, so
+                    # the model sees only the two iso-lab MCP servers.
+                    "builtin_tools": False,
                     "vision": False,
                     "citations": True,
                     "usage": True,
@@ -70,7 +75,6 @@ def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
         ),
         "DEFAULT_MODEL_PARAMS": json.dumps(
             {
-                "system": (config / "system-prompt.md").read_text().strip(),
                 "function_calling": "native",
                 "max_tokens": 8192,
             }
@@ -84,4 +88,7 @@ if __name__ == "__main__":
     for k in ("ANTHROPIC_API_KEY", "ISO_MCP_TOKEN"):
         os.environ.pop(k)
     start = sys.argv[1:] or ["bash", "/app/backend/start.sh"]
+    if os.fork() == 0:  # child: write the model entries once the server is healthy, then exit
+        os.chdir("/app/backend")
+        os.execvp("python3", ["python3", str(CONFIG / "sync_models.py")])
     os.execvp(start[0], start)
