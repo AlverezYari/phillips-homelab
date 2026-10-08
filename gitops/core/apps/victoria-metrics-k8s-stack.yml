@@ -144,4 +144,8 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=true
+      # Client-side apply stores the whole object in kubectl.kubernetes.io/last-applied-
+      # configuration; the node-exporter-full dashboard ConfigMap exceeds the 256 KiB
+      # annotation limit, so every client-side sync failed on it (2026-10-08).
+      - ServerSideApply=true
       - ServerSideApply=true
