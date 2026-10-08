@@ -133,7 +133,7 @@ data:
           },
           "options": {
             "mode": "markdown",
-            "content": "**MISO market history, from the daily and monthly report marts** (back-filled: hourly DA/RT LMP and binding\nconstraints from 2026-07-01, FTR auctions from 2026-01). Times are **UTC interval starts**; \"EST\" labels are MISO\nmarket time = UTC-5, no DST. **DA - RT** (the \"DART\" spread) > 0 means day-ahead cleared above real time.\nRT hourly is **preliminary** until the final lands ~5 days after the market day (quirk #15; *Coverage* shows\nhow far final reaches). Report files are keyed by the market date inside them, not the filename (quirk #11).\nShadow prices use MISO's sign (negative = binding cost); congestion totals use |shadow price|.\n[All quirks](https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md)",
+            "content": "**MISO market history, from the daily and monthly report marts** (back-filled: hourly DA/RT LMP and binding\nconstraints from 2025-01-01, FTR auctions from 2025-01). Times are **UTC interval starts**; \"EST\" labels are MISO\nmarket time = UTC-5, no DST. **DA - RT** (the \"DART\" spread) > 0 means day-ahead cleared above real time.\nRT hourly is **preliminary** until the final lands ~5 days after the market day (quirk #15; *Coverage* shows\nhow far final reaches). Report files are keyed by the market date inside them, not the filename (quirk #11).\nShadow prices use MISO's sign (negative = binding cost); congestion totals use |shadow price|.\n[All quirks](https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md)",
             "code": {
               "language": "plaintext"
             }

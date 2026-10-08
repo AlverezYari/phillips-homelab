@@ -600,7 +600,7 @@ data:
         {
           "type": "row",
           "id": 10,
-          "title": "Daily reports and history (since 2026-07-01)",
+          "title": "Daily reports and history (since 2025-01-01)",
           "collapsed": false,
           "panels": [],
           "gridPos": {
@@ -613,8 +613,8 @@ data:
         {
           "type": "table",
           "id": 11,
-          "title": "Daily report marts: coverage since 2026-07-01",
-          "description": "Per daily-report mart, market dates (EST, UTC-5 no DST; quirk #3/#11: keyed by the in-file date) present since 2026-07-01: count, newest, days behind today (EST), dates missing between 2026-07-01 and the newest (gaps a back-fill must fill), and dates with fewer than 24 hours. Normal: DA and RT prelim reports land at D+1, so days_behind 1-2 is expected. days_under_24h is expected for rt_binding_constraints (hours with nothing binding); for the LMP marts it means a partial file. Marts, days.",
+          "title": "Daily report marts: coverage since 2025-01-01",
+          "description": "Per daily-report mart, market dates (EST, UTC-5 no DST; quirk #3/#11: keyed by the in-file date) present since 2025-01-01: count, newest, days behind today (EST), dates missing between 2025-01-01 and the newest (gaps a back-fill must fill), and dates with fewer than 24 hours. Normal: DA and RT prelim reports land at D+1, so days_behind 1-2 is expected. days_under_24h is expected for rt_binding_constraints (hours with nothing binding); for the LMP marts it means a partial file. Marts, days.",
           "datasource": {
             "type": "grafana-clickhouse-datasource",
             "uid": "iso-clickhouse"
@@ -629,7 +629,7 @@ data:
               "editorType": "sql",
               "queryType": "table",
               "format": 1,
-              "rawSql": "-- grafana-check: snapshot\nWITH toDate('2026-07-01') AS since, toDate(now() - INTERVAL 5 HOUR) AS today_est\nSELECT mart,\n       count() AS days_present,\n       max(d) AS newest_market_date,\n       dateDiff('day', max(d), today_est) AS days_behind,\n       arrayStringConcat(arrayMap(x -> toString(x), arrayFilter(x -> NOT has(groupArray(d), x), arrayMap(i -> since + i, range(toUInt32(dateDiff('day', since, max(d)) + 1))))), ', ') AS missing_days,\n       arrayStringConcat(arrayMap(x -> toString(x), arraySort(arrayFilter((x, h) -> h < 24, groupArray(d), groupArray(hours)))), ', ') AS days_under_24h\nFROM (\n  SELECT 'da_lmp_hourly' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.da_lmp_hourly WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'rt_lmp_hourly' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.rt_lmp_hourly WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'da_binding_constraints' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.da_binding_constraints WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'rt_binding_constraints' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.rt_binding_constraints WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n)\nGROUP BY mart\nORDER BY mart"
+              "rawSql": "-- grafana-check: snapshot\nWITH toDate('2025-01-01') AS since, toDate(now() - INTERVAL 5 HOUR) AS today_est\nSELECT mart,\n       count() AS days_present,\n       max(d) AS newest_market_date,\n       dateDiff('day', max(d), today_est) AS days_behind,\n       arrayStringConcat(arrayMap(x -> toString(x), arrayFilter(x -> NOT has(groupArray(d), x), arrayMap(i -> since + i, range(toUInt32(dateDiff('day', since, max(d)) + 1))))), ', ') AS missing_days,\n       arrayStringConcat(arrayMap(x -> toString(x), arraySort(arrayFilter((x, h) -> h < 24, groupArray(d), groupArray(hours)))), ', ') AS days_under_24h\nFROM (\n  SELECT 'da_lmp_hourly' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.da_lmp_hourly WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'rt_lmp_hourly' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.rt_lmp_hourly WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'da_binding_constraints' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.da_binding_constraints WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n  UNION ALL SELECT 'rt_binding_constraints' AS mart, toDate(interval_start_utc - INTERVAL 5 HOUR) AS d, uniqExact(toStartOfHour(interval_start_utc)) AS hours FROM iso.rt_binding_constraints WHERE interval_start_utc >= toDateTime(since, 'UTC') + INTERVAL 5 HOUR GROUP BY d\n)\nGROUP BY mart\nORDER BY mart"
             }
           ],
           "gridPos": {
@@ -796,7 +796,7 @@ data:
           "type": "table",
           "id": 13,
           "title": "RT hourly LMP: final vs prelim",
-          "description": "iso.rt_lmp_hourly by settlement since 2026-07-01: final replaces prelim (quirk #15: prelim at D+1, final ~5 days later). A prelim day older than ~7 days means the final file never landed. Mart, market dates (EST).",
+          "description": "iso.rt_lmp_hourly by settlement since 2025-01-01: final replaces prelim (quirk #15: prelim at D+1, final ~5 days later). A prelim day older than ~7 days means the final file never landed. Mart, market dates (EST).",
           "datasource": {
             "type": "grafana-clickhouse-datasource",
             "uid": "iso-clickhouse"
@@ -811,7 +811,7 @@ data:
               "editorType": "sql",
               "queryType": "table",
               "format": 1,
-              "rawSql": "-- grafana-check: snapshot\nSELECT settlement, uniqExact(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS market_days, min(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS first_day, max(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS newest_day, count() AS node_hours\nFROM iso.rt_lmp_hourly\nWHERE interval_start_utc >= toDateTime('2026-07-01 05:00:00', 'UTC')\nGROUP BY settlement\nORDER BY settlement"
+              "rawSql": "-- grafana-check: snapshot\nSELECT settlement, uniqExact(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS market_days, min(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS first_day, max(toDate(interval_start_utc - INTERVAL 5 HOUR)) AS newest_day, count() AS node_hours\nFROM iso.rt_lmp_hourly\nWHERE interval_start_utc >= toDateTime('2025-01-01 05:00:00', 'UTC')\nGROUP BY settlement\nORDER BY settlement"
             }
           ],
           "gridPos": {
