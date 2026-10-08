@@ -1,6 +1,7 @@
-# miso-lab demo portal: https://miso-lab.phillips-homelab.net, behind Cloudflare Access
-# (invited emails only) via the shared tunnel phillips-homelab-public. Plain-English tour +
-# read-only live views of the iso-lab platform. See portal/ in the code repo.
+# miso-lab demo portal: https://miso-lab.phillips-homelab.net. INTERNAL for now (homelab
+# tls-gateway + blocky, LAN/tailnet only). Going public later = a Cloudflare tunnel hostname +
+# Access policy, and re-admitting the cloudflared pods in network-policy.yaml. Plain-English
+# tour + read-only live views of the iso-lab platform. See portal/ in the code repo.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: miso-lab
@@ -9,6 +10,7 @@ resources:
   - grafana.yaml
   - externalsecret.yaml
   - network-policy.yaml
+  - reference-grant.yaml
 images:
   - name: miso-lab-portal
     newName: zot.phillips-homelab.net/miso-lab-portal

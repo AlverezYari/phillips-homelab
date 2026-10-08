@@ -251,6 +251,14 @@ spec:
       certificateRefs:
       - kind: Secret
         name: iso-analysis-tls
+  - name: https-16
+    protocol: HTTPS
+    port: 443
+    hostname: miso-lab.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: miso-lab-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -499,3 +507,25 @@ spec:
       port: 80
     timeouts:
       request: 120s
+---
+# miso-lab demo portal (miso-lab/gateway: tour + demo Grafana + read-only Dagster). Internal
+# for now; going public later is a Cloudflare tunnel hostname + Access instead.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-16
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-16
+    namespace: gateways
+  hostnames:
+  - miso-lab.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: gateway
+      namespace: miso-lab
+      port: 8080
+    timeouts:
+      request: 300s
