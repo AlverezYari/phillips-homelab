@@ -7,7 +7,8 @@
 # iso_ro (readonly=1, SELECT on iso.* only, no lake/s3 access, 30s / 100k rows /
 # 2 GB caps; clickhouse/users.xml) -> network policy (this pod reaches ClickHouse only).
 #
-# Served at https://iso-mcp.phillips-homelab.net/mcp (LAN, shared tls-gateway).
+# Served at https://iso-mcp.phillips-homelab.net/mcp (LAN, shared tls-gateway), and in-cluster
+# to the miso-ask chat (gitops tools/apps/miso-ask) at mcp-clickhouse.iso-lab.svc.cluster.local.
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -63,7 +64,7 @@ spec:
             - {name: CLICKHOUSE_DATABASE, value: iso}
             - {name: CLICKHOUSE_MCP_QUERY_TIMEOUT, value: "30"}
             # Host header the server answers for (required when bound to 0.0.0.0).
-            - {name: CLICKHOUSE_MCP_ALLOWED_HOSTS, value: "iso-mcp.phillips-homelab.net"}
+            - {name: CLICKHOUSE_MCP_ALLOWED_HOSTS, value: "iso-mcp.phillips-homelab.net,mcp-clickhouse.iso-lab.svc.cluster.local"}
           envFrom:
             - secretRef:
                 name: iso-lab-mcp
@@ -98,7 +99,8 @@ spec:
   ports:
     - {name: http, port: 80, targetPort: http}
 ---
-# Ingress only from the shared gateway (Cilium's envoy = reserved:ingress); egress only
+# Ingress only from the shared gateway (Cilium's envoy = reserved:ingress) and the miso-ask
+# chat (Open WebUI, same bearer token); egress only
 # to ClickHouse's HTTP port. No internet, no lake, no Postgres.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -110,6 +112,12 @@ spec:
       iso-lab/role: mcp
   ingress:
     - fromEntities: [ingress]
+      toPorts:
+        - ports: [{port: "8000", protocol: TCP}]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: miso-ask
+            app: miso-ask
       toPorts:
         - ports: [{port: "8000", protocol: TCP}]
   egress:

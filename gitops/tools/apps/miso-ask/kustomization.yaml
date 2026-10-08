@@ -1,0 +1,25 @@
+# miso-ask: https://miso-ask.phillips-homelab.net, the "ask the data" chat for the miso-lab demo
+# (Open WebUI + Claude + the iso-lab MCP servers). INTERNAL for now (homelab tls-gateway +
+# blocky). Everything it does is set in config/: settings.env (plain settings), entrypoint.py
+# (connections, MCP servers, model defaults), system-prompt.md, prompt-suggestions.json.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: miso-ask
+resources:
+  - ask.yaml
+  - externalsecret.yaml
+  - network-policy.yaml
+  - reference-grant.yaml
+configMapGenerator:
+  - name: miso-ask-settings
+    envs:
+      - config/settings.env
+  - name: miso-ask-config
+    files:
+      - config/entrypoint.py
+      - config/system-prompt.md
+      - config/prompt-suggestions.json
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: miso-lab

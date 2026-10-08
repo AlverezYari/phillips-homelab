@@ -1,0 +1,12 @@
+[
+  {"title": ["Indiana Hub RT minus DA", "by hour of day, last 90 days"],
+   "content": "How does Indiana Hub RT minus DA behave by hour of day (EST) over the last 90 days? Give median and mean per hour and point out where the DA premium is largest."},
+  {"title": ["Costliest RT constraints", "last full month"],
+   "content": "Which binding constraints cost the most in real time last month, and how did their RT shadow prices compare with day-ahead for the same constraints?"},
+  {"title": ["What happened on Oct 6?", "the 22:50 UTC price spike"],
+   "content": "Walk me through what happened around 22:50 UTC on 2026-10-06 in MISO RT prices: which hubs, which constraints, and what load and fuel mix looked like."},
+  {"title": ["Do two hubs move together?", "cointegration, Indiana vs Illinois"],
+   "content": "Are Indiana Hub and Illinois Hub day-ahead prices cointegrated over the last 180 days? If so, how fast does the spread mean-revert?"},
+  {"title": ["FTR auction results", "most valuable paths"],
+   "content": "From the most recent FTR auction, which source-sink paths cleared at the highest prices, and which constraints drove them?"}
+]

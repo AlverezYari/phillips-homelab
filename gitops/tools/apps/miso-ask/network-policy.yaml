@@ -1,0 +1,41 @@
+# In: only the homelab tls-gateway (Cilium envoy, entity "ingress"), i.e. internal for now;
+# going public adds the Cloudflare tunnel (cloudflared pods in namespace cloudflare).
+# Out: DNS, the two iso-lab MCP servers, and HTTPS to api.anthropic.com by name (the L7 DNS rule
+# turns on Cilium's DNS proxy for this pod, which is what lets toFQDNs be enforced; same pattern
+# as ergobars-board). Nothing else: no model downloads, no web, no version checks.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: miso-ask
+spec:
+  endpointSelector:
+    matchLabels: {app: miso-ask}
+  ingress:
+    - fromEntities: [ingress]
+      toPorts:
+        - ports: [{port: "8080", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toFQDNs:
+        - matchName: "api.anthropic.com"
+      toPorts:
+        - ports: [{port: "443", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+            iso-lab/role: mcp
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+            iso-lab/role: analysis
+      toPorts:
+        - ports: [{port: "8000", protocol: TCP}]

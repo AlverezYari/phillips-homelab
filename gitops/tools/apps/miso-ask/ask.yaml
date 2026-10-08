@@ -1,0 +1,90 @@
+# miso-ask: "ask the data" chat for the miso-lab demo. Stock Open WebUI (pinned), Claude through
+# Anthropic's OpenAI-compatible API, tools = the two iso-lab MCP servers (read-only SQL as iso_ro,
+# guardrailed stats). Configured entirely from config/ (ENABLE_PERSISTENT_CONFIG=false), so what
+# runs is what is in git. Guardrails: MCP bearer token -> iso_ro (readonly, 30 s / 100k rows)
+# -> network policy (egress: the two MCP servers and api.anthropic.com only) -> Anthropic
+# Console workspace spend limit.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: miso-ask-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: syno-iscsi-default
+  resources:
+    requests: {storage: 5Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: miso-ask
+spec:
+  replicas: 1
+  strategy: {type: Recreate}  # RWO volume, SQLite
+  selector:
+    matchLabels: {app: miso-ask}
+  template:
+    metadata:
+      labels: {app: miso-ask}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: open-webui
+          image: ghcr.io/open-webui/open-webui:0.11.4
+          command: ["python3", "/etc/miso-ask/entrypoint.py"]
+          ports:
+            - {name: http, containerPort: 8080}
+          envFrom:
+            - configMapRef: {name: miso-ask-settings}
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom: {secretKeyRef: {name: miso-ask, key: ANTHROPIC_API_KEY}}
+            - name: ISO_MCP_TOKEN
+              valueFrom: {secretKeyRef: {name: miso-ask, key: ISO_MCP_TOKEN}}
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 100m, memory: 768Mi}
+            limits: {memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: config, mountPath: /etc/miso-ask, readOnly: true}
+            - {name: static, mountPath: /static}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: miso-ask-data}
+        - name: config
+          configMap: {name: miso-ask-config}
+        - name: static
+          emptyDir: {sizeLimit: 64Mi}
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: miso-ask
+spec:
+  selector: {app: miso-ask}
+  ports:
+    - {name: http, port: 8080, targetPort: http}
