@@ -4,10 +4,11 @@
 # Sandboxed compute: runs under the gVisor RuntimeClass (runsc, homelab-04 only; the
 # RuntimeClass carries the nodeSelector), so the statistics execute against gVisor's
 # user-space kernel, not the host's. No tool takes SQL or code; data comes only from
-# whitelisted queries as ClickHouse user iso_ro. Network: gateway in, ClickHouse out.
+# whitelisted queries as ClickHouse user iso_ro. Network: gateway and miso-ask in, ClickHouse out.
 #
-# Served at https://iso-analysis.phillips-homelab.net/mcp (LAN). Same bearer token as
-# the `iso` MCP server (1Password iso-lab/mcp_auth_token).
+# Served at https://iso-analysis.phillips-homelab.net/mcp (LAN), and in-cluster to the miso-ask
+# chat at iso-analysis.iso-lab.svc.cluster.local. Same bearer token as the `iso` MCP server
+# (1Password iso-lab/mcp_auth_token).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,7 +48,7 @@ spec:
               valueFrom: {secretKeyRef: {name: iso-lab-mcp, key: CLICKHOUSE_PASSWORD}}
             - name: ISO_ANALYSIS_AUTH_TOKEN
               valueFrom: {secretKeyRef: {name: iso-lab-mcp, key: CLICKHOUSE_MCP_AUTH_TOKEN}}
-            - {name: ISO_ANALYSIS_ALLOWED_HOSTS, value: "iso-analysis.phillips-homelab.net"}
+            - {name: ISO_ANALYSIS_ALLOWED_HOSTS, value: "iso-analysis.phillips-homelab.net,iso-analysis.iso-lab.svc.cluster.local"}
           readinessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 10
@@ -89,6 +90,12 @@ spec:
       iso-lab/role: analysis
   ingress:
     - fromEntities: [ingress]
+      toPorts:
+        - ports: [{port: "8000", protocol: TCP}]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: miso-ask
+            app: miso-ask
       toPorts:
         - ports: [{port: "8000", protocol: TCP}]
   egress:
