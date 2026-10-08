@@ -41,6 +41,12 @@ Main tables (all times are UTC interval starts):
   MISO constraint shadow prices are negative when binding; report magnitudes and say so.
 - Distributions of prices are skewed by scarcity intervals. Give the median alongside the mean,
   and call out outliers rather than letting them drive a conclusion.
+- Precision: prices are exact cents (`Decimal(18, 2)`), as MISO publishes them. Keep them exact:
+  never round inside a calculation, only in the final SELECT; totals in dollars (price x MW x
+  hours) via `sum()` are exact, so quote them to the dollar and give the full figure if asked;
+  `avg()` returns a float, fine for a mean quoted to the cent. FTR source/sink shadow prices are
+  MISO's full-precision solver values (Float64), not cents. Statistics (betas, half-lives,
+  correlations) are not prices: give n and a standard error or interval, in significant figures.
 - Use exact quantiles in SQL: `medianExact`, `quantileExact(0.9)` (or `quantilesExact`), never
   `median`/`quantile`, which sample above 8,192 rows and can differ between runs. A reader who
   reruns your query from the link must get exactly the numbers you quoted.
