@@ -3,6 +3,10 @@
 # through that namespace's VMAlertmanagerConfig, and the pushed iso_lab_* series (the
 # export_pipeline_metrics sensor) have no namespace label of their own.
 #
+# The iso_lab_* series are pushed (every ~5 min; lake gauges every 15), so they're read with
+# last_over_time(...[20m]): a plain selector only looks back 5 min and reads empty between
+# pushes, which would make these rules silently never fire.
+#
 # Complements the Dagster run-failure sensor (ntfy on every failed run): these catch what it
 # can't see, i.e. nothing running at all, resource pressure before a failure, silent exporters.
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -14,7 +18,7 @@ spec:
     - name: iso-lab.pipeline
       rules:
         - alert: IsoLabLivePollStale
-          expr: max(iso_lab_last_success_age_seconds{dagster_job="__ASSET_JOB"}) > 900
+          expr: max(last_over_time(iso_lab_last_success_age_seconds{dagster_job="__ASSET_JOB"}[20m])) > 900
           for: 5m
           labels: {severity: critical, namespace: iso-lab}
           annotations:
@@ -35,7 +39,7 @@ spec:
               15+ min, so the poll-staleness alert is blind. Code server down, sensor stopped, or
               the push to vmsingle blocked (CNP iso-lab-ingest egress to monitoring/vmsingle:8429).
         - alert: IsoLabFreshnessChecksStale
-          expr: max(iso_lab_last_success_age_seconds{dagster_job="data_freshness_checks"}) > 2700
+          expr: max(last_over_time(iso_lab_last_success_age_seconds{dagster_job="data_freshness_checks"}[20m])) > 2700
           for: 5m
           labels: {severity: warning, namespace: iso-lab}
           annotations:
@@ -44,7 +48,7 @@ spec:
               data_freshness_checks runs every 15 min. Over 45 min without a success means either
               repeated failures (stale data, already pushed per run) or the schedule not running.
         - alert: IsoLabQuarantinedPayloads
-          expr: delta(max(iso_lab_lake_objects{prefix="raw/_quarantine"})[1h:]) > 0
+          expr: delta(max(last_over_time(iso_lab_lake_objects{prefix="raw/_quarantine"}[20m]))[1h:5m]) > 0
           labels: {severity: warning, namespace: iso-lab}
           annotations:
             summary: "iso-lab: a failed load saved {{ $value }} new payload(s) to raw/_quarantine"
@@ -52,7 +56,7 @@ spec:
               A contract or parser failure captured the MISO payloads behind it (CLAUDE.md rule 4).
               Turn the newest files under raw/_quarantine/ into a fixture and a test before fixing.
         - alert: IsoLabCompactionOverdue
-          expr: max(iso_lab_last_success_age_seconds{dagster_job="compact_lake"}) > 93600
+          expr: max(last_over_time(iso_lab_last_success_age_seconds{dagster_job="compact_lake"}[20m])) > 93600
           labels: {severity: warning, namespace: iso-lab}
           annotations:
             summary: "iso-lab: lake compaction hasn't succeeded for {{ $value | humanizeDuration }}"

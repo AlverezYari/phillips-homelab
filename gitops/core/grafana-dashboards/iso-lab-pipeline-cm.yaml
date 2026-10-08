@@ -1675,7 +1675,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (dagster_job, status) (iso_lab_runs_finished)",
+              "expr": "max by (dagster_job, status) (last_over_time(iso_lab_runs_finished[20m]))",
               "legendFormat": "{{dagster_job}} {{status}}",
               "range": true
             }
@@ -1758,7 +1758,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(iso_lab_runs_finished{status=\"failure\"}) or vector(0)",
+              "expr": "sum(last_over_time(iso_lab_runs_finished{status=\"failure\"}[20m])) or vector(0)",
               "legendFormat": "failed",
               "range": false,
               "instant": true
@@ -1822,7 +1822,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (dagster_job) (iso_lab_last_success_age_seconds) / 60",
+              "expr": "max by (dagster_job) (last_over_time(iso_lab_last_success_age_seconds[20m])) / 60",
               "legendFormat": "{{dagster_job}}",
               "range": true
             }
@@ -1905,7 +1905,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (prefix) (iso_lab_lake_objects)",
+              "expr": "max by (prefix) (last_over_time(iso_lab_lake_objects[20m]))",
               "legendFormat": "{{prefix}}",
               "range": true
             }
@@ -1988,7 +1988,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (prefix) (iso_lab_lake_bytes)",
+              "expr": "max by (prefix) (last_over_time(iso_lab_lake_bytes[20m]))",
               "legendFormat": "{{prefix}}",
               "range": true
             }
