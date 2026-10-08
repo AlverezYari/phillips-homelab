@@ -76,7 +76,7 @@ def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
         "DEFAULT_MODEL_PARAMS": json.dumps(
             {
                 "function_calling": "native",
-                "max_tokens": 8192,
+                "max_tokens": 16000,
             }
         ),
         "DEFAULT_PROMPT_SUGGESTIONS": (config / "prompt-suggestions.json").read_text(),
