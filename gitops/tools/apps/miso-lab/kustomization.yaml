@@ -1,0 +1,35 @@
+# miso-lab demo portal: https://miso-lab.phillips-homelab.net, behind Cloudflare Access
+# (invited emails only) via the shared tunnel phillips-homelab-public. Plain-English tour +
+# read-only live views of the iso-lab platform. See portal/ in the code repo.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: miso-lab
+resources:
+  - gateway.yaml
+  - grafana.yaml
+  - externalsecret.yaml
+  - network-policy.yaml
+images:
+  - name: miso-lab-portal
+    newName: zot.phillips-homelab.net/miso-lab-portal
+    newTag: "b026afe"
+  - name: miso-lab-grafana
+    newName: zot.phillips-homelab.net/miso-lab-grafana
+    newTag: "b026afe"
+configMapGenerator:
+  - name: grafana-provisioning
+    files:
+      - grafana/datasources.yaml
+      - grafana/dashboards.yaml
+  # Same JSON as the homelab Grafana's iso-lab dashboards (deploy/grafana/dashboards, copied by
+  # `make portal-sync`; a test fails if they differ).
+  - name: grafana-dashboards
+    files:
+      - dashboards/iso-lab-market.json
+      - dashboards/iso-lab-market-history.json
+      - dashboards/iso-lab-pipeline.json
+      - dashboards/iso-lab-footprint.json
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: miso-lab

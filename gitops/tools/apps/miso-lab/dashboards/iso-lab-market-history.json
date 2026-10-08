@@ -1,0 +1,1189 @@
+{
+  "uid": "iso-lab-market-history",
+  "title": "ISO Lab: MISO market history (DA vs RT, FTR)",
+  "description": "Day-ahead vs real-time hourly prices and congestion from MISO's daily reports, and monthly FTR auction results (ClickHouse iso).",
+  "tags": [
+    "iso-lab",
+    "miso"
+  ],
+  "timezone": "utc",
+  "editable": false,
+  "graphTooltip": 1,
+  "schemaVersion": 40,
+  "version": 1,
+  "id": null,
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "refresh": "",
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "timepicker": {},
+  "weekStart": "",
+  "links": [
+    {
+      "title": "MISO quirks",
+      "type": "link",
+      "url": "https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md",
+      "targetBlank": true,
+      "icon": "doc"
+    },
+    {
+      "title": "iso-lab dashboards",
+      "type": "dashboards",
+      "tags": [
+        "iso-lab"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "node",
+        "label": "Node",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "iso-clickhouse"
+        },
+        "description": "Pricing node for the DA vs RT panels (da_lmp_hourly); hubs first.",
+        "query": {
+          "editorType": "sql",
+          "rawSql": "SELECT node FROM da_lmp_hourly\nWHERE $__timeFilter(interval_start_utc)\n  AND interval_start_utc >= (SELECT max(interval_start_utc) FROM da_lmp_hourly WHERE $__timeFilter(interval_start_utc)) - INTERVAL 1 DAY\nGROUP BY node ORDER BY node NOT LIKE '%.HUB', node LIMIT 5000",
+          "format": 1,
+          "refId": "node"
+        },
+        "definition": "SELECT node FROM da_lmp_hourly\nWHERE $__timeFilter(interval_start_utc)\n  AND interval_start_utc >= (SELECT max(interval_start_utc) FROM da_lmp_hourly WHERE $__timeFilter(interval_start_utc)) - INTERVAL 1 DAY\nGROUP BY node ORDER BY node NOT LIKE '%.HUB', node LIMIT 5000",
+        "refresh": 2,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "text": "INDIANA.HUB",
+          "value": "INDIANA.HUB"
+        },
+        "options": [],
+        "hide": 0
+      },
+      {
+        "name": "auction",
+        "label": "FTR auction",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "iso-clickhouse"
+        },
+        "description": "Monthly FTR auction (ftr_market_results), newest first; the year before the window is included.",
+        "query": {
+          "editorType": "sql",
+          "rawSql": "SELECT auction FROM ftr_market_results\nWHERE start_date >= toStartOfMonth($__fromTime) - INTERVAL 1 YEAR AND start_date <= $__toTime\nGROUP BY auction ORDER BY min(start_date) DESC LIMIT 100",
+          "format": 1,
+          "refId": "auction"
+        },
+        "definition": "SELECT auction FROM ftr_market_results\nWHERE start_date >= toStartOfMonth($__fromTime) - INTERVAL 1 YEAR AND start_date <= $__toTime\nGROUP BY auction ORDER BY min(start_date) DESC LIMIT 100",
+        "refresh": 2,
+        "sort": 0,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Read me",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**MISO market history, from the daily and monthly report marts** (back-filled: hourly DA/RT LMP and binding\nconstraints from 2025-01-01, FTR auctions from 2025-01). Times are **UTC interval starts**; \"EST\" labels are MISO\nmarket time = UTC-5, no DST. **DA - RT** (the \"DART\" spread) > 0 means day-ahead cleared above real time.\nRT hourly is **preliminary** until the final lands ~5 days after the market day (quirk #15; *Coverage* shows\nhow far final reaches). Report files are keyed by the market date inside them, not the filename (quirk #11).\nShadow prices use MISO's sign (negative = binding cost); congestion totals use |shadow price|.\n[All quirks](https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md)",
+        "code": {
+          "language": "plaintext"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Day-ahead vs real-time prices",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "DA vs RT hourly LMP at $node",
+      "description": "da_lmp_hourly and rt_lmp_hourly, hourly, $/MWh (RT: final where settled, else prelim).",
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avgIf(price, src = 'DA') AS \"DA LMP\", avgIf(price, src = 'RT') AS \"RT LMP\"\nFROM (\n    SELECT 'DA' AS src, interval_start_utc, lmp AS price FROM da_lmp_hourly\n    WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)\n    UNION ALL\n    SELECT 'RT' AS src, interval_start_utc, lmp AS price FROM rt_lmp_hourly\n    WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)\n)\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "scaleDistribution": {
+              "type": "symlog",
+              "log": 10,
+              "linearThreshold": 200
+            }
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1h"
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Coverage at $node",
+      "description": "Newest hour (UTC interval start) in da_lmp_hourly, and in rt_lmp_hourly by settlement: final lags prelim by ~5 days (quirk #15).",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 5
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT\n    (SELECT max(interval_start_utc) FROM da_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS \"DA through\",\n    (SELECT maxIf(interval_start_utc, settlement = 'final') FROM rt_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS \"RT final through\",\n    (SELECT max(interval_start_utc) FROM rt_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS \"RT prelim through\"",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dateTimeAsIso",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/through/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "DA - RT spread at $node (daily mean)",
+      "description": "da_lmp_hourly joined to rt_lmp_hourly on the hour, $/MWh, averaged per UTC day: DA minus RT for the LMP and for its congestion component (MCC). Positive = day-ahead premium.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avg(d.lmp - r.lmp) AS \"DA - RT (LMP)\", avg(d.mcc - r.mcc) AS \"DA - RT (congestion)\"\nFROM (SELECT interval_start_utc, lmp, mcc FROM da_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS d\nINNER JOIN (SELECT interval_start_utc, lmp, mcc FROM rt_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS r\nUSING (interval_start_utc)\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1d"
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "DA vs RT congestion component (MCC) at $node",
+      "description": "da_lmp_hourly.mcc and rt_lmp_hourly.mcc, hourly, $/MWh: whether day-ahead priced the congestion real time saw.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avgIf(mcc, src = 'DA') AS \"DA MCC\", avgIf(mcc, src = 'RT') AS \"RT MCC\"\nFROM (\n    SELECT 'DA' AS src, interval_start_utc, mcc FROM da_lmp_hourly\n    WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)\n    UNION ALL\n    SELECT 'RT' AS src, interval_start_utc, mcc FROM rt_lmp_hourly\n    WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)\n)\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1h"
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "DA - RT spread by hub",
+      "description": "da_lmp_hourly joined to rt_lmp_hourly on (node, hour), $/MWh, the eight trading hubs, over the window. Mean |DA - RT| is the typical miss either way.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT node AS \"Hub\",\n    round(avg(d.lmp), 2) AS \"Mean DA\", round(avg(r.lmp), 2) AS \"Mean RT\",\n    round(avg(d.lmp - r.lmp), 2) AS \"Mean DA - RT\", round(avg(abs(d.lmp - r.lmp)), 2) AS \"Mean |DA - RT|\",\n    round(max(r.lmp), 2) AS \"Max RT\", count() AS \"Hours\"\nFROM (SELECT node, interval_start_utc, lmp FROM da_lmp_hourly WHERE node LIKE '%.HUB' AND $__timeFilter(interval_start_utc)) AS d\nINNER JOIN (SELECT node, interval_start_utc, lmp FROM rt_lmp_hourly WHERE node LIKE '%.HUB' AND $__timeFilter(interval_start_utc)) AS r\nUSING (node, interval_start_utc)\nGROUP BY node ORDER BY node",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/Mean|Max/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "DA - RT spread at $node by hour of day (EST)",
+      "description": "da_lmp_hourly joined to rt_lmp_hourly, $/MWh, mean over the window per hour beginning in MISO market time (EST = UTC-5, no DST).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT leftPad(toString(toHour(toTimeZone(interval_start_utc, 'Etc/GMT+5'))), 2, '0') AS \"Hour beginning (EST)\",\n    round(avg(d.lmp - r.lmp), 2) AS \"Mean DA - RT\"\nFROM (SELECT interval_start_utc, lmp FROM da_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS d\nINNER JOIN (SELECT interval_start_utc, lmp FROM rt_lmp_hourly WHERE node = ${node:singlequote} AND $__timeFilter(interval_start_utc)) AS r\nUSING (interval_start_utc)\nGROUP BY 1 ORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "gradientMode": "none",
+            "axisPlacement": "auto",
+            "axisCenteredZero": true
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hour beginning (EST)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "Hour beginning (EST)",
+        "orientation": "vertical",
+        "showValue": "never",
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "stacking": "none"
+      }
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Day-ahead vs real-time congestion",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Congestion: DA vs RT, sum of |shadow price| per day",
+      "description": "da_binding_constraints (hourly) and rt_binding_constraints (5-min, summed / 12 to hour-equivalents), $/MWh x hours per UTC day, all constraints. A rough congestion-intensity index, not a dollar rent (no flows).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    sumIf(abs(shadow_price), src = 'DA') AS \"DA\",\n    sumIf(abs(shadow_price), src = 'RT') / 12 AS \"RT\"\nFROM (\n    SELECT 'DA' AS src, interval_start_utc, shadow_price FROM da_binding_constraints WHERE $__timeFilter(interval_start_utc)\n    UNION ALL\n    SELECT 'RT' AS src, interval_start_utc, shadow_price FROM rt_binding_constraints WHERE $__timeFilter(interval_start_utc)\n)\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "sum"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1d"
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Binding constraint-hours per day: DA vs RT",
+      "description": "da_binding_constraints rows (constraint-hours) and rt_binding_constraints rows / 12, per UTC day. RT binding more than DA = day-ahead under-forecast congestion.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    countIf(src = 'DA') AS \"DA\", countIf(src = 'RT') / 12 AS \"RT\"\nFROM (\n    SELECT 'DA' AS src, interval_start_utc FROM da_binding_constraints WHERE $__timeFilter(interval_start_utc)\n    UNION ALL\n    SELECT 'RT' AS src, interval_start_utc FROM rt_binding_constraints WHERE $__timeFilter(interval_start_utc)\n)\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: h",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "sum"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "interval": "1d"
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Top constraints: DA vs RT",
+      "description": "da_binding_constraints and rt_binding_constraints over the window, joined on constraint_id: hours binding and sum of |shadow price| x hours ($/MWh x h; RT 5-min / 12). Ranked by the larger of the two. DA hours = 0: RT-only (not anticipated day-ahead).",
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT constraint_id AS \"ID\",\n    if(d.name != '', d.name, r.name) AS \"Constraint\",\n    if(d.branch != '', d.branch, r.branch) AS \"Monitored branch\",\n    if(d.contingency != '', d.contingency, r.contingency) AS \"Contingency\",\n    d.hours AS \"DA hours\", round(d.cost, 0) AS \"DA \u03a3|SP| \u00d7 h\",\n    round(r.n / 12, 1) AS \"RT hours\", round(r.cost / 12, 0) AS \"RT \u03a3|SP| \u00d7 h\"\nFROM (\n    SELECT constraint_id, any(constraint_name) AS name, any(branch_name) AS branch, any(contingency) AS contingency,\n        count() AS hours, sum(abs(shadow_price)) AS cost\n    FROM da_binding_constraints WHERE $__timeFilter(interval_start_utc) GROUP BY constraint_id\n) AS d\nFULL OUTER JOIN (\n    SELECT constraint_id, any(constraint_name) AS name, any(branch_name) AS branch, any(contingency) AS contingency,\n        count() AS n, sum(abs(shadow_price)) AS cost\n    FROM rt_binding_constraints WHERE $__timeFilter(interval_start_utc) GROUP BY constraint_id\n) AS r USING (constraint_id)\nORDER BY greatest(d.cost, r.cost / 12) DESC\nLIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/\u03a3/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Contingency"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 320
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "FTR auctions (monthly)",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "FTR prompt-month shadow price at each hub (Peak)",
+      "description": "ftr_source_sink_shadow_prices, one point per monthly auction (x = auction month), $/MW for the prompt-month Peak product (period = auction month). Last 12 months regardless of the time picker.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT parseDateTime(substring(auction, 1, 5), '%b%y') AS time, source_sink, avg(shadow_price) AS \"Shadow price\"\nFROM ftr_source_sink_shadow_prices\nWHERE source_sink LIKE '%.HUB' AND class = 'Peak' AND period = substring(auction, 1, 5)\n  AND parseDateTime(substring(auction, 1, 5), '%b%y') >= toStartOfMonth($__fromTime) AND parseDateTime(substring(auction, 1, 5), '%b%y') <= $__toTime\nGROUP BY time, source_sink ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "always",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "pointSize": 6
+          },
+          "decimals": 2,
+          "displayName": "${__field.labels.source_sink}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "last",
+            "mean"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "timeFrom": "1y"
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "FTR awards per auction",
+      "description": "ftr_market_results, one point per monthly auction (x = auction month, all periods sold in it): cleared MW and auction value (sum of MW x clearing price, $). Last 12 months.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 51
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "timeseries",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT parseDateTime(substring(auction, 1, 5), '%b%y') AS time, sum(mw) AS \"Cleared MW\", sum(mw * clearing_price) AS \"Auction value\"\nFROM ftr_market_results\nWHERE parseDateTime(substring(auction, 1, 5), '%b%y') >= toStartOfMonth($__fromTime) AND parseDateTime(substring(auction, 1, 5), '%b%y') <= $__toTime\nGROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: MW",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "showPoints": "never",
+            "spanNulls": false,
+            "lineInterpolation": "linear",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisLabel": "",
+            "axisPlacement": "auto"
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Auction value"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              },
+              {
+                "id": "custom.pointSize",
+                "value": 6
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "last",
+            "mean"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "timeFrom": "1y"
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Highest-value FTR paths in $auction",
+      "description": "ftr_market_results for the selected auction: the 20 source -> sink paths with the largest |MW x clearing price|. Clearing price is $/MW for the whole period; negative = the holder was paid to take it (counter-flow).",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT source AS \"Source\", sink AS \"Sink\", period AS \"Period\", class AS \"Class\",\n    round(sum(mw), 1) AS \"Cleared MW\", round(sum(mw * clearing_price) / sum(mw), 2) AS \"Price ($/MW)\",\n    round(sum(mw * clearing_price), 0) AS \"Value ($)\"\nFROM ftr_market_results\nWHERE auction = ${auction:singlequote}\n  AND parseDateTime(substring(auction, 1, 5), '%b%y') >= toStartOfMonth($__fromTime) AND parseDateTime(substring(auction, 1, 5), '%b%y') <= $__toTime\nGROUP BY source, sink, period, class\nHAVING sum(mw) > 0\nORDER BY abs(sum(mw * clearing_price)) DESC\nLIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value ($)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Price ($/MW)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "timeFrom": "1y"
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "FTR binding constraints in $auction",
+      "description": "ftr_binding_constraints for the selected auction: the 20 with the largest |marginal cost| ($/MW), with limit and flow (MW).",
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT device_name AS \"Device\", contingency AS \"Contingency\", period AS \"Period\", class AS \"Class\",\n    direction AS \"Dir\", round(limit_mw, 1) AS \"Limit MW\", round(flow_mw, 1) AS \"Flow MW\",\n    round(marginal_cost, 2) AS \"Marginal cost ($/MW)\"\nFROM ftr_binding_constraints\nWHERE auction = ${auction:singlequote}\n  AND parseDateTime(substring(auction, 1, 5), '%b%y') >= toStartOfMonth($__fromTime) AND parseDateTime(substring(auction, 1, 5), '%b%y') <= $__toTime\nORDER BY abs(marginal_cost) DESC\nLIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Marginal cost ($/MW)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "timeFrom": "1y"
+    },
+    {
+      "id": 18,
+      "type": "table",
+      "title": "Hub shadow prices in $auction",
+      "description": "ftr_source_sink_shadow_prices for the selected auction, eight trading hubs, $/MW per period and class.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 69
+      },
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "iso-clickhouse"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "table",
+          "pluginVersion": "4.14.0",
+          "rawSql": "SELECT period AS \"Period\", source_sink AS \"Hub\",\n    round(avgIf(shadow_price, class = 'Peak'), 2) AS \"Peak ($/MW)\",\n    round(avgIf(shadow_price, class = 'Off-peak'), 2) AS \"Off-peak ($/MW)\"\nFROM ftr_source_sink_shadow_prices\nWHERE auction = ${auction:singlequote} AND source_sink LIKE '%.HUB'\n  AND parseDateTime(substring(auction, 1, 5), '%b%y') >= toStartOfMonth($__fromTime) AND parseDateTime(substring(auction, 1, 5), '%b%y') <= $__toTime\nGROUP BY period, source_sink ORDER BY period, source_sink",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/\\$\\/MW/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "timeFrom": "1y"
+    }
+  ]
+}

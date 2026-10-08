@@ -1,0 +1,70 @@
+# Gateway: only the Cloudflare tunnel (cloudflared pods) gets in; it reaches only the demo
+# Grafana and the read-only Dagster webserver. Grafana: only the gateway gets in; it reaches
+# only ClickHouse (as iso_ro) and VictoriaMetrics. No internet egress for either.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: miso-lab-gateway
+spec:
+  endpointSelector:
+    matchLabels: {app: miso-lab-gateway}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflare
+            app: cloudflared
+      toPorts:
+        - ports: [{port: "8080", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels: {app: miso-lab-grafana}
+      toPorts:
+        - ports: [{port: "3000", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+            component: dagster-webserver-read-only
+      toPorts:
+        - ports: [{port: "80", protocol: TCP}]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: miso-lab-grafana
+spec:
+  endpointSelector:
+    matchLabels: {app: miso-lab-grafana}
+  ingress:
+    - fromEndpoints:
+        - matchLabels: {app: miso-lab-gateway}
+      toPorts:
+        - ports: [{port: "3000", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+            app.kubernetes.io/name: clickhouse
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: monitoring
+            app.kubernetes.io/name: vmsingle
+      toPorts:
+        - ports: [{port: "8429", protocol: TCP}]

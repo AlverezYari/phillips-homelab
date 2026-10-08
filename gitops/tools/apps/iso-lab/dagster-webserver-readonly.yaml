@@ -1,0 +1,137 @@
+# A second, READ-ONLY Dagster webserver for the miso-lab demo portal (/dagster/ behind
+# Cloudflare Access). Same instance, workspace and Postgres as the chart's webserver
+# (spec copied from dagster-dagster-webserver, chart 1.13.25), started with --read-only:
+# every page, graph, run, log and check is browsable, while launch / re-execute / wipe /
+# back-fill mutations are refused server-side. --path-prefix /dagster matches the portal
+# gateway route. Not part of the chart: the chart's enableReadOnly would share pathPrefix
+# with the internal webserver.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster-webserver-read-only
+  labels: &id001
+    app.kubernetes.io/name: dagster
+    app.kubernetes.io/instance: dagster
+    component: dagster-webserver-read-only
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - command:
+        - /bin/bash
+        - -c
+        - dagster-webserver -h 0.0.0.0 -p 80 -w /dagster-workspace/workspace.yaml
+          --read-only --path-prefix /dagster
+        env:
+        - name: DAGSTER_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: postgresql-password
+              name: iso-lab-pg
+        envFrom:
+        - configMapRef:
+            name: dagster-webserver-env
+        image: docker.io/dagster/dagster-celery-k8s:1.13.25
+        name: dagster-webserver-read-only
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /dagster/server_info
+            port: 80
+            scheme: HTTP
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /opt/dagster/dagster_home/dagster.yaml
+          name: dagster-instance
+          subPath: dagster.yaml
+        - mountPath: /dagster-workspace/
+          name: dagster-workspace-yaml
+        - mountPath: /tmp
+          name: tmp
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - until pg_isready -h "iso-lab-pg-rw" -p 5432 -U dagster; do echo waiting
+          for database; sleep 2; done;
+        image: docker.io/library/postgres:14.6
+        name: check-db-ready
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      - command:
+        - sh
+        - -c
+        - until nslookup iso-lab; do echo waiting for user service; sleep 2; done
+        image: docker.io/busybox:1.28
+        name: init-user-deployment-iso-lab
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      securityContext:
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: dagster
+      serviceAccountName: dagster
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: dagster-instance
+        name: dagster-instance
+      - configMap:
+          defaultMode: 420
+          name: dagster-workspace-yaml
+        name: dagster-workspace-yaml
+      - emptyDir:
+          sizeLimit: 256Mi
+        name: tmp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dagster-webserver-read-only
+  labels: &id001
+    app.kubernetes.io/name: dagster
+    app.kubernetes.io/instance: dagster
+    component: dagster-webserver-read-only
+spec:
+  selector: *id001
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80

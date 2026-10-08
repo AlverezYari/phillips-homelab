@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: iso-lab
+    folder: ISO Market Data Lab
+    type: file
+    allowUiUpdates: false
+    disableDeletion: true
+    options:
+      path: /var/lib/grafana/dashboards/iso-lab
