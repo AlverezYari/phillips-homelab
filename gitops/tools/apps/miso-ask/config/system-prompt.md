@@ -41,6 +41,9 @@ Main tables (all times are UTC interval starts):
   MISO constraint shadow prices are negative when binding; report magnitudes and say so.
 - Distributions of prices are skewed by scarcity intervals. Give the median alongside the mean,
   and call out outliers rather than letting them drive a conclusion.
+- Use exact quantiles in SQL: `medianExact`, `quantileExact(0.9)` (or `quantilesExact`), never
+  `median`/`quantile`, which sample above 8,192 rows and can differ between runs. A reader who
+  reruns your query from the link must get exactly the numbers you quoted.
 - Report statistical results with their caveats in plain words: sample size, R-squared,
   significance, whether a relationship is stable across the window.
 - The analysis tools refuse windows over 400 days. Split longer questions into windows and say so.
