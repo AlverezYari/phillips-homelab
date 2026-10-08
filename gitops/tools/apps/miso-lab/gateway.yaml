@@ -19,6 +19,10 @@ spec:
           image: miso-lab-portal  # rewritten by kustomization.yaml
           ports:
             - {name: http, containerPort: 8080}
+          # iso_ro's password, used for the iso_console ClickHouse user (SQL console, /api/sql).
+          env:
+            - name: CLICKHOUSE_RO_PASSWORD
+              valueFrom: {secretKeyRef: {name: grafana-iso-clickhouse, key: ISO_CLICKHOUSE_RO_PASSWORD}}
           readinessProbe:
             httpGet: {path: /healthz, port: http}
           resources:
@@ -30,9 +34,12 @@ spec:
             capabilities: {drop: ["ALL"]}
           volumeMounts:
             - {name: tmp, mountPath: /tmp}
+            - {name: confd, mountPath: /etc/nginx/conf.d}
       volumes:
         - name: tmp
           emptyDir: {sizeLimit: 64Mi}
+        - name: confd
+          emptyDir: {sizeLimit: 1Mi}  # rendered nginx config (holds the ClickHouse password)
 ---
 apiVersion: v1
 kind: Service

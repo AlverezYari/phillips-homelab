@@ -14,10 +14,10 @@ resources:
 images:
   - name: miso-lab-portal
     newName: zot.phillips-homelab.net/miso-lab-portal
-    newTag: "5f07c0f"
+    newTag: "60c1b3c"
   - name: miso-lab-grafana
     newName: zot.phillips-homelab.net/miso-lab-grafana
-    newTag: "5f07c0f"
+    newTag: "60c1b3c"
 configMapGenerator:
   - name: grafana-provisioning
     files:
@@ -31,6 +31,7 @@ configMapGenerator:
       - dashboards/iso-lab-market-history.json
       - dashboards/iso-lab-pipeline.json
       - dashboards/iso-lab-footprint.json
+      - dashboards/iso-lab-event-replay.json
 labels:
   - includeSelectors: false
     pairs:

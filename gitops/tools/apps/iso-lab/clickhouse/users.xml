@@ -2,6 +2,10 @@
      iso     pipeline: owns database iso, reads the lake via s3(lake, ...).
      iso_ro  MCP servers + Grafana: SELECT on iso.* only, no S3/lake access, hard limits.
              The MCP tools add their own limits; these are the backstop.
+     iso_console  the miso-lab portal's live SQL box (people typing arbitrary queries): SELECT on
+             iso.* only, its own profile + quota so a heavy query can't starve Grafana, the agent
+             tools or the pipeline. Same password as iso_ro (no new secret); separate user so its
+             limits, quota and query_log attribution are separate.
      default localhost only (probes, clickhouse-client in the pod). -->
 <clickhouse>
     <profiles>
@@ -28,7 +32,30 @@
                 </max_execution_time>
             </constraints>
         </readonly_agent>
+        <!-- Portal SQL console: free to scan everything (that's the point), but bounded per query
+             (30 s, 6 of the node's 16 threads, 2 GB) and per user (2 at once). A result over 10,000
+             rows is refused (throw: 'break' stops at block boundaries, not exactly at the limit).
+             readonly=1, so the browser can't change any of this. -->
+        <console>
+            <readonly>1</readonly>
+            <max_execution_time>30</max_execution_time>
+            <max_threads>6</max_threads>
+            <max_memory_usage>2000000000</max_memory_usage>
+            <max_concurrent_queries_for_user>2</max_concurrent_queries_for_user>
+            <max_rows_to_read>1000000000</max_rows_to_read>
+            <max_result_rows>10000</max_result_rows>
+            <result_overflow_mode>throw</result_overflow_mode>
+            <max_query_size>16384</max_query_size>
+        </console>
     </profiles>
+    <quotas>
+        <!-- 30 queries a minute, 600 an hour, 2 hours of query time a day. -->
+        <console>
+            <interval><duration>60</duration><queries>30</queries><errors>30</errors><result_rows>0</result_rows><read_rows>0</read_rows><execution_time>0</execution_time></interval>
+            <interval><duration>3600</duration><queries>600</queries><errors>0</errors><result_rows>0</result_rows><read_rows>0</read_rows><execution_time>0</execution_time></interval>
+            <interval><duration>86400</duration><queries>0</queries><errors>0</errors><result_rows>0</result_rows><read_rows>0</read_rows><execution_time>7200</execution_time></interval>
+        </console>
+    </quotas>
     <users>
         <default>
             <networks replace="replace">
@@ -54,5 +81,14 @@
                 <query>GRANT SELECT ON iso.*</query>
             </grants>
         </iso_ro>
+        <iso_console>
+            <password from_env="CLICKHOUSE_RO_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>console</profile>
+            <quota>console</quota>
+            <grants>
+                <query>GRANT SELECT ON iso.*</query>
+            </grants>
+        </iso_console>
     </users>
 </clickhouse>

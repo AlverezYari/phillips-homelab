@@ -32,6 +32,13 @@ spec:
             component: dagster-webserver-read-only
       toPorts:
         - ports: [{port: "80", protocol: TCP}]
+    # SQL console (/api/sql) as iso_console
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: iso-lab
+            app.kubernetes.io/name: clickhouse
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

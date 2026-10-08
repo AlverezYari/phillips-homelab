@@ -97,7 +97,14 @@ spec:
             app.kubernetes.io/instance: grafana
       toPorts:
         - ports: [{port: "8123", protocol: TCP}]
-    # miso-lab demo Grafana (gitops tools/apps/miso-lab), HTTP port only, as iso_ro.
+    # miso-lab portal (gitops tools/apps/miso-lab), HTTP port only: the demo Grafana as iso_ro
+    # and the gateway's SQL console as iso_console.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: miso-lab
+            app: miso-lab-gateway
+      toPorts:
+        - ports: [{port: "8123", protocol: TCP}]
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: miso-lab

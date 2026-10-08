@@ -1,0 +1,890 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-iso-lab-event-replay
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "true"
+data:
+  iso-lab-event-replay.json: |
+    {
+      "editable": false,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "schemaVersion": 40,
+      "links": [
+        {
+          "title": "MISO quirks",
+          "type": "link",
+          "url": "https://github.com/AlverezYari/iso-market-data-lab/blob/main/docs/miso-quirks.md",
+          "targetBlank": true,
+          "icon": "doc"
+        },
+        {
+          "title": "iso-lab dashboards",
+          "type": "dashboards",
+          "tags": [
+            "iso-lab"
+          ],
+          "asDropdown": true,
+          "includeVars": false,
+          "keepTime": true
+        }
+      ],
+      "uid": "iso-lab-event-replay",
+      "title": "ISO Lab: event replay",
+      "tags": [
+        "iso-lab"
+      ],
+      "timezone": "utc",
+      "refresh": "",
+      "time": {
+        "from": "2026-10-06T21:30:00.000Z",
+        "to": "2026-10-07T00:30:00.000Z"
+      },
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          },
+          {
+            "name": "Scarcity (any CPnode >= $1,000/MWh)",
+            "enable": true,
+            "hide": false,
+            "iconColor": "red",
+            "datasource": {
+              "type": "grafana-clickhouse-datasource",
+              "uid": "iso-clickhouse"
+            },
+            "target": {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 1,
+              "refId": "Anno",
+              "rawSql": "-- grafana-check: allow-empty (rare by design)\nSELECT interval_start_utc AS time,\n    concat('Scarcity pricing: ', toString(count()), ' CPnodes >= 1000 USD/MWh, max ', toString(round(max(lmp))),\n           ' USD/MWh. Genuine, not a parse error: docs/miso-quirks.md #9') AS text,\n    'scarcity' AS tags\nFROM lmp\nWHERE $__timeFilter(interval_start_utc) AND lmp >= 1000\nGROUP BY time ORDER BY time\nLIMIT 200"
+            }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "text",
+          "title": "What happened",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 5
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "**Replay a real-time event from the 5-minute data.** Defaults to **2026-10-06, 21:30\u201300:30 UTC (16:30\u201319:30 EST)**: in the interval starting **22:50 UTC (17:50 EST; MISO labels it 17:55)** every one of MISO's 2,628 pricing nodes cleared at **$10,000/MWh** with zero congestion and loss, a system-wide reserve shortage during the sunset ramp (solar fell ~6 GW in 35 min while load held near 87 GW), not a transmission problem. Five minutes later prices were back near $240. Use the time picker to replay any other window. Hub prices here come from the nodal `lmp` mart (the separate hub feed started after this event). Times are UTC interval starts; MISO \"EST\" is fixed UTC\u22125.",
+            "code": {
+              "language": "plaintext"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "row",
+          "title": "Prices",
+          "collapsed": false,
+          "gridPos": {
+            "x": 0,
+            "y": 5,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "RT LMP at every hub (5-min)",
+          "description": "lmp mart (5-min ex-post, $/MWh), the 8 MISO hub CPnodes. Symlog axis: linear to $200, log above.",
+          "gridPos": {
+            "x": 0,
+            "y": 6,
+            "w": 12,
+            "h": 9
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, cpnode AS name, avg(lmp) AS \"LMP\" FROM lmp WHERE cpnode LIKE '%.HUB' AND $__timeFilter(interval_start_utc) GROUP BY time, name ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 0,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "scaleDistribution": {
+                  "type": "symlog",
+                  "log": 10,
+                  "linearThreshold": 200
+                }
+              },
+              "decimals": 2,
+              "displayName": "${__field.labels.name}"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Nodal price distribution (all CPnodes)",
+          "description": "lmp (all ~2,600 CPnodes), 5-min, $/MWh: percentiles across nodes per interval. A wide band = congestion separating the footprint; the whole band jumping = system-wide (energy or scarcity). Symlog axis.",
+          "gridPos": {
+            "x": 12,
+            "y": 6,
+            "w": 12,
+            "h": 9
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT time, q[1] AS \"p1\", q[2] AS \"p25\", q[3] AS \"median\", q[4] AS \"p75\", q[5] AS \"p99\"\nFROM (\n    SELECT $__timeInterval(interval_start_utc) AS time, quantiles(0.01, 0.25, 0.5, 0.75, 0.99)(lmp) AS q\n    FROM lmp\n    WHERE $__timeFilter(interval_start_utc)\n    GROUP BY time\n)\nORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 0,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "scaleDistribution": {
+                  "type": "symlog",
+                  "log": 10,
+                  "linearThreshold": 200
+                }
+              },
+              "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "p99"
+                },
+                "properties": [
+                  {
+                    "id": "custom.fillBelowTo",
+                    "value": "p1"
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 12
+                  },
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 0
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "p1"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 0
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "p75"
+                },
+                "properties": [
+                  {
+                    "id": "custom.fillBelowTo",
+                    "value": "p25"
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 30
+                  },
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 0
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "p25"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 0
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "blue"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "median"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 2
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "dark-blue"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "min",
+                "max"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Price components, average over all nodes",
+          "description": "lmp mart, mean across all CPnodes per 5-min interval, $/MWh. A system-wide event moves the energy component; congestion and loss stay near zero.",
+          "gridPos": {
+            "x": 0,
+            "y": 15,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avg(lmp) AS \"LMP\", avg(lmp - mlc - mcc) AS \"Energy (MEC)\", avg(mcc) AS \"Congestion (MCC)\", avg(mlc) AS \"Loss (MLC)\"\nFROM lmp WHERE $__timeFilter(interval_start_utc) GROUP BY time ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 0,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "scaleDistribution": {
+                  "type": "symlog",
+                  "log": 10,
+                  "linearThreshold": 200
+                }
+              },
+              "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "LMP"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 2
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "text"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "min",
+                "max"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Day-ahead vs real time, Indiana hub (hourly)",
+          "description": "da_lmp_hourly vs rt_lmp_hourly at INDIANA.HUB, $/MWh, hour-beginning UTC. On 2026-10-06 DA priced 17:00 EST at $125 and 18:00 at $184; RT averaged $1,066 for the 17:00 hour, then $44.",
+          "gridPos": {
+            "x": 12,
+            "y": 15,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "-- grafana-check: allow-empty (the local stack has no history back-fill; checked on cluster data by grafana-render)\nSELECT interval_start_utc AS time,\n    avgIf(lmp, src = 'DA') AS \"Day-ahead\", avgIf(lmp, src = 'RT') AS \"Real-time (hourly)\"\nFROM (\n    SELECT interval_start_utc, lmp, 'DA' AS src FROM da_lmp_hourly WHERE node = 'INDIANA.HUB' AND $__timeFilter(interval_start_utc)\n    UNION ALL\n    SELECT interval_start_utc, lmp, 'RT' AS src FROM rt_lmp_hourly WHERE node = 'INDIANA.HUB' AND $__timeFilter(interval_start_utc)\n)\nGROUP BY time ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 0,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "scaleDistribution": {
+                  "type": "symlog",
+                  "log": 10,
+                  "linearThreshold": 200
+                }
+              },
+              "decimals": 2
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "LMP"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 2
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "text"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "min",
+                "max"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        },
+        {
+          "id": 7,
+          "type": "row",
+          "title": "The grid",
+          "collapsed": false,
+          "gridPos": {
+            "x": 0,
+            "y": 23,
+            "w": 24,
+            "h": 1
+          }
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Generation by fuel",
+          "description": "fuel_mix, 5-min, MW, stacked. Battery Storage and Imports can be negative (charging / net export), so they stack below zero.",
+          "gridPos": {
+            "x": 0,
+            "y": 24,
+            "w": 12,
+            "h": 9
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, category, avg(mw) AS \"MW\"\nFROM fuel_mix\nWHERE $__timeFilter(interval_start_utc)\nGROUP BY time, category ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: MW",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto"
+              },
+              "decimals": 0,
+              "displayName": "${__field.labels.category}"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "last"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "Load: actual vs cleared vs forecast",
+          "description": "load (5-min actual), load_cleared (hourly cleared), load_forecast (hourly, latest vintage per hour: argMax by snapshot_utc), all MW. Hourly series are step lines at the hour start; forecast and cleared extend past now.",
+          "gridPos": {
+            "x": 12,
+            "y": 24,
+            "w": 12,
+            "h": 9
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, avg(load_mw) AS \"Actual (5-min)\"\nFROM load WHERE $__timeFilter(interval_start_utc) GROUP BY time ORDER BY time",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT interval_start_utc AS time, load_mw AS \"Cleared (hourly)\"\nFROM load_cleared WHERE $__timeFilter(interval_start_utc) ORDER BY time",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT interval_start_utc AS time, argMax(load_mw, snapshot_utc) AS \"Forecast (latest vintage)\"\nFROM load_forecast WHERE $__timeFilter(interval_start_utc) GROUP BY time ORDER BY time",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: MW",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 0,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto"
+              },
+              "decimals": 0
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/hourly|Forecast/"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineInterpolation",
+                    "value": "stepAfter"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Actual (5-min)"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Forecast (latest vintage)"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineStyle",
+                    "value": {
+                      "fill": "dash",
+                      "dash": [
+                        10,
+                        10
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        },
+        {
+          "id": 10,
+          "type": "timeseries",
+          "title": "Net imports by balancing authority",
+          "description": "interchange, 5-min, MW: net_import_mw = -nsi_mw (positive = MISO imports from that BA; MISO's public NSI has the opposite sign, quirk #10). Bars per neighbour, line = MISO total (counterparty 'MISO').",
+          "gridPos": {
+            "x": 0,
+            "y": 33,
+            "w": 24,
+            "h": 8
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, counterparty, avg(net_import_mw) AS \"Net imports\"\nFROM interchange\nWHERE counterparty != 'MISO' AND $__timeFilter(interval_start_utc)\nGROUP BY time, counterparty ORDER BY time",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, avg(net_import_mw) AS \"MISO total\"\nFROM interchange\nWHERE counterparty = 'MISO' AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "suffix: MW",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 60,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto"
+              },
+              "decimals": 0,
+              "displayName": "${__field.labels.counterparty}"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "MISO total"
+                },
+                "properties": [
+                  {
+                    "id": "custom.stacking",
+                    "value": {
+                      "mode": "none",
+                      "group": "B"
+                    }
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 0
+                  },
+                  {
+                    "id": "custom.lineWidth",
+                    "value": 2
+                  },
+                  {
+                    "id": "displayName",
+                    "value": "MISO total"
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "text"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "last"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "5m"
+        }
+      ],
+      "id": null
+    }

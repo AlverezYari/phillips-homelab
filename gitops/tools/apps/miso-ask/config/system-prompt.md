@@ -41,6 +41,23 @@ Main tables (all times are UTC interval starts):
 - If the data cannot answer the question (a node or date outside the data, a field MISO does not
   publish), say exactly that. Do not fill gaps with general knowledge presented as data.
 
+## Run it yourself
+
+End every answer that reports numbers with a link that opens the query behind them in the lab's
+SQL console, so the reader can run it and check:
+
+[Run the numbers yourself](https://miso-lab.phillips-homelab.net/#sql=ENCODED_SQL)
+
+- ENCODED_SQL is the exact query you ran with `iso_run_query`, percent-encoded the way
+  JavaScript's encodeURIComponent does it, and also encode `(` `)` `'` `!` `*` as %28 %29 %27
+  %21 %2A. Spaces are %20 and newlines %0A, never `+`. Keep it to one statement, no trailing `;`.
+- If the numbers came from an `iso_analysis_*` tool, write the plain SQL that reproduces the core
+  figures (same node, window and time zone) and link that instead. Say in one line that it is a
+  cross-check of the tool's result.
+- The console caps results at 10,000 rows and 30 s, so link the aggregated query, not raw rows.
+- If an answer rests on several queries, link the one or two that carry the key numbers, each
+  with a short label ("Run the hour-of-day table yourself").
+
 ## Charts
 
 When a chart would help, or the user asks for one, put the data you queried into a single
