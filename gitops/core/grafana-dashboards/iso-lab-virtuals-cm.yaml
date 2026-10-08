@@ -130,7 +130,7 @@ data:
         },
         {
           "id": 3,
-          "type": "timeseries",
+          "type": "barchart",
           "title": "Mean DA - RT by month and block at $node",
           "description": "dart_monthly, monthly, $/MWh: mean DA minus RT per trading block. Positive = INC (virtual supply) earned; negative = DEC earned.",
           "gridPos": {
@@ -150,10 +150,10 @@ data:
                 "uid": "iso-clickhouse"
               },
               "editorType": "sql",
-              "format": 0,
-              "queryType": "timeseries",
+              "format": 1,
+              "queryType": "table",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT toDateTime(market_month) AS time, block, mean_da_minus_rt AS value\nFROM dart_monthly\nWHERE node = ${node:singlequote} AND $__dateFilter(market_month)\nORDER BY time, block",
+              "rawSql": "SELECT formatDateTime(market_month, '%Y-%m') AS \"month\",\n    anyIf(mean_da_minus_rt, block = 'on_peak') AS \"on-peak\", anyIf(mean_da_minus_rt, block = '2x16') AS \"2x16\", anyIf(mean_da_minus_rt, block = '7x8') AS \"7x8\"\nFROM dart_monthly\nWHERE node = ${node:singlequote} AND $__dateFilter(market_month)\nGROUP BY market_month ORDER BY market_month",
               "refId": "A"
             }
           ],
@@ -161,41 +161,32 @@ data:
             "defaults": {
               "unit": "currencyUSD",
               "decimals": 2,
-              "displayName": "${__field.labels.block}",
               "custom": {
-                "drawStyle": "bars",
-                "lineWidth": 1,
                 "fillOpacity": 80,
-                "showPoints": "never",
-                "spanNulls": false,
-                "lineInterpolation": "linear",
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "axisLabel": "",
+                "lineWidth": 1,
+                "gradientMode": "none",
                 "axisPlacement": "auto"
               }
             },
             "overrides": []
           },
           "options": {
+            "orientation": "vertical",
+            "groupWidth": 0.75,
+            "barWidth": 0.9,
+            "showValue": "never",
+            "stacking": "none",
+            "xTickLabelRotation": 0,
             "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "calcs": [
-                "mean",
-                "min",
-                "max"
-              ],
+              "displayMode": "list",
+              "placement": "bottom",
               "showLegend": true
             },
             "tooltip": {
               "mode": "multi",
-              "sort": "desc"
+              "sort": "none"
             }
-          },
-          "interval": "1d"
+          }
         },
         {
           "id": 4,
@@ -303,7 +294,7 @@ data:
                 "lineWidth": 1,
                 "fillOpacity": 0,
                 "showPoints": "never",
-                "spanNulls": false,
+                "spanNulls": true,
                 "lineInterpolation": "linear",
                 "stacking": {
                   "mode": "none",
@@ -424,7 +415,7 @@ data:
           "id": 8,
           "type": "table",
           "title": "Largest on-peak DA premiums over the range (top 20 nodes)",
-          "description": "dart_monthly, on-peak block, over the dashboard range: mean DA - RT ($/MWh, hour-weighted), INC hit rate and hours. Large positive = INC side; large negative = DEC side.",
+          "description": "dart_monthly, on-peak block, over the dashboard range: mean DA - RT ($/MWh, hour-weighted), INC hit rate and hours. Large positive = INC side; large negative = DEC side. Only nodes still trading in the latest month and present for at least half the range's on-peak hours: retired or renamed nodes (some stop mid-range) would otherwise rank on spreads they no longer have.",
           "gridPos": {
             "h": 10,
             "w": 12,
@@ -445,7 +436,7 @@ data:
               "format": 1,
               "queryType": "table",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(sum(inc_hit_rate * hours) / sum(hours), 3) AS \"INC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node HAVING sum(hours) >= 40\nORDER BY \"mean DA - RT\" DESC LIMIT 20",
+              "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(sum(inc_hit_rate * hours) / sum(hours), 3) AS \"INC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node\nHAVING sum(hours) >= 0.5 * (SELECT countIf(is_on_peak) FROM miso_hours WHERE $__timeFilter(interval_start_utc))\n   AND max(market_month) = (SELECT max(market_month) FROM dart_monthly WHERE $__dateFilter(market_month))\nORDER BY \"mean DA - RT\" DESC LIMIT 20",
               "refId": "A"
             }
           ],
@@ -456,7 +447,36 @@ data:
                 "align": "auto"
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".*hours.*"
+                },
+                "properties": [
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".*hit rate.*"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percentunit"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
           },
           "options": {
             "showHeader": true,
@@ -474,7 +494,7 @@ data:
           "id": 9,
           "type": "table",
           "title": "Largest on-peak RT premiums over the range (top 20 nodes)",
-          "description": "dart_monthly, on-peak block, over the dashboard range: the DEC side, most negative mean DA - RT ($/MWh, hour-weighted).",
+          "description": "dart_monthly, on-peak block, over the dashboard range: the DEC side, most negative mean DA - RT ($/MWh, hour-weighted). Only nodes still trading in the latest month and present for at least half the range's on-peak hours: retired or renamed nodes (some stop mid-range) would otherwise rank on spreads they no longer have.",
           "gridPos": {
             "h": 10,
             "w": 12,
@@ -495,7 +515,7 @@ data:
               "format": 1,
               "queryType": "table",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(1 - sum(inc_hit_rate * hours) / sum(hours), 3) AS \"DEC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node HAVING sum(hours) >= 40\nORDER BY \"mean DA - RT\" ASC LIMIT 20",
+              "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(1 - sum(inc_hit_rate * hours) / sum(hours), 3) AS \"DEC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node\nHAVING sum(hours) >= 0.5 * (SELECT countIf(is_on_peak) FROM miso_hours WHERE $__timeFilter(interval_start_utc))\n   AND max(market_month) = (SELECT max(market_month) FROM dart_monthly WHERE $__dateFilter(market_month))\nORDER BY \"mean DA - RT\" ASC LIMIT 20",
               "refId": "A"
             }
           ],
@@ -506,7 +526,36 @@ data:
                 "align": "auto"
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".*hours.*"
+                },
+                "properties": [
+                  {
+                    "id": "decimals",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".*hit rate.*"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percentunit"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
           },
           "options": {
             "showHeader": true,
@@ -545,13 +594,13 @@ data:
               "format": 1,
               "queryType": "table",
               "pluginVersion": "4.14.0",
-              "rawSql": "SELECT market_month AS \"month\", countIf(block = 'on_peak') AS \"on-peak\", countIf(block = '2x16') AS \"2x16\", countIf(block = '7x8') AS \"7x8\",\n    countIf(is_dst) AS \"DST hours\", uniqExactIf(ept_date, is_nerc_holiday) AS \"NERC holidays\"\nFROM miso_hours\nWHERE $__dateFilter(market_date)\nGROUP BY market_month ORDER BY market_month DESC\n-- grafana-check: snapshot",
+              "rawSql": "SELECT formatDateTime(market_month, '%Y-%m') AS \"month\", countIf(block = 'on_peak') AS \"on-peak\", countIf(block = '2x16') AS \"2x16\", countIf(block = '7x8') AS \"7x8\",\n    countIf(is_dst) AS \"DST hours\", uniqExactIf(ept_date, is_nerc_holiday) AS \"NERC holidays\"\nFROM miso_hours\nWHERE $__dateFilter(market_date)\nGROUP BY market_month ORDER BY market_month DESC\n-- grafana-check: snapshot",
               "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "decimals": 2,
+              "decimals": 0,
               "custom": {
                 "align": "auto"
               }
