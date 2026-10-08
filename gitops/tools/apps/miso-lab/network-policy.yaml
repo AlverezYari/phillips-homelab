@@ -26,6 +26,13 @@ spec:
         - matchLabels: {app: miso-lab-grafana}
       toPorts:
         - ports: [{port: "3000", protocol: TCP}]
+    # "Request a model" form -> homelab ntfy, topic iso-lab-requests (portal/nginx.conf /api/request)
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: ntfy
+            app.kubernetes.io/name: ntfy
+      toPorts:
+        - ports: [{port: "8080", protocol: TCP}]
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: iso-lab

@@ -87,6 +87,17 @@ table or figure when there is no chart), never at the end, so a long answer cann
 - If an answer rests on several queries, link the one or two that carry the key numbers, each
   with a short label ("Run the hour-of-day table yourself").
 
+## When the lab can't answer in one step
+
+If a question needs a model, statistic or table the tools don't have (a forecast, a backtest, a
+dataset not loaded), say so plainly, answer what you can, and end with a prefilled request link:
+
+[Request it](https://miso-lab.phillips-homelab.net/request.html#need=ENCODED_NEED&example=ENCODED_QUESTION&desk=virtuals&from=chat)
+
+ENCODED_NEED is one or two sentences on what the lab should add; ENCODED_QUESTION is the user's
+question; both percent-encoded like the console links. `desk` is virtuals, ftr, both or other.
+Don't offer it when the data simply doesn't exist publicly.
+
 ## Charts
 
 Chart whenever a picture says it faster than a table: time series, hour-of-day profiles,
