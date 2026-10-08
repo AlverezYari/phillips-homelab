@@ -406,7 +406,7 @@
       "id": 8,
       "type": "table",
       "title": "Largest on-peak DA premiums over the range (top 20 nodes)",
-      "description": "dart_monthly, on-peak block, over the dashboard range: mean DA - RT ($/MWh, hour-weighted), INC hit rate and hours. Large positive = INC side; large negative = DEC side. Only nodes still trading in the latest month and present for at least half the range's on-peak hours: retired or renamed nodes (some stop mid-range) would otherwise rank on spreads they no longer have.",
+      "description": "dart_monthly, on-peak block, over the dashboard range: mean DA - RT ($/MWh, hour-weighted), INC hit rate and hours. Large positive = INC side; large negative = DEC side. Only nodes still trading in the latest month and with at least half the on-peak hours of the best-covered node: retired or renamed nodes (some stop mid-range) would otherwise rank on spreads they no longer have.",
       "gridPos": {
         "h": 10,
         "w": 12,
@@ -427,7 +427,7 @@
           "format": 1,
           "queryType": "table",
           "pluginVersion": "4.14.0",
-          "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(sum(inc_hit_rate * hours) / sum(hours), 3) AS \"INC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node\nHAVING sum(hours) >= 0.5 * (SELECT countIf(is_on_peak) FROM miso_hours WHERE $__timeFilter(interval_start_utc))\n   AND max(market_month) = (SELECT max(market_month) FROM dart_monthly WHERE $__dateFilter(market_month))\nORDER BY \"mean DA - RT\" DESC LIMIT 20",
+          "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(sum(inc_hit_rate * hours) / sum(hours), 3) AS \"INC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node\nHAVING sum(hours) >= 0.5 * (SELECT max(h) FROM (SELECT sum(hours) AS h FROM dart_monthly\n                                   WHERE block = 'on_peak' AND $__dateFilter(market_month) GROUP BY node))\n   AND max(market_month) = (SELECT max(market_month) FROM dart_monthly WHERE $__dateFilter(market_month))\nORDER BY \"mean DA - RT\" DESC LIMIT 20",
           "refId": "A"
         }
       ],
@@ -485,7 +485,7 @@
       "id": 9,
       "type": "table",
       "title": "Largest on-peak RT premiums over the range (top 20 nodes)",
-      "description": "dart_monthly, on-peak block, over the dashboard range: the DEC side, most negative mean DA - RT ($/MWh, hour-weighted). Only nodes still trading in the latest month and present for at least half the range's on-peak hours: retired or renamed nodes (some stop mid-range) would otherwise rank on spreads they no longer have.",
+      "description": "dart_monthly, on-peak block, over the dashboard range: the DEC side, most negative mean DA - RT ($/MWh, hour-weighted). Only nodes still trading in the latest month and with at least half the on-peak hours of the best-covered node: retired or renamed nodes (some stop mid-range) would otherwise rank on spreads they no longer have.",
       "gridPos": {
         "h": 10,
         "w": 12,
@@ -506,7 +506,7 @@
           "format": 1,
           "queryType": "table",
           "pluginVersion": "4.14.0",
-          "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(1 - sum(inc_hit_rate * hours) / sum(hours), 3) AS \"DEC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node\nHAVING sum(hours) >= 0.5 * (SELECT countIf(is_on_peak) FROM miso_hours WHERE $__timeFilter(interval_start_utc))\n   AND max(market_month) = (SELECT max(market_month) FROM dart_monthly WHERE $__dateFilter(market_month))\nORDER BY \"mean DA - RT\" ASC LIMIT 20",
+          "rawSql": "SELECT node, round(sum(sum_da_minus_rt) / sum(hours), 2) AS \"mean DA - RT\", round(1 - sum(inc_hit_rate * hours) / sum(hours), 3) AS \"DEC hit rate\",\n    sum(hours) AS \"hours in range\", sum(prelim_hours) AS \"prelim RT hours\"\nFROM dart_monthly\nWHERE block = 'on_peak' AND $__dateFilter(market_month)\nGROUP BY node\nHAVING sum(hours) >= 0.5 * (SELECT max(h) FROM (SELECT sum(hours) AS h FROM dart_monthly\n                                   WHERE block = 'on_peak' AND $__dateFilter(market_month) GROUP BY node))\n   AND max(market_month) = (SELECT max(market_month) FROM dart_monthly WHERE $__dateFilter(market_month))\nORDER BY \"mean DA - RT\" ASC LIMIT 20",
           "refId": "A"
         }
       ],
