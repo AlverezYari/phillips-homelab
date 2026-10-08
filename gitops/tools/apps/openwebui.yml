@@ -9,10 +9,14 @@ spec:
   source:
     repoURL: https://helm.openwebui.com
     chart: open-webui
-    targetRevision: "8.19.0"
+    # 8.19.0 (app 0.6.41) -> 16.6.0 (app 0.11.4), 2026-10-08. Chart 9+ derives names from the
+    # release ("openwebui-open-webui", "openwebui-ollama", ...); the fullnameOverrides below keep
+    # the original names so the existing PVCs (chats, models) are reused, not replaced.
+    targetRevision: "16.6.0"
     helm:
       values: |-
         replicaCount: 1
+        fullnameOverride: open-webui
 
         image:
           repository: ghcr.io/open-webui/open-webui
@@ -50,20 +54,17 @@ spec:
           - secretRef:
               name: openwebui-secrets
 
-        extraEnvVars:
-          - name: OLLAMA_BASE_URL
-            value: "http://openwebui-ollama:11434"
+        # (The old extraEnvVars OLLAMA_BASE_URL=http://openwebui-ollama:11434 pointed at a Service
+        # that didn't exist; the chart's own OLLAMA_BASE_URLS -> open-webui-ollama is what worked.)
 
-        # Pipelines subchart deploys a Deployment backed by an RWO PVC. Force
-        # Recreate so its rollout doesn't deadlock on a multi-attach when the
-        # new pod schedules onto a different node than the old one.
+        # Pipelines: off. Nothing was installed (its PVC held 20K, empty), and chart 16 changes
+        # its Deployment selector, which is immutable. Re-enable with pipelines.enabled: true.
         pipelines:
-          enabled: true
-          strategy:
-            type: Recreate
+          enabled: false
 
         ollama:
           enabled: true
+          fullnameOverride: open-webui-ollama
           replicaCount: 1
           runtimeClassName: nvidia
           ollama:
