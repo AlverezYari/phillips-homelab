@@ -10,6 +10,7 @@ resources:
   - reference-grant.yaml
   - mcp-clickhouse.yaml
   - iso-analysis.yaml
+  - miso-api.yaml
   - network-policy.yaml
   - vmpodscrape-clickhouse.yaml
   - vmrule.yaml
@@ -19,7 +20,7 @@ resources:
 images:
   - name: iso-lab
     newName: zot.phillips-homelab.net/iso-lab
-    newTag: "1a187cd"
+    newTag: "da65345"
 configMapGenerator:
   - name: clickhouse-config
     files:

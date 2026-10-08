@@ -217,6 +217,12 @@ spec:
             app: miso-lab-gateway
       toPorts:
         - ports: [{port: "80", protocol: TCP}]
+    # miso-api reads asset-check results and recent runs (GraphQL queries; the webserver is --read-only).
+    - fromEndpoints:
+        - matchLabels:
+            iso-lab/role: api
+      toPorts:
+        - ports: [{port: "80", protocol: TCP}]
   egress:
     - toEndpoints:
         - matchLabels:
