@@ -170,7 +170,7 @@
       "id": 3,
       "type": "stat",
       "title": "$hub RT LMP (latest)",
-      "description": "hub_lmp, newest 5-min interval in the window, $/MWh.",
+      "description": "hub_lmp_filled, newest 5-min interval in the window, $/MWh. Skipped hub-feed intervals filled from the node feed (same price to the cent; quirk 23).",
       "gridPos": {
         "h": 4,
         "w": 5,
@@ -191,7 +191,7 @@
           "format": 0,
           "queryType": "timeseries",
           "pluginVersion": "4.14.0",
-          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, avg(lmp) AS \"LMP\"\nFROM hub_lmp\nWHERE name = ${hub:singlequote} AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, avg(lmp) AS \"LMP\"\nFROM hub_lmp_filled\nWHERE name = ${hub:singlequote} AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
           "refId": "A"
         }
       ],
@@ -384,7 +384,7 @@
       "id": 6,
       "type": "timeseries",
       "title": "$hub RT LMP and components",
-      "description": "hub_lmp, 5-min, $/MWh. LMP = energy (MEC, derived lmp - mlc - mcc) + congestion (MCC) + loss (MLC). Symlog axis.",
+      "description": "hub_lmp_filled, 5-min, $/MWh. LMP = energy (MEC, derived lmp - mlc - mcc) + congestion (MCC) + loss (MLC). Symlog axis. Skipped hub-feed intervals filled from the node feed (same price to the cent; quirk 23).",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -405,7 +405,7 @@
           "format": 0,
           "queryType": "timeseries",
           "pluginVersion": "4.14.0",
-          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avg(lmp) AS \"LMP\", avg(lmp - mlc - mcc) AS \"Energy (MEC)\", avg(mcc) AS \"Congestion (MCC)\", avg(mlc) AS \"Loss (MLC)\"\nFROM hub_lmp\nWHERE name = ${hub:singlequote} AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avg(lmp) AS \"LMP\", avg(lmp - mlc - mcc) AS \"Energy (MEC)\", avg(mcc) AS \"Congestion (MCC)\", avg(mlc) AS \"Loss (MLC)\"\nFROM hub_lmp_filled\nWHERE name = ${hub:singlequote} AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
           "refId": "A"
         }
       ],
@@ -477,7 +477,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "RT LMP at every hub",
-      "description": "hub_lmp, 5-min, $/MWh, the eight MISO trading hubs (name like '%.HUB'). Symlog axis.",
+      "description": "hub_lmp_filled, 5-min, $/MWh, the eight MISO trading hubs (name like '%.HUB'). Symlog axis. Skipped hub-feed intervals filled from the node feed (same price to the cent; quirk 23).",
       "gridPos": {
         "h": 9,
         "w": 12,
@@ -498,7 +498,7 @@
           "format": 0,
           "queryType": "timeseries",
           "pluginVersion": "4.14.0",
-          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, name, avg(lmp) AS \"LMP\"\nFROM hub_lmp\nWHERE name LIKE '%.HUB' AND $__timeFilter(interval_start_utc)\nGROUP BY time, name ORDER BY time",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time, name, avg(lmp) AS \"LMP\"\nFROM hub_lmp_filled\nWHERE name LIKE '%.HUB' AND $__timeFilter(interval_start_utc)\nGROUP BY time, name ORDER BY time",
           "refId": "A"
         }
       ],
@@ -550,7 +550,7 @@
       "id": 8,
       "type": "timeseries",
       "title": "Hub spread: $hub minus $ref_hub",
-      "description": "hub_lmp, 5-min, $/MWh: LMP and its congestion component at $hub minus $ref_hub. Positive = $hub is dearer; the congestion spread is the part transmission limits explain.",
+      "description": "hub_lmp_filled, 5-min, $/MWh: LMP and its congestion component at $hub minus $ref_hub. Positive = $hub is dearer; the congestion spread is the part transmission limits explain. Skipped hub-feed intervals filled from the node feed (same price to the cent; quirk 23).",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -571,7 +571,7 @@
           "format": 0,
           "queryType": "timeseries",
           "pluginVersion": "4.14.0",
-          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avgIf(lmp, name = ${hub:singlequote}) - avgIf(lmp, name = ${ref_hub:singlequote}) AS \"LMP spread\",\n    avgIf(mcc, name = ${hub:singlequote}) - avgIf(mcc, name = ${ref_hub:singlequote}) AS \"Congestion spread\",\n    avgIf(mlc, name = ${hub:singlequote}) - avgIf(mlc, name = ${ref_hub:singlequote}) AS \"Loss spread\"\nFROM hub_lmp\nWHERE name IN (${hub:singlequote}, ${ref_hub:singlequote}) AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+          "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    avgIf(lmp, name = ${hub:singlequote}) - avgIf(lmp, name = ${ref_hub:singlequote}) AS \"LMP spread\",\n    avgIf(mcc, name = ${hub:singlequote}) - avgIf(mcc, name = ${ref_hub:singlequote}) AS \"Congestion spread\",\n    avgIf(mlc, name = ${hub:singlequote}) - avgIf(mlc, name = ${ref_hub:singlequote}) AS \"Loss spread\"\nFROM hub_lmp_filled\nWHERE name IN (${hub:singlequote}, ${ref_hub:singlequote}) AND $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
           "refId": "A"
         }
       ],
