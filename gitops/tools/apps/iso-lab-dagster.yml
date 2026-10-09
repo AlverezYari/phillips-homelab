@@ -140,7 +140,7 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "09bc459"   # bump to deploy a new build
+                tag: "0491d06"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000
@@ -166,9 +166,13 @@ spec:
               volumeMounts:
                 - name: dagster-home
                   mountPath: /opt/dagster/dagster_home
+              # Every run is a child process of this server, plus dbt as its own process: steady
+              # peaks are ~1.1-1.3 GB, and a poll's dbt build overlapping a freshness run OOM-killed
+              # the server at 2Gi (2026-10-09 12:52 UTC; its two runs were left as zombies, see
+              # defs/reaper.py). 4Gi on homelab-04 (64 GB); the request matches the steady state.
               resources:
-                requests: {cpu: 100m, memory: 512Mi}
-                limits: {memory: 2Gi}
+                requests: {cpu: 100m, memory: 1Gi}
+                limits: {memory: 4Gi}
               podSecurityContext:
                 runAsNonRoot: true
                 runAsUser: 65532

@@ -1044,7 +1044,7 @@
       "type": "timeseries",
       "id": 19,
       "title": "ClickHouse and code server memory vs limit",
-      "description": "Working set of ClickHouse (limit 8Gi) and the Dagster code server (every run executes there: dlt, dbt, checks; limit 2Gi), with their limits dashed. Bytes.",
+      "description": "Working set of ClickHouse (limit 8Gi) and the Dagster code server (every run executes there: dlt, dbt, checks; limit 4Gi), with their limits dashed. Bytes.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
