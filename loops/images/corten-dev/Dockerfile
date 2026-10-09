@@ -9,12 +9,14 @@
 #   cd /mnt/nix-projects/corten && harness/export_image_context.sh /tmp/corten-ctx
 #   cp loops/images/corten-dev/Dockerfile /tmp/corten-ctx/
 #
-# then build like rust-dev (in-pod buildctl):
-#   kubectl -n buildkit cp /tmp/corten-ctx <pod>:/tmp/corten-ctx
-#   kubectl -n buildkit exec <pod> -- buildctl build \
-#     --frontend dockerfile.v0 \
+# then build from the laptop through the in-cluster buildkit. Push needs zot's admin creds,
+# which buildctl forwards from ~/.docker/config.json; an in-pod buildctl has none (401).
+# zot also rejects Docker media types (415), hence oci-mediatypes=true. buildctl must match
+# the daemon (v0.18.1: github.com/moby/buildkit/releases).
+#   kubectl -n buildkit port-forward svc/buildkit 1234:1234 &
+#   buildctl --addr tcp://127.0.0.1:1234 build --frontend dockerfile.v0 \
 #     --local context=/tmp/corten-ctx --local dockerfile=/tmp/corten-ctx \
-#     --output type=image,name=zot.phillips-homelab.net/loop-dev:corten-1,push=true
+#     --output type=image,name=zot.phillips-homelab.net/loop-dev:corten-1,push=true,oci-mediatypes=true
 #
 # Context contents: requirements.lock (dbt's full pinned dependency tree), shared/ (pinned
 # corpus repos and installed-package snapshots), shared.sha256 (content hash of shared/,
