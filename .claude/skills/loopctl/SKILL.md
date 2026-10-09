@@ -26,7 +26,13 @@ loops/bin/loopctl pause <name> / resume <name>    # Suspended keeps the PVC
 loops/bin/loopctl reap <name> [--no-pr]  # PR (PR.md body + PROGRESS comment + review request) then delete
 loops/bin/loopctl pr <owner/repo> <branch> [title...]  # file a PR for ANY branch (fix/docs too, not just loop/*)
 loops/bin/loopctl merge <owner/repo> <pr#>             # merge a PR — the conductor's landing verb
+loops/bin/loopctl mkrepo <loop-bot/name> [description] # create a private loop-bot repo + Casey as admin collaborator
 ```
+
+**New repo for a loop: `loopctl mkrepo`, never ask Casey.** Forgejo push-to-create is
+off and Casey's own user cannot create loop-bot repos; the loop-bot token (in-cluster)
+can. After mkrepo, push from the laptop over SSH
+(`git@code.phillips-homelab.net:loop-bot/<name>.git`) — Casey's key has admin on it.
 
 `pr`/`merge` exist so the conductor never improvises raw token curls
 (added 2026-07-24 after a night of exactly that): the FJO token stays

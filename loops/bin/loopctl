@@ -11,6 +11,7 @@
 #   loopctl pr <owner/repo> <branch> [title...]
 #   loopctl merge <owner/repo> <pr#>
 #   loopctl release <owner/repo> <tag> [title...]
+#   loopctl mkrepo <loop-bot/name> [description...]
 #
 # Secrets never touch the laptop: FJO/NATS calls run in short-lived helper
 # pods that read the loop-secrets Secret in-cluster.
@@ -226,6 +227,30 @@ case \"\$code\" in
 esac"
 }
 
+# mkrepo: create a private loop-bot repo and add the reviewer as admin
+# collaborator (needed for OFFICIAL reviews under branch protection).
+# Idempotent: an existing repo just gets the collaborator check.
+cmd_mkrepo() {
+  local repo=${1:?usage: loopctl mkrepo <loop-bot/name> [description...]}; shift
+  local owner=${repo%%/*} name=${repo#*/}
+  [ "$owner" = loop-bot ] || die "mkrepo creates repos as loop-bot only (got owner '$owner')"
+  local desc=${*:-}
+  helper_pod mkrepo "
+F=$FJO_API
+PAYLOAD=\$(jq -n --arg n \"$name\" --arg d \"$desc\" '{name: \$n, description: \$d, private: true, default_branch: \"main\", auto_init: false}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/user/repos\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) echo \"created \$(jq -r .full_name /tmp/r): \$(jq -r .ssh_url /tmp/r)\";;
+  409) echo 'repo already exists';;
+  *) echo \"repo create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
+esac
+code=\$(curl -s -o /tmp/c -w '%{http_code}' -X PUT \"\$F/repos/${repo}/collaborators/$REVIEWER\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"permission\":\"admin\"}')
+case \"\$code\" in
+  204) echo 'collaborator $REVIEWER: admin';;
+  *) echo \"collaborator add failed: \$code\"; head -c 300 /tmp/c; exit 1;;
+esac"
+}
+
 cmd_issue() {
   local repo=${1:?usage: loopctl issue <owner/repo> <title> <body-file>}
   local title=${2:?title required}
@@ -298,5 +323,6 @@ case $cmd in
   merge) cmd_merge "$@";;
   close) cmd_close "$@";;
   release) cmd_release "$@";;
-  *) sed -n '2,14p' "$0";;
+  mkrepo) cmd_mkrepo "$@";;
+  *) sed -n '2,15p' "$0";;
 esac
