@@ -14,10 +14,10 @@ resources:
 images:
   - name: miso-lab-portal
     newName: zot.phillips-homelab.net/miso-lab-portal
-    newTag: "2e0fb59"
+    newTag: "32abedb"
   - name: miso-lab-grafana
     newName: zot.phillips-homelab.net/miso-lab-grafana
-    newTag: "2e0fb59"
+    newTag: "32abedb"
 configMapGenerator:
   - name: grafana-provisioning
     files:
