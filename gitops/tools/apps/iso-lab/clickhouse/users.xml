@@ -35,7 +35,9 @@
         <!-- Portal SQL console: free to scan everything (that's the point), but bounded per query
              (30 s, 6 of the node's 16 threads, 2 GB) and per user (2 at once). A result over 10,000
              rows is refused (throw: 'break' stops at block boundaries, not exactly at the limit).
-             readonly=1, so the browser can't change any of this. -->
+             readonly=1, so the browser can't change any of this. The one setting it may set is
+             additional_table_filters: Ask's Replay fence (iso_lab.api.ask) cuts every table off at the
+             decision time with it. It only ever hides rows, so allowing it gives nothing away. -->
         <console>
             <readonly>1</readonly>
             <max_execution_time>30</max_execution_time>
@@ -46,6 +48,9 @@
             <max_result_rows>10000</max_result_rows>
             <result_overflow_mode>throw</result_overflow_mode>
             <max_query_size>16384</max_query_size>
+            <constraints>
+                <additional_table_filters><changeable_in_readonly/></additional_table_filters>
+            </constraints>
         </console>
         <!-- Paper desk writer (miso-api): small inserts into desk.* and the D1 settlement read. -->
         <desk>
