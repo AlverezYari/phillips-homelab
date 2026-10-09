@@ -47,6 +47,12 @@
             <result_overflow_mode>throw</result_overflow_mode>
             <max_query_size>16384</max_query_size>
         </console>
+        <!-- Paper desk writer (miso-api): small inserts into desk.* and the D1 settlement read. -->
+        <desk>
+            <max_execution_time>15</max_execution_time>
+            <max_memory_usage>1000000000</max_memory_usage>
+            <max_result_rows>100000</max_result_rows>
+        </desk>
     </profiles>
     <quotas>
         <!-- 30 queries a minute, 600 an hour, 2 hours of query time a day. -->
@@ -79,6 +85,7 @@
             <quota>default</quota>
             <grants>
                 <query>GRANT SELECT ON iso.*</query>
+                <query>GRANT SELECT ON desk.*</query>
             </grants>
         </iso_ro>
         <iso_console>
@@ -88,7 +95,21 @@
             <quota>console</quota>
             <grants>
                 <query>GRANT SELECT ON iso.*</query>
+                <query>GRANT SELECT ON desk.*</query>
             </grants>
         </iso_console>
+        <!-- iso_desk: the paper desk's writer (miso-api). Creates and appends to database desk only
+             (orders are an append-only log: a cancel is a new row); reads iso.* to settle. Same
+             password as iso_ro (no new secret). -->
+        <iso_desk>
+            <password from_env="CLICKHOUSE_RO_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>desk</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT SELECT ON iso.*</query>
+                <query>GRANT SELECT, INSERT, CREATE TABLE, CREATE DATABASE ON desk.*</query>
+            </grants>
+        </iso_desk>
     </users>
 </clickhouse>
