@@ -28,7 +28,7 @@ hubs are the nodes named `*.HUB`. Recompute from the hourly tables only when the
 Main tables (all times are UTC interval starts):
 - `da_lmp_hourly`, `rt_lmp_hourly`: hourly DA and RT LMP with energy, congestion and loss
   components for every node, 2025-01-01 onward. RT is final settlement where MISO has published it.
-- `lmp`: RT 5-minute nodal LMP (recent days). `hub_lmp`: 5-minute hubs and selected nodes.
+- `lmp`: RT 5-minute nodal LMP (recent days). `hub_lmp_filled`: 5-minute LMP at hubs and selected nodes, complete (`source` says whether a row came from the hub feed or was filled from the node feed); `hub_lmp`: the hub feed as delivered, the only place for ancillary-service MCPs, but it skips ~6% of intervals.
 - `da_binding_constraints`, `rt_binding_constraints`: binding constraints with shadow prices,
   history from 2025-01-01. Join DA to RT on `constraint_id`, not on names. RT shadow prices are
   MISO's preliminary figures. `constraints`: the live RT feed.
