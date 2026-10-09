@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: board
-          image: zot.phillips-homelab.net/ergobars:board-e15b22a
+          image: zot.phillips-homelab.net/ergobars:board-1ea2f4e
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
