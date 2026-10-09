@@ -20,6 +20,16 @@ configMapGenerator:
       - config/sync_models.py
       - config/system-prompt.md
       - config/prompt-suggestions.json
+  # The skin: the lab's look and top bar for the chat (custom.css, loader.js, the lab's fonts).
+  # sync_models.py copies these into /static once the server is up (Open WebUI rewrites /static at boot).
+  - name: miso-ask-skin
+    files:
+      - skin/custom.css
+      - skin/loader.js
+      - skin/newsreader-latin-400-normal.woff2
+      - skin/newsreader-latin-500-normal.woff2
+      - skin/ibm-plex-mono-latin-400-normal.woff2
+      - skin/ibm-plex-mono-latin-500-normal.woff2
 labels:
   - includeSelectors: false
     pairs:

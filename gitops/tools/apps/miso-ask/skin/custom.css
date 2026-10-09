@@ -1,0 +1,61 @@
+/* miso-ask skin: Open WebUI in the lab's own look, so Ask reads as one more page of the lab.
+   Open WebUI (Tailwind v4) paints everything from the --color-gray-* scale and --font-sans, so the skin
+   remaps those rather than chasing class names; the lab's top bar (loader.js) sits above the app.
+   Light mode is the lab's Notes view and dark mode its Night view, following the visitor's setting. Fonts are the
+   lab's own, served from /static/miso (copied in by sync_models.py). */
+@font-face { font-family: 'Newsreader'; font-weight: 400; font-display: swap; src: url(/static/miso/newsreader-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Newsreader'; font-weight: 500; font-display: swap; src: url(/static/miso/newsreader-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 400; font-display: swap; src: url(/static/miso/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 500; font-display: swap; src: url(/static/miso/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
+
+:root {
+  /* Notes (light), the lab's default view */
+  --miso-bg: #f3f0e8; --miso-ink: #1a1a17; --miso-muted: #5d5a52; --miso-line: #d6d1c4;
+  --miso-pos: #23439c; --miso-good: #2f7a3a;
+  --color-white: #f3f0e8; --color-black: #1a1a17;
+  --color-gray-50: #ebe7dc; --color-gray-100: #e3ded1; --color-gray-200: #d6d1c4; --color-gray-300: #bdb7aa;
+  --color-gray-400: #a19c90; --color-gray-500: #7d796f; --color-gray-600: #5d5a52; --color-gray-700: #3a3c40;
+  --color-gray-800: #2c2f35; --color-gray-850: #1d2026; --color-gray-900: #14161a; --color-gray-950: #0f1114;
+  --font-sans: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --miso-bar: 46px;
+}
+:root.dark {
+  /* Night */
+  --miso-bg: #14161a; --miso-ink: #e8e4da; --miso-muted: #a19c90; --miso-line: #2c2f35;
+  --miso-pos: #8db8ff; --miso-good: #5cc46d;
+  --color-white: #e8e4da; --color-black: #14161a;
+}
+html, body { background: var(--miso-bg) !important; }
+body { font-family: var(--font-sans); }
+
+/* Answers read like the lab's pages: the reading serif, a comfortable size; tables and code stay mono. */
+.markdown-prose, .markdown-prose p, .markdown-prose li, .markdown-prose blockquote, [id^="user-message"] .whitespace-pre-wrap {
+  font-family: 'Newsreader', Georgia, serif !important; font-size: 18px; line-height: 1.55;
+}
+.markdown-prose h1, .markdown-prose h2, .markdown-prose h3 { font-family: 'Newsreader', Georgia, serif !important; font-weight: 500; }
+.markdown-prose table, .markdown-prose th, .markdown-prose td, .markdown-prose code, .markdown-prose pre { font-family: var(--font-mono) !important; font-size: 14px; }
+.markdown-prose a { color: var(--miso-pos) !important; text-decoration: underline; text-underline-offset: 3px; }
+.markdown-prose th { color: var(--miso-muted); font-weight: 400; }
+.markdown-prose td, .markdown-prose th { border-color: var(--miso-line) !important; }
+
+/* Square corners and hairlines, like the lab. */
+#chat-input, #chat-input-container, .rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg { border-radius: 0 !important; }
+#message-input, #chat-input { font-family: 'Newsreader', Georgia, serif !important; font-size: 18px !important; }
+
+/* The lab's top bar (loader.js), and the app pushed down beneath it. */
+#miso-bar { position: fixed; top: 0; left: 0; right: 0; height: var(--miso-bar); z-index: 60; display: flex; align-items: center; gap: 22px;
+  padding: 0 16px; background: var(--miso-bg); border-top: 3px solid var(--miso-ink); border-bottom: 1px solid var(--miso-line);
+  font: 15px 'Newsreader', Georgia, serif; color: var(--miso-ink); box-sizing: border-box; overflow-x: auto; white-space: nowrap; }
+#miso-bar a { color: var(--miso-ink); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+#miso-bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+#miso-bar .brand { font: 600 14px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; }
+#miso-bar .step { display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; font: 11px 'IBM Plex Mono', monospace;
+  border: 1px solid var(--miso-line); border-radius: 50%; color: var(--miso-muted); }
+#miso-bar .here { margin-left: auto; font: 13px 'IBM Plex Mono', monospace; color: var(--miso-ink); border-bottom: 1px solid var(--miso-ink); padding: 4px 0; }
+#miso-bar .here .dot { color: var(--miso-good); }
+body.miso-skinned { padding-top: var(--miso-bar) !important; }
+body.miso-skinned .h-screen:not(.fixed):not(.absolute), body.miso-skinned .max-h-\[100dvh\]:not(.fixed):not(.absolute), body.miso-skinned .h-\[100dvh\]:not(.fixed):not(.absolute) { height: calc(100dvh - var(--miso-bar)) !important; max-height: calc(100dvh - var(--miso-bar)) !important; }
+@media (max-width: 640px) { #miso-bar { gap: 14px; } #miso-bar .lbl { display: none; } }
+/* Embedded in the lab (Replay's Ask drawer): narrow, so the answers take the room. */
+.miso-embedded .markdown-prose, .miso-embedded .markdown-prose p, .miso-embedded .markdown-prose li { font-size: 16px; }

@@ -20,6 +20,7 @@ import urllib.request
 from pathlib import Path
 
 CONFIG = Path(os.environ.get("MISO_ASK_CONFIG", "/etc/miso-ask"))
+SKIN = Path(os.environ.get("MISO_ASK_SKIN", "/etc/miso-ask-skin"))
 NAMES = {"claude-sonnet-5-5": "MISO analyst · Sonnet 5.5", "claude-opus-5-5": "MISO analyst · Opus 5.5"}
 DESCRIPTION = "Public MISO market data: read-only SQL and fixed statistical tools. Answers link to the query behind them."
 
@@ -70,8 +71,25 @@ async def upsert(entries: list[dict]) -> None:
             raise SystemExit(1)
 
 
+def install_skin(skin: Path = SKIN, static: Path | None = None) -> None:
+    """The lab's look for the chat: custom.css and loader.js replace Open WebUI's empty ones (it loads
+    both on every page), fonts go to /static/miso. Run after boot: Open WebUI rewrites /static then."""
+    static = static or Path(os.environ.get("STATIC_DIR", "/static"))
+    if not skin.is_dir():
+        print("miso-ask sync_models: no skin mounted", flush=True)
+        return
+    (static / "miso").mkdir(parents=True, exist_ok=True)
+    for f in sorted(skin.iterdir()):
+        if f.name.startswith(".") or not f.is_file():
+            continue  # the ConfigMap volume's ..data links
+        dest = static / ("miso/" + f.name if f.suffix == ".woff2" else f.name)
+        dest.write_bytes(f.read_bytes())
+    print("miso-ask sync_models: skin installed", flush=True)
+
+
 if __name__ == "__main__":
     wait_for_server(os.environ.get("PORT", "8080"))
+    install_skin()
     # The server's start.sh loads the session key from this file; the data layer's env checks need it too.
     key_file = Path(os.environ.get("WEBUI_SECRET_KEY_FILE", "/data/.webui_secret_key"))
     if not os.environ.get("WEBUI_SECRET_KEY") and key_file.exists():
