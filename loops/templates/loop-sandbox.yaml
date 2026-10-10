@@ -74,6 +74,13 @@ spec:
           value: "3600000"
         - name: BASH_DEFAULT_TIMEOUT_MS
           value: "1800000"
+        # `claude -p` waits only 600s for background tasks (subagents,
+        # backgrounded commands) after the turn ends, then kills them:
+        # corten-sources lost iteration 1 to a background probing agent.
+        # Wait up to an hour so delegated work lands; bounded so a hung
+        # task can't stall the loop forever.
+        - name: CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS
+          value: "3600000"
         volumeMounts:
         - name: workspace
           mountPath: /workspace
