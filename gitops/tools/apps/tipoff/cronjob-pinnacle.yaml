@@ -18,6 +18,7 @@ metadata:
     app.kubernetes.io/component: ingest
     tipoff.io/source: pinnacle
 spec:
+  suspend: true  # ingestion paused (Casey, 2026-10-10); delete this line to resume
   schedule: "*/5 * * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
