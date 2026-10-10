@@ -8,7 +8,8 @@
 #   3. the gate: make build test lint
 #   4. audit records reproduce: the gate's audit rewrites audit/; it must be clean
 #   5. every fixture golden re-captured from the pinned dbt matches the committed one
-#   6. 1000 fuzz seeds the loop never saw: no DIVERGED, no CRASH, no missed refusal
+#   6. 1000 fuzz seeds the loop never saw: no DIVERGED, no CRASH, no missed refusal,
+#      and at most 15% invalid (dbt-rejected) projects per chunk
 #
 # Env: BRANCH, SEED_START, FORGEJO_TOKEN (loop-secrets). Local dry runs: CLONE_URL,
 # WORK, and BOOTSTRAP_LINK=<a corten checkout with the harness cache>. The last line is
@@ -74,8 +75,13 @@ done
 
 step "6. unseen fuzz seeds ${SEED_START}..$((SEED_START + 999))"
 for off in 0 250 500 750; do
-  python3 -I harness/fuzz.py --start $((SEED_START + off)) --seeds 250 --jobs "$JOBS" \
+  python3 -I harness/fuzz.py --start $((SEED_START + off)) --seeds 250 --jobs "$JOBS" | tee /tmp/fuzz.out \
     || fail "fuzz chunk $((SEED_START + off)) failed (DIVERGED, CRASH or missed refusal)"
+  # A generator that emits projects dbt rejects passes vacuously: corten-hooks shipped
+  # one with ~55% invalid that hid 13 divergences. Main runs ~3-6%.
+  invalid=$(sed -nE 's/^250 seeds: .*invalid ([0-9]+).*/\1/p' /tmp/fuzz.out)
+  [ "${invalid:-0}" -le "${MAX_INVALID:-38}" ] \
+    || fail "fuzz chunk $((SEED_START + off)): $invalid/250 invalid; the generator emits projects dbt rejects"
 done
 
 echo
