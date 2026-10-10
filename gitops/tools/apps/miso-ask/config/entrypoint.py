@@ -2,8 +2,9 @@
 the image's start.sh. Settings that are plain strings live in settings.env (envFrom); this only
 assembles the ones Open WebUI wants as JSON:
 
-- OPENAI_API_*: one connection, Anthropic's OpenAI-compatible endpoint, fixed model list
-  (so nothing calls /models).
+- OPENAI_API_*: one connection, the homelab's LLM gateway (LiteLLM, OpenAI-compatible; LLM_BASE_URL,
+  LLM_API_KEY: this chat's own gateway key and budget), fixed model list (so nothing calls /models).
+  Without LLM_BASE_URL (local runs) it is Anthropic's OpenAI-compatible endpoint with ANTHROPIC_API_KEY.
 - TOOL_SERVER_CONNECTIONS: the two iso-lab MCP servers in-cluster, bearer token from the secret,
   readable by every signed-in user.
 - DEFAULT_MODEL_METADATA: both MCP servers on by default in every chat, uploads/web/images off.
@@ -32,9 +33,11 @@ EVERYONE = [{"principal_type": "user", "principal_id": "*", "permission": "read"
 
 
 def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
-    for k in ("ANTHROPIC_API_KEY", "ISO_MCP_TOKEN"):
-        if len(env.get(k, "")) < 16:
-            raise SystemExit(f"{k} must be set (secret miso-ask)")
+    key = env.get("LLM_API_KEY") or env.get("ANTHROPIC_API_KEY", "")
+    if len(key) < 16:
+        raise SystemExit("LLM_API_KEY (or ANTHROPIC_API_KEY) must be set (secret miso-ask)")
+    if len(env.get("ISO_MCP_TOKEN", "")) < 16:
+        raise SystemExit("ISO_MCP_TOKEN must be set (secret miso-ask)")
     tools = [
         {
             "type": "mcp",
@@ -48,8 +51,8 @@ def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
         for sid, (name, url) in MCP.items()
     ]
     return {
-        "OPENAI_API_BASE_URLS": "https://api.anthropic.com/v1",
-        "OPENAI_API_KEYS": env["ANTHROPIC_API_KEY"],
+        "OPENAI_API_BASE_URLS": env.get("LLM_BASE_URL", "https://api.anthropic.com/v1"),
+        "OPENAI_API_KEYS": key,
         "OPENAI_API_CONFIGS": json.dumps(
             {"0": {"enable": True, "connection_type": "external", "model_ids": MODELS}}
         ),
@@ -85,8 +88,8 @@ def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
 
 if __name__ == "__main__":
     os.environ.update(build(dict(os.environ)))
-    for k in ("ANTHROPIC_API_KEY", "ISO_MCP_TOKEN"):
-        os.environ.pop(k)
+    for k in ("LLM_API_KEY", "ANTHROPIC_API_KEY", "ISO_MCP_TOKEN"):
+        os.environ.pop(k, None)
     start = sys.argv[1:] or ["bash", "/app/backend/start.sh"]
     if os.fork() == 0:  # child: write the model entries once the server is healthy, then exit
         os.chdir("/app/backend")
