@@ -1,0 +1,106 @@
+# In-cluster loop conductor: chains a queue of already-written specs (spawn ->
+# loop done -> reap -> mechanical review Job -> merge exactly the reviewed sha
+# -> spawn next) so loops keep running with no Claude session attached. Any
+# halt pings the phone and stops the chain. Code and queues are runtime
+# ConfigMaps pushed by loops/conductor/conductor-ctl.sh; see loops/conductor/.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loop-conductor
+  namespace: loops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: loop-conductor
+  namespace: loops
+rules:
+# loopctl spawn/reap
+- apiGroups: ["agents.x-k8s.io"]
+  resources: ["sandboxes"]
+  verbs: ["get", "list", "watch", "create", "patch", "delete"]
+# loopctl helper pods, spawn's SPEC upload (kubectl cp = exec), review logs
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list"]
+# conductor-<chain> state, queue-<chain>, loop-conductor-code
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "create", "patch", "update"]
+# review Jobs
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: loop-conductor
+  namespace: loops
+subjects:
+- kind: ServiceAccount
+  name: loop-conductor
+  namespace: loops
+roleRef:
+  kind: Role
+  name: loop-conductor
+  apiGroup: rbac.authorization.k8s.io
+---
+# One CronJob per chain. Corten: reviews run review-corten.sh on the corten
+# image (Rust + pinned dbt + shared corpus cache).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: loop-conductor-corten
+  namespace: loops
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels: {app.kubernetes.io/name: loop-conductor}
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels: {app.kubernetes.io/name: loop-conductor}
+        spec:
+          serviceAccountName: loop-conductor
+          restartPolicy: Never
+          nodeSelector: {kubernetes.io/hostname: homelab-04}
+          containers:
+          - name: conductor
+            image: zot.phillips-homelab.net/loop-dev:corten-1
+            envFrom: [{secretRef: {name: loop-secrets}}]
+            env:
+            - {name: REVIEW_IMAGE, value: "zot.phillips-homelab.net/loop-dev:corten-1"}
+            - {name: LOOPCTL_ROOT, value: /tmp/rig}
+            - {name: LOOPCTL, value: /tmp/rig/loops/bin/loopctl}
+            command:
+            - bash
+            - -c
+            - |
+              set -e
+              mkdir -p /tmp/rig/loops/bin /tmp/rig/loops/templates
+              install -m 0755 /conductor/loopctl /tmp/rig/loops/bin/loopctl
+              cp /conductor/loop-sandbox.yaml /tmp/rig/loops/templates/
+              exec bash /conductor/conductor.sh corten
+            resources:
+              requests: {cpu: 100m, memory: 256Mi}
+              limits: {cpu: "1", memory: 1Gi}
+            volumeMounts: [{name: code, mountPath: /conductor}]
+          volumes:
+          - name: code
+            configMap: {name: loop-conductor-code}

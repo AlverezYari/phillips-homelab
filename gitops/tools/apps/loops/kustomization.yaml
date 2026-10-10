@@ -7,3 +7,4 @@ resources:
 - loop-secrets.yaml
 - netpol.yaml
 - nats-ntfy-bridge.yaml
+- conductor.yaml

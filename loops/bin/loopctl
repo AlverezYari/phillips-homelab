@@ -11,6 +11,7 @@
 #   loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]
 #   loopctl merge <owner/repo> <pr#>
 #   loopctl release <owner/repo> <tag> [title...]
+#   loopctl mkrepo <loop-bot/name> [description...]
 #
 # Secrets never touch the laptop: FJO/NATS calls run in short-lived helper
 # pods that read the loop-secrets Secret in-cluster.
@@ -24,7 +25,7 @@ ping_phone() { # best-effort lifecycle notification (tailnet ntfy)
   curl -s -m 5 -H "Title: $1" -H "Tags: $2" -d "$3" "$NTFY_URL" >/dev/null 2>&1 || true
 }
 FJO_API=http://forgejo-http.forgejo.svc.cluster.local:3000/api/v1
-REPO_ROOT=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/Documents/Projects/phillips-homelab")
+REPO_ROOT=${LOOPCTL_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/Documents/Projects/phillips-homelab")}
 TEMPLATE="$REPO_ROOT/loops/templates/loop-sandbox.yaml"
 
 die() { echo "loopctl: $*" >&2; exit 1; }
@@ -265,6 +266,48 @@ esac" "" "    env:
       value: $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$body")"
 }
 
+# mkrepo: create a private loop-bot repo and add the reviewer as admin
+# collaborator (needed for OFFICIAL reviews under branch protection).
+# Idempotent: an existing repo just gets the collaborator check.
+cmd_mkrepo() {
+  local repo=${1:?usage: loopctl mkrepo <loop-bot/name> [description...]}; shift
+  local owner=${repo%%/*} name=${repo#*/}
+  [ "$owner" = loop-bot ] || die "mkrepo creates repos as loop-bot only (got owner '$owner')"
+  local desc=${*:-}
+  helper_pod mkrepo "
+F=$FJO_API
+PAYLOAD=\$(jq -n --arg n \"$name\" --arg d \"$desc\" '{name: \$n, description: \$d, private: true, default_branch: \"main\", auto_init: false}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/user/repos\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) echo \"created \$(jq -r .full_name /tmp/r): \$(jq -r .ssh_url /tmp/r)\";;
+  409) echo 'repo already exists';;
+  *) echo \"repo create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
+esac
+code=\$(curl -s -o /tmp/c -w '%{http_code}' -X PUT \"\$F/repos/${repo}/collaborators/$REVIEWER\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"permission\":\"admin\"}')
+case \"\$code\" in
+  204) echo 'collaborator $REVIEWER: admin';;
+  *) echo \"collaborator add failed: \$code\"; head -c 300 /tmp/c; exit 1;;
+esac"
+}
+
+cmd_issue() {
+  local repo=${1:?usage: loopctl issue <owner/repo> <title> <body-file>}
+  local title=${2:?title required}
+  local bodyfile=${3:?body-file required}
+  local body
+  body=$(cat "$bodyfile")
+  helper_pod issue "
+F=$FJO_API
+PAYLOAD=\$(jq -n --arg t \"$title\" --arg b \"\$ISSUE_BODY\" '{title: \$t, body: \$b}')
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/issues\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d \"\$PAYLOAD\")
+case \"\$code\" in
+  201) echo \"issue #\$(jq -r .number /tmp/r) filed: \$(jq -r .html_url /tmp/r)\";;
+  *) echo \"issue create failed: \$code\"; head -c 300 /tmp/r; exit 1;;
+esac" "" "    env:
+    - name: ISSUE_BODY
+      value: $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$body")"
+}
+
 cmd_merge() {
   local repo=${1:?usage: loopctl merge <owner/repo> <pr#>}
   local idx=${2:?PR number required}
@@ -272,6 +315,18 @@ cmd_merge() {
 F=$FJO_API
 code=\$(curl -s -o /tmp/r -w '%{http_code}' -X POST \"\$F/repos/${repo}/pulls/${idx}/merge\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"Do\":\"merge\"}')
 if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge failed: \$code\"; head -c 300 /tmp/r; exit 1; fi"
+}
+
+# close: retire a PR without merging (review-loop reaps auto-file PRs
+# for branches that only carry a REVIEW.md; those need closing, not
+# merging). Same in-cluster token invariant as pr/merge.
+cmd_close() {
+  local repo=${1:?usage: loopctl close <owner/repo> <pr#>}
+  local idx=${2:?PR number required}
+  helper_pod close "
+F=$FJO_API
+code=\$(curl -s -o /tmp/r -w '%{http_code}' -X PATCH \"\$F/repos/${repo}/pulls/${idx}\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d '{\"state\":\"closed\"}')
+if [ \"\$code\" = 201 ] || [ \"\$code\" = 200 ]; then echo \"PR #${idx} closed\"; else echo \"close failed: \$code\"; head -c 300 /tmp/r; exit 1; fi"
 }
 
 # release: cut a Forgejo release with cross-built client binaries. The
@@ -305,6 +360,8 @@ case $cmd in
   pr) cmd_pr "$@";;
   issue) cmd_issue "$@";;
   merge) cmd_merge "$@";;
+  close) cmd_close "$@";;
   release) cmd_release "$@";;
-  *) sed -n '2,14p' "$0";;
+  mkrepo) cmd_mkrepo "$@";;
+  *) sed -n '2,15p' "$0";;
 esac
