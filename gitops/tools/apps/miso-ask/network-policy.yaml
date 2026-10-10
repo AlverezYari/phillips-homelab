@@ -1,8 +1,7 @@
 # In: only the homelab tls-gateway (Cilium envoy, entity "ingress"), i.e. internal for now;
 # going public adds the Cloudflare tunnel (cloudflared pods in namespace cloudflare).
-# Out: DNS, the two iso-lab MCP servers, and HTTPS to api.anthropic.com by name (the L7 DNS rule
-# turns on Cilium's DNS proxy for this pod, which is what lets toFQDNs be enforced; same pattern
-# as ergobars-board). Nothing else: no model downloads, no web, no version checks.
+# Out: DNS, the two iso-lab MCP servers, and the homelab LLM gateway (llm-gateway, which alone reaches
+# api.anthropic.com). Nothing else: no model downloads, no web, no version checks.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -23,13 +22,12 @@ spec:
         - ports:
             - {port: "53", protocol: UDP}
             - {port: "53", protocol: TCP}
-          rules:
-            dns:
-              - matchPattern: "*"
-    - toFQDNs:
-        - matchName: "api.anthropic.com"
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: llm-gateway
+            app: litellm
       toPorts:
-        - ports: [{port: "443", protocol: TCP}]
+        - ports: [{port: "4000", protocol: TCP}]
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: iso-lab

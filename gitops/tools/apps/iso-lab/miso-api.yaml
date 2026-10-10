@@ -4,8 +4,9 @@
 # Dagster code server). Named queries as iso_ro, ad-hoc SQL as iso_console (the portal console's user
 # and limits), Dagster through the read-only webserver. The one write: the paper desk appends orders
 # to ClickHouse database desk as iso_desk (desk.* only; it cannot touch iso.*). Ask the data (iso_lab.api.ask):
-# Claude through Anthropic's API, its only tool the same read-only SQL as iso_console.
-# Network: the miso-lab gateway in; ClickHouse, the read-only webserver and api.anthropic.com (by name) out.
+# Claude through the homelab's LLM gateway (llm-gateway, LiteLLM: its own key, budget and limits), its
+# tools the same read-only SQL as iso_console and the iso-analysis functions.
+# Network: the miso-lab gateway in; ClickHouse, the read-only webserver and the LLM gateway out.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,8 +46,10 @@ spec:
             - name: CLICKHOUSE_PASSWORD
               valueFrom: {secretKeyRef: {name: iso-lab-mcp, key: CLICKHOUSE_PASSWORD}}
             - {name: DAGSTER_GRAPHQL_URL, value: "http://dagster-webserver-read-only/dagster/graphql"}
-            - name: ANTHROPIC_API_KEY  # Ask: its own Console workspace with a spend limit (externalsecret.yaml)
-              valueFrom: {secretKeyRef: {name: miso-api-anthropic, key: ANTHROPIC_API_KEY}}
+            # Ask: Anthropic's SDK pointed at the LLM gateway, with this consumer's own gateway key
+            - {name: ANTHROPIC_BASE_URL, value: "http://litellm.llm-gateway.svc.cluster.local:4000"}
+            - name: ANTHROPIC_API_KEY
+              valueFrom: {secretKeyRef: {name: miso-api-llm, key: ANTHROPIC_API_KEY}}  # new name: never the old Anthropic key
           readinessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 10
@@ -102,13 +105,12 @@ spec:
         - ports:
             - {port: "53", protocol: UDP}
             - {port: "53", protocol: TCP}
-          rules:  # Cilium's DNS proxy for this pod, which is what lets toFQDNs below be enforced
-            dns:
-              - matchPattern: "*"
-    - toFQDNs:
-        - matchName: "api.anthropic.com"
+    - toEndpoints:  # the LLM gateway (Ask's model calls)
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: llm-gateway
+            app: litellm
       toPorts:
-        - ports: [{port: "443", protocol: TCP}]
+        - ports: [{port: "4000", protocol: TCP}]
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: clickhouse
