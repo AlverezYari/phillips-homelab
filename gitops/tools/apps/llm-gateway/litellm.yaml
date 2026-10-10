@@ -1,5 +1,6 @@
 # LiteLLM proxy (ghcr.io/berriai/litellm v1.104.2, pinned by digest; cosign-verified against the key at
-# BerriAI/litellm@0112e53). In-cluster only: no route, admin UI off. Non-root, read-only root filesystem.
+# BerriAI/litellm@0112e53). Non-root, read-only root filesystem. Its Admin UI (spend, keys, logs) is at
+# https://llm.phillips-homelab.net/ui (internal route; sign-in from 1Password, secret llm-gateway-ui).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,9 +28,11 @@ spec:
             - {name: http, containerPort: 4000}
           envFrom:
             - secretRef: {name: llm-gateway}
+            # UI_USERNAME / UI_PASSWORD; optional, so the gateway runs before the 1Password fields exist
+            - secretRef: {name: llm-gateway-ui, optional: true}
           env:
             - {name: HOME, value: /tmp}
-            - {name: DISABLE_ADMIN_UI, value: "True"}
+            - {name: PROXY_BASE_URL, value: "https://llm.phillips-homelab.net"}
             - {name: LITELLM_LOCAL_MODEL_COST_MAP, value: "True"}  # no price-list fetch at start: prices are in config.yaml
           startupProbe:
             httpGet: {path: /health/liveliness, port: http}

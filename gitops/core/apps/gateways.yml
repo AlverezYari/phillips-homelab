@@ -267,6 +267,14 @@ spec:
       certificateRefs:
       - kind: Secret
         name: miso-ask-tls
+  - name: https-18
+    protocol: HTTPS
+    port: 443
+    hostname: llm.phillips-homelab.net
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: llm-tls
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -559,3 +567,25 @@ spec:
       port: 8080
     timeouts:
       request: 600s
+---
+# llm-gateway: LiteLLM's Admin UI (spend per key, budgets, request logs), sign-in from 1Password.
+# Internal only.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-app-route-18
+  namespace: gateways
+spec:
+  parentRefs:
+  - name: tls-gateway
+    sectionName: https-18
+    namespace: gateways
+  hostnames:
+  - llm.phillips-homelab.net
+  rules:
+  - backendRefs:
+    - name: litellm
+      namespace: llm-gateway
+      port: 4000
+    timeouts:
+      request: 120s
