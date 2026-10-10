@@ -25,7 +25,7 @@ ping_phone() { # best-effort lifecycle notification (tailnet ntfy)
   curl -s -m 5 -H "Title: $1" -H "Tags: $2" -d "$3" "$NTFY_URL" >/dev/null 2>&1 || true
 }
 FJO_API=http://forgejo-http.forgejo.svc.cluster.local:3000/api/v1
-REPO_ROOT=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/Documents/Projects/phillips-homelab")
+REPO_ROOT=${LOOPCTL_ROOT:-$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/Documents/Projects/phillips-homelab")}
 TEMPLATE="$REPO_ROOT/loops/templates/loop-sandbox.yaml"
 
 die() { echo "loopctl: $*" >&2; exit 1; }

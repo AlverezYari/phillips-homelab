@@ -43,6 +43,11 @@ loop-bot's API merges.
 ## Conductor session start
 
 1. `loops/bin/loopctl status` — rediscover fleet state (you are stateless).
+   Also `loops/conductor/conductor-ctl.sh status <chain>` for chains the
+   in-cluster conductor runs (`loops/conductor/README.md`): a queued chain
+   spawns, reviews and merges on its own; a `halted` one is waiting for you.
+   To keep work going while you're away, enqueue written specs instead of
+   watching loops from the session.
 2. For `blocked` loops: `status <name>` shows unrelayed/relayed decisions;
    batch-present them to Casey with recommendations; `answer` each.
 3. Never edit a running loop's /workspace or SPEC.md; never patch code in a
