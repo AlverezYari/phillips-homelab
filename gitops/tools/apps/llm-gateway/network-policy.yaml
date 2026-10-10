@@ -1,0 +1,36 @@
+# LiteLLM: in from the two consumers (iso-lab miso-api, miso-ask), the key-sync Job and the metrics scraper;
+# out to DNS, its Postgres, and HTTPS to api.anthropic.com by name (the L7 DNS rule turns on Cilium's DNS
+# proxy for this pod, which is what lets toFQDNs be enforced; the miso-ask pattern).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: litellm
+spec:
+  endpointSelector:
+    matchLabels: {app: litellm}
+  ingress:
+    - fromEndpoints:
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: iso-lab, iso-lab/role: api}
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: miso-ask, app: miso-ask}
+        - matchLabels: {app: litellm-sync-keys}
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: monitoring}
+      toPorts:
+        - ports: [{port: "4000", protocol: TCP}]
+  egress:
+    - toEndpoints:
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns}
+      toPorts:
+        - ports:
+            - {port: "53", protocol: UDP}
+            - {port: "53", protocol: TCP}
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toFQDNs:
+        - matchName: "api.anthropic.com"
+      toPorts:
+        - ports: [{port: "443", protocol: TCP}]
+    - toEndpoints:
+        - matchLabels: {cnpg.io/cluster: llm-gateway-pg}
+      toPorts:
+        - ports: [{port: "5432", protocol: TCP}]
