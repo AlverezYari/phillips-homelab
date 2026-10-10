@@ -4,11 +4,12 @@
 # Sandboxed compute: runs under the gVisor RuntimeClass (runsc, homelab-04 only; the
 # RuntimeClass carries the nodeSelector), so the statistics execute against gVisor's
 # user-space kernel, not the host's. No tool takes SQL or code; data comes only from
-# whitelisted queries as ClickHouse user iso_ro. Network: gateway and miso-ask in, ClickHouse out.
+# whitelisted queries as ClickHouse user iso_ro. Network: the tls-gateway and the LLM gateway in, ClickHouse out.
 #
-# Served at https://iso-analysis.phillips-homelab.net/mcp (LAN), and in-cluster to the miso-ask
-# chat at iso-analysis.iso-lab.svc.cluster.local. Same bearer token as the `iso` MCP server
-# (1Password iso-lab/mcp_auth_token).
+# Served at https://iso-analysis.phillips-homelab.net/mcp (LAN), and in-cluster to the LLM gateway
+# (llm-gateway, LiteLLM: MCP server "analysis") at iso-analysis.iso-lab.svc.cluster.local, which fronts it
+# for the raw chat and Claude Code with per-key access. Same bearer token as the `iso` MCP server
+# (1Password iso-lab/mcp_auth_token), held by the gateway.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -92,10 +93,10 @@ spec:
     - fromEntities: [ingress]
       toPorts:
         - ports: [{port: "8000", protocol: TCP}]
-    - fromEndpoints:
+    - fromEndpoints:  # the LLM gateway, which fronts these MCP servers for the raw chat and Claude Code
         - matchLabels:
-            k8s:io.kubernetes.pod.namespace: miso-ask
-            app: miso-ask
+            k8s:io.kubernetes.pod.namespace: llm-gateway
+            app: litellm
       toPorts:
         - ports: [{port: "8000", protocol: TCP}]
   egress:

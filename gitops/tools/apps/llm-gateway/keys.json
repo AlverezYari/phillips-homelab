@@ -1,9 +1,48 @@
 {
-  "_doc": "One LiteLLM virtual key per consumer. The key values come from the env (1Password item llm-gateway via externalsecret.yaml); budgets and limits are set from here on every sync, so git is the source of truth. budget_usd is per budget_duration.",
+  "_doc": "One LiteLLM virtual key per consumer. The key values come from the env (1Password item llm-gateway via externalsecret.yaml); budgets, limits, allowed models and MCP servers are set from here on every sync, so git is the source of truth. budget_usd is per budget_duration. mcp_servers: the gateway's MCP servers the key may use.",
   "keys": [
-    {"alias": "miso-api-ask", "env": "KEY_MISO_API_ASK", "budget_usd": 50, "budget_duration": "30d", "rpm_limit": 60,
-     "models": ["claude-sonnet-5-5"], "consumer": "iso-lab miso-api: the lab's Ask (public pages)"},
-    {"alias": "miso-ask", "env": "KEY_MISO_ASK", "budget_usd": 50, "budget_duration": "30d", "rpm_limit": 60,
-     "models": ["claude-sonnet-5-5", "claude-opus-5-5"], "consumer": "miso-ask: the raw chat (Open WebUI, admin only)"}
+    {
+      "alias": "miso-api-ask",
+      "env": "KEY_MISO_API_ASK",
+      "budget_usd": 50,
+      "budget_duration": "30d",
+      "rpm_limit": 60,
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "consumer": "iso-lab miso-api: the lab's Ask (public pages)",
+      "mcp_servers": []
+    },
+    {
+      "alias": "miso-ask",
+      "env": "KEY_MISO_ASK",
+      "budget_usd": 50,
+      "budget_duration": "30d",
+      "rpm_limit": 60,
+      "models": [
+        "claude-sonnet-5-5",
+        "claude-opus-5-5"
+      ],
+      "consumer": "miso-ask: the raw chat (Open WebUI, admin only)",
+      "mcp_servers": [
+        "iso",
+        "analysis"
+      ]
+    },
+    {
+      "alias": "claude-code",
+      "env": "KEY_CLAUDE_CODE",
+      "budget_usd": 5,
+      "budget_duration": "30d",
+      "rpm_limit": 120,
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "mcp_servers": [
+        "iso",
+        "analysis"
+      ],
+      "consumer": "Casey's Claude Code: the lab's MCP servers (iso, analysis) through the gateway"
+    }
   ]
 }

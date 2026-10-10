@@ -19,6 +19,22 @@ model_list:
       output_cost_per_token: 0.00002
       cache_creation_input_token_cost: 0.000005
       cache_read_input_token_cost: 0.0000002
+# MCP: the lab's two MCP servers behind the gateway. Clients connect to /mcp/ (or /mcp/<server>) with their own
+# gateway key, which lists the servers it may use (keys.json); only the gateway holds the servers' bearer token.
+# Tool names come out "<server>_<tool>" (MCP_TOOL_PREFIX_SEPARATOR=_), so server names can't contain "_".
+mcp_servers:
+  iso:
+    url: "http://mcp-clickhouse.iso-lab.svc.cluster.local/mcp"
+    transport: "http"
+    auth_type: "bearer_token"
+    auth_value: os.environ/ISO_MCP_TOKEN
+    description: "MISO lab: read-only SQL on ClickHouse (iso_ro, 30 s / 100k rows)"
+  analysis:
+    url: "http://iso-analysis.iso-lab.svc.cluster.local/mcp"
+    transport: "http"
+    auth_type: "bearer_token"
+    auth_value: os.environ/ISO_MCP_TOKEN
+    description: "MISO lab: fixed analysis tools (rollup, regression, cointegration, anomaly, seasonality)"
 litellm_settings:
   callbacks: ["prometheus"]
   require_auth_for_metrics_endpoint: false  # the network policy admits only the metrics scraper and the consumers

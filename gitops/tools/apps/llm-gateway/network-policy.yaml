@@ -1,6 +1,6 @@
 # LiteLLM: in from the homelab tls-gateway (the Admin UI at llm.phillips-homelab.net, internal), the two consumers
 # (iso-lab miso-api, miso-ask), the key-sync Job and the metrics scraper;
-# out to DNS, its Postgres, and HTTPS to api.anthropic.com by name (the L7 DNS rule turns on Cilium's DNS
+# out to DNS, its Postgres, the lab's two MCP servers, and HTTPS to api.anthropic.com by name (the L7 DNS rule turns on Cilium's DNS
 # proxy for this pod, which is what lets toFQDNs be enforced; the miso-ask pattern).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -34,6 +34,11 @@ spec:
         - matchName: "api.anthropic.com"
       toPorts:
         - ports: [{port: "443", protocol: TCP}]
+    - toEndpoints:  # the lab's MCP servers (SQL, analysis)
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: iso-lab, iso-lab/role: mcp}
+        - matchLabels: {k8s:io.kubernetes.pod.namespace: iso-lab, iso-lab/role: analysis}
+      toPorts:
+        - ports: [{port: "8000", protocol: TCP}]
     - toEndpoints:
         - matchLabels: {cnpg.io/cluster: llm-gateway-pg}
       toPorts:

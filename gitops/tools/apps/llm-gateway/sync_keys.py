@@ -52,6 +52,7 @@ def spec_body(k: dict, value: str) -> dict:
         "rpm_limit": k["rpm_limit"],
         "models": k["models"],
         "metadata": {"consumer": k["consumer"], "managed_by": "gitops keys.json"},
+        "object_permission": {"mcp_servers": k.get("mcp_servers", [])},
     }
 
 
@@ -62,8 +63,11 @@ def main() -> None:
     failed = 0
     for k in keys:
         value = os.environ.get(k["env"], "")
+        if not value:  # its 1Password field doesn't exist yet: the next sync picks it up
+            print(f"{k['alias']}: skipped, {k['env']} has no value yet", flush=True)
+            continue
         if not value.startswith("sk-"):
-            print(f"{k['alias']}: {k['env']} is missing or doesn't start with sk-", flush=True)
+            print(f"{k['alias']}: {k['env']} doesn't start with sk-", flush=True)
             failed += 1
             continue
         status, _ = call("GET", "/key/info?key=" + urllib.request.quote(value, safe=""))

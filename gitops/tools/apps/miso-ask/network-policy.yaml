@@ -1,7 +1,7 @@
 # In: only the homelab tls-gateway (Cilium envoy, entity "ingress"), i.e. internal for now;
 # going public adds the Cloudflare tunnel (cloudflared pods in namespace cloudflare).
-# Out: DNS, the two iso-lab MCP servers, and the homelab LLM gateway (llm-gateway, which alone reaches
-# api.anthropic.com). Nothing else: no model downloads, no web, no version checks.
+# Out: DNS and the homelab LLM gateway (llm-gateway), which serves both the models and the lab's MCP
+# servers, and alone reaches api.anthropic.com and the MCP pods. Nothing else: no model downloads, no web, no version checks.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -28,12 +28,3 @@ spec:
             app: litellm
       toPorts:
         - ports: [{port: "4000", protocol: TCP}]
-    - toEndpoints:
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: iso-lab
-            iso-lab/role: mcp
-        - matchLabels:
-            k8s:io.kubernetes.pod.namespace: iso-lab
-            iso-lab/role: analysis
-      toPorts:
-        - ports: [{port: "8000", protocol: TCP}]

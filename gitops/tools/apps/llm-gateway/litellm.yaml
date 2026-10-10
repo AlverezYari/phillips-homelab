@@ -30,8 +30,10 @@ spec:
             - secretRef: {name: llm-gateway}
             # UI_USERNAME / UI_PASSWORD; optional, so the gateway runs before the 1Password fields exist
             - secretRef: {name: llm-gateway-ui, optional: true}
+            - secretRef: {name: llm-gateway-mcp, optional: true}  # ISO_MCP_TOKEN for the MCP servers
           env:
             - {name: HOME, value: /tmp}
+            - {name: MCP_TOOL_PREFIX_SEPARATOR, value: "_"}  # tool names "<server>_<tool>", e.g. iso_run_query
             - {name: PROXY_BASE_URL, value: "https://llm.phillips-homelab.net"}
             - {name: LITELLM_LOCAL_MODEL_COST_MAP, value: "True"}  # no price-list fetch at start: prices are in config.yaml
           startupProbe:
@@ -98,6 +100,7 @@ spec:
           command: ["python3", "/etc/litellm/sync_keys.py"]
           envFrom:
             - secretRef: {name: llm-gateway}
+            - secretRef: {name: llm-gateway-claude-code, optional: true}  # KEY_CLAUDE_CODE
           env:
             - {name: LITELLM_URL, value: "http://litellm:4000"}
             - {name: KEYS_FILE, value: /etc/litellm/keys.json}

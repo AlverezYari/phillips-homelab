@@ -5,8 +5,9 @@ assembles the ones Open WebUI wants as JSON:
 - OPENAI_API_*: one connection, the homelab's LLM gateway (LiteLLM, OpenAI-compatible; LLM_BASE_URL,
   LLM_API_KEY: this chat's own gateway key and budget), fixed model list (so nothing calls /models).
   Without LLM_BASE_URL (local runs) it is Anthropic's OpenAI-compatible endpoint with ANTHROPIC_API_KEY.
-- TOOL_SERVER_CONNECTIONS: the two iso-lab MCP servers in-cluster, bearer token from the secret,
-  readable by every signed-in user.
+- TOOL_SERVER_CONNECTIONS: one MCP connection, "lab", to the LLM gateway's /mcp/ with this chat's gateway
+  key; the gateway fronts the lab's two MCP servers (tools "iso_*" SQL, "analysis_*") and holds their token.
+  Readable by every signed-in user.
 - DEFAULT_MODEL_METADATA: both MCP servers on by default in every chat, uploads/web/images off.
 - DEFAULT_MODEL_PARAMS: native tool calling, max_tokens.
 - The system prompt (system-prompt.md) goes on stored model entries instead: Open WebUI drops a
@@ -25,9 +26,12 @@ from pathlib import Path
 CONFIG = Path(os.environ.get("MISO_ASK_CONFIG", "/etc/miso-ask"))
 MODELS = ["claude-sonnet-5-5", "claude-opus-5-5"]
 MCP = {
-    # server id (tool-name prefix the system prompt uses) -> in-cluster URL
-    "iso": ("ISO SQL (read-only)", "http://mcp-clickhouse.iso-lab.svc.cluster.local/mcp"),
-    "iso_analysis": ("ISO analysis", "http://iso-analysis.iso-lab.svc.cluster.local/mcp"),
+    # server id (Open WebUI's tool-name prefix: tools are "lab_iso_*" and "lab_analysis_*") -> URL. The LLM gateway
+    # serves both lab MCP servers at /mcp/, limited to the ones this key may use (llm-gateway/keys.json).
+    "lab": (
+        "MISO lab (SQL and analysis, via the LLM gateway)",
+        "http://litellm.llm-gateway.svc.cluster.local:4000/mcp/",
+    ),
 }
 EVERYONE = [{"principal_type": "user", "principal_id": "*", "permission": "read"}]
 
@@ -36,15 +40,13 @@ def build(env: dict[str, str], config: Path = CONFIG) -> dict[str, str]:
     key = env.get("LLM_API_KEY") or env.get("ANTHROPIC_API_KEY", "")
     if len(key) < 16:
         raise SystemExit("LLM_API_KEY (or ANTHROPIC_API_KEY) must be set (secret miso-ask)")
-    if len(env.get("ISO_MCP_TOKEN", "")) < 16:
-        raise SystemExit("ISO_MCP_TOKEN must be set (secret miso-ask)")
     tools = [
         {
             "type": "mcp",
             "url": env.get(f"MCP_URL_{sid.upper()}", url),  # override: local tests only
             "path": "",
             "auth_type": "bearer",
-            "key": env["ISO_MCP_TOKEN"],
+            "key": key,  # this chat's gateway key: the gateway checks which MCP servers it may use
             "config": {"enable": True, "access_grants": EVERYONE},
             "info": {"id": sid, "name": name, "description": name},
         }
