@@ -35,11 +35,14 @@ spec:
           volumeMounts:
             - {name: tmp, mountPath: /tmp}
             - {name: confd, mountPath: /etc/nginx/conf.d}
+            - {name: admin, mountPath: /etc/nginx/admin, readOnly: true}
       volumes:
         - name: tmp
           emptyDir: {sizeLimit: 64Mi}
         - name: confd
           emptyDir: {sizeLimit: 1Mi}  # rendered nginx config (holds the ClickHouse password)
+        - name: admin  # /admin's htpasswd (externalsecret.yaml); optional, so the gateway starts without it
+          secret: {secretName: miso-lab-admin, optional: true, items: [{key: htpasswd, path: htpasswd}]}
 ---
 apiVersion: v1
 kind: Service
