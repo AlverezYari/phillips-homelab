@@ -30,6 +30,7 @@ spec:
           env:
             - {name: HOME, value: /tmp}
             - {name: DISABLE_ADMIN_UI, value: "True"}
+            - {name: LITELLM_LOCAL_MODEL_COST_MAP, value: "True"}  # no price-list fetch at start: prices are in config.yaml
           startupProbe:
             httpGet: {path: /health/liveliness, port: http}
             periodSeconds: 5
