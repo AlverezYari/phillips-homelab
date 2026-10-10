@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-gateway
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # llm-gateway (in-cluster only, no route): the homelab's LLM gateway, LiteLLM. Every model call goes
+    # through it, for spend per consumer, budgets, rate limits and routing. Before its consumers (iso-lab
+    # wave 1, miso-ask wave 3). Code + config: iso-market-data-lab deploy/k8s/llm-gateway.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: llm-gateway
+  project: default
+  # ESO and CNPG default these fields server-side; without the ignore the app never reports Synced.
+  ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
+  - group: postgresql.cnpg.io
+    kind: Cluster
+    jsonPointers:
+    - /spec/affinity
+    - /spec/bootstrap/initdb/encoding
+    - /spec/bootstrap/initdb/localeCType
+    - /spec/bootstrap/initdb/localeCollate
+    - /spec/enablePDB
+    - /spec/enableSuperuserAccess
+    - /spec/failoverDelay
+    - /spec/imageName
+    - /spec/logLevel
+    - /spec/maxSyncReplicas
+    - /spec/minSyncReplicas
+    - /spec/monitoring
+    - /spec/postgresGID
+    - /spec/postgresUID
+    - /spec/postgresql
+    - /spec/primaryUpdateMethod
+    - /spec/primaryUpdateStrategy
+    - /spec/replicationSlots
+    - /spec/smartShutdownTimeout
+    - /spec/startDelay
+    - /spec/stopDelay
+    - /spec/switchoverDelay
+  source:
+    path: gitops/tools/apps/llm-gateway
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true
+      - RespectIgnoreDifferences=true

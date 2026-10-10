@@ -1,0 +1,17 @@
+# LiteLLM proxy: every model call in the homelab goes through here (spend per key, budgets, limits, routing).
+# Keys and their budgets: keys.json (synced by sync_keys.py). The lab-wide cap is max_budget below.
+model_list:
+  - model_name: claude-sonnet-5-5
+    litellm_params: {model: anthropic/claude-sonnet-5-5, api_key: os.environ/ANTHROPIC_API_KEY}
+  - model_name: claude-opus-5-5
+    litellm_params: {model: anthropic/claude-opus-5-5, api_key: os.environ/ANTHROPIC_API_KEY}
+litellm_settings:
+  callbacks: ["prometheus"]
+  require_auth_for_metrics_endpoint: false  # the network policy admits only the metrics scraper and the consumers
+  max_budget: 150          # USD, everything through the gateway, per budget_duration: past it, every call is refused
+  budget_duration: 30d
+  drop_params: true
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  disable_spend_logs: false

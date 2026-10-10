@@ -1,0 +1,123 @@
+# LiteLLM proxy (ghcr.io/berriai/litellm v1.104.2, pinned by digest; cosign-verified against the key at
+# BerriAI/litellm@0112e53). In-cluster only: no route, admin UI off. Non-root, read-only root filesystem.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: litellm}
+  template:
+    metadata:
+      labels: {app: litellm}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm@sha256:3d88bd757134a00e8c00237b85a021ab1f6d54abb9c1df750f411dbe7256a500
+          args: ["--config", "/etc/litellm/config.yaml", "--port", "4000"]
+          ports:
+            - {name: http, containerPort: 4000}
+          envFrom:
+            - secretRef: {name: llm-gateway}
+          env:
+            - {name: HOME, value: /tmp}
+            - {name: DISABLE_ADMIN_UI, value: "True"}
+          startupProbe:
+            httpGet: {path: /health/liveliness, port: http}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /health/readiness, port: http}
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: {path: /health/liveliness, port: http}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 100m, memory: 640Mi}
+            limits: {memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: config, mountPath: /etc/litellm, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          configMap: {name: litellm-config}
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+spec:
+  selector: {app: litellm}
+  ports:
+    - {name: http, port: 4000, targetPort: http}
+---
+# Keys and budgets from keys.json, after every sync (an Argo hook; idempotent).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: litellm-sync-keys
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: {app: litellm-sync-keys}
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: sync
+          image: ghcr.io/berriai/litellm@sha256:3d88bd757134a00e8c00237b85a021ab1f6d54abb9c1df750f411dbe7256a500
+          command: ["python3", "/etc/litellm/sync_keys.py"]
+          envFrom:
+            - secretRef: {name: llm-gateway}
+          env:
+            - {name: LITELLM_URL, value: "http://litellm:4000"}
+            - {name: KEYS_FILE, value: /etc/litellm/keys.json}
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: config, mountPath: /etc/litellm, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: litellm-config}
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: litellm
+spec:
+  selector:
+    matchLabels: {app: litellm}
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
