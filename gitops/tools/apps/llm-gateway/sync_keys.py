@@ -56,6 +56,33 @@ def spec_body(k: dict, value: str) -> dict:
     }
 
 
+def mcp_of(value: str) -> list[str]:
+    status, out = call("GET", "/key/info?key=" + urllib.request.quote(value, safe=""))
+    op = (out.get("info") or {}).get("object_permission") or {}
+    return sorted(op.get("mcp_servers") or []) if status == 200 else []
+
+
+def apply(k: dict, value: str, attempts: int = 30) -> bool:
+    """Create or update the key, then read it back: LiteLLM drops MCP servers it doesn't know, so a sync that
+    lands on the old pod during a rollout (before the servers are registered) stores none. Retry until the key's
+    MCP servers match keys.json (2026-10-10: the raw chat's key came out with none, and every MCP call got 403)."""
+    want = sorted(k.get("mcp_servers", []))
+    for i in range(attempts):
+        status, _ = call("GET", "/key/info?key=" + urllib.request.quote(value, safe=""))
+        path = "/key/update" if status == 200 else "/key/generate"
+        status, out = call("POST", path, spec_body(k, value))
+        if status != 200:
+            print(f"{k['alias']}: {path} -> {status} {json.dumps(out)[:300]}", flush=True)
+            return False
+        got = mcp_of(value)
+        if got == want:
+            print(f"{k['alias']}: {path} -> 200, mcp_servers {got}", flush=True)
+            return True
+        print(f"{k['alias']}: mcp_servers {got}, want {want}; retrying ({i + 1}/{attempts})", flush=True)
+        time.sleep(10)
+    return False
+
+
 def main() -> None:
     with open(os.environ.get("KEYS_FILE", "/etc/litellm/keys.json")) as f:
         keys = json.load(f)["keys"]
@@ -70,12 +97,7 @@ def main() -> None:
             print(f"{k['alias']}: {k['env']} doesn't start with sk-", flush=True)
             failed += 1
             continue
-        status, _ = call("GET", "/key/info?key=" + urllib.request.quote(value, safe=""))
-        path = "/key/update" if status == 200 else "/key/generate"
-        status, out = call("POST", path, spec_body(k, value))
-        ok = status == 200
-        failed += not ok
-        print(f"{k['alias']}: {path} -> {status}" + ("" if ok else f" {json.dumps(out)[:300]}"), flush=True)
+        failed += not apply(k, value)
     sys.exit(1 if failed else 0)
 
 
