@@ -1,10 +1,24 @@
 # LiteLLM proxy: every model call in the homelab goes through here (spend per key, budgets, limits, routing).
 # Keys and their budgets: keys.json (synced by sync_keys.py). The lab-wide cap is max_budget below.
+#
+# Prices are pinned here (USD per token), not looked up: LiteLLM fetches its price list from GitHub at start,
+# which the network policy blocks, and the list built into v1.104.2 doesn't know claude-sonnet-5-5, so every
+# call cost $0 and no budget counted (2026-10-10). Source: BerriAI/litellm model_prices_and_context_window.json.
 model_list:
   - model_name: claude-sonnet-5-5
     litellm_params: {model: anthropic/claude-sonnet-5-5, api_key: os.environ/ANTHROPIC_API_KEY}
+    model_info:
+      input_cost_per_token: 0.000002
+      output_cost_per_token: 0.00001
+      cache_creation_input_token_cost: 0.0000025
+      cache_read_input_token_cost: 0.0000001
   - model_name: claude-opus-5-5
     litellm_params: {model: anthropic/claude-opus-5-5, api_key: os.environ/ANTHROPIC_API_KEY}
+    model_info:
+      input_cost_per_token: 0.000004
+      output_cost_per_token: 0.00002
+      cache_creation_input_token_cost: 0.000005
+      cache_read_input_token_cost: 0.0000002
 litellm_settings:
   callbacks: ["prometheus"]
   require_auth_for_metrics_endpoint: false  # the network policy admits only the metrics scraper and the consumers

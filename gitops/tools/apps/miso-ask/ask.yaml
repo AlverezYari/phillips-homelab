@@ -46,9 +46,9 @@ spec:
           env:
             - {name: LLM_BASE_URL, value: "http://litellm.llm-gateway.svc.cluster.local:4000/v1"}
             - name: LLM_API_KEY  # this chat's key on the LLM gateway
-              valueFrom: {secretKeyRef: {name: miso-ask, key: LLM_API_KEY}}
+              valueFrom: {secretKeyRef: {name: miso-ask-llm, key: LLM_API_KEY}}
             - name: ISO_MCP_TOKEN
-              valueFrom: {secretKeyRef: {name: miso-ask, key: ISO_MCP_TOKEN}}
+              valueFrom: {secretKeyRef: {name: miso-ask-llm, key: ISO_MCP_TOKEN}}
           startupProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 5
