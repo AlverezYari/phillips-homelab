@@ -43,7 +43,13 @@ step "2. normalization untouched"
 git diff --quiet origin/main HEAD -- harness/normalize.py || fail "harness/normalize.py changed"
 # parity.rs mirrors normalize.py in everything above copy_dir().
 scrub() { git show "$1:tests/parity.rs" | sed '/^fn copy_dir/,$d'; }
-diff <(scrub origin/main) <(scrub HEAD) >/dev/null || fail "tests/parity.rs normalization changed"
+# A person may approve one specific change after reading it: PARITY_SCRUB_OK=<sha256 of
+# the new scrub region>, e.g. a fix that brings parity.rs back in line with normalize.py.
+if ! diff <(scrub origin/main) <(scrub HEAD) >/dev/null; then
+  got=$(scrub HEAD | sha256sum | cut -d' ' -f1)
+  [ "${PARITY_SCRUB_OK:-}" = "$got" ] || fail "tests/parity.rs normalization changed (scrub sha256 $got)"
+  echo "tests/parity.rs normalization changed; approved by reviewer ($got)"
+fi
 git diff origin/main HEAD -- tests/parity.rs | grep -E '^[-+][^-+].*(scrub|sort_source_deps)\(' \
   && fail "tests/parity.rs changed how normalization is applied"
 echo ok
