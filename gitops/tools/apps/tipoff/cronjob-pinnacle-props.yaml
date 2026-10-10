@@ -19,6 +19,7 @@ metadata:
     app.kubernetes.io/component: ingest
     tipoff.io/source: pinnacle-props
 spec:
+  suspend: true  # ingestion paused (Casey, 2026-10-10); delete this line to resume
   schedule: "1-59/5 * * * *"   # 1,6,11,...  1-min offset from pinnacle */5
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
