@@ -1,5 +1,5 @@
 # llm-gateway: the homelab's LLM gateway (LiteLLM). Every model call goes through it, for spend per
-# consumer, budgets, rate limits and model routing. In-cluster only. Code + config: iso-market-data-lab
+# consumer, budgets, rate limits and model routing. Admin UI at llm.phillips-homelab.net (internal). Code + config: iso-market-data-lab
 # deploy/k8s/llm-gateway; keys and budgets in keys.json.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -9,6 +9,7 @@ resources:
   - externalsecret.yaml
   - litellm.yaml
   - network-policy.yaml
+  - reference-grant.yaml
 configMapGenerator:
   - name: litellm-config
     files:
