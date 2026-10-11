@@ -82,10 +82,10 @@ spec:
           nodeSelector: {kubernetes.io/hostname: homelab-04}
           containers:
           - name: conductor
-            image: zot.phillips-homelab.net/loop-dev:corten-2
+            image: zot.phillips-homelab.net/loop-dev:corten-3
             envFrom: [{secretRef: {name: loop-secrets}}]
             env:
-            - {name: REVIEW_IMAGE, value: "zot.phillips-homelab.net/loop-dev:corten-2"}
+            - {name: REVIEW_IMAGE, value: "zot.phillips-homelab.net/loop-dev:corten-3"}
             - {name: LOOPCTL_ROOT, value: /tmp/rig}
             - {name: LOOPCTL, value: /tmp/rig/loops/bin/loopctl}
             command:
