@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudflare-tunnel-personal
+  namespace: argocd
+  annotations:
+    # The public front door for phillips-homelab.net (Cloudflare Tunnel + Access, personal account). See
+    # gitops/core/cloudflare-tunnel-personal/deployment.yaml.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    path: gitops/core/cloudflare-tunnel-personal
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare
+  # ESO defaults these fields server-side; without the ignore the app never reports Synced.
+  ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

@@ -1,6 +1,5 @@
-# Gateway: only the homelab tls-gateway (Cilium envoy, entity "ingress") gets in, i.e. internal
-# only for now; going public later adds the Cloudflare tunnel (cloudflared pods in namespace
-# cloudflare). It reaches only the demo Grafana and the read-only Dagster webserver. Grafana: only the gateway gets in; it reaches
+# Gateway: the homelab tls-gateway (Cilium envoy, entity "ingress", the LAN) and the public tunnel
+# (cloudflared-personal in namespace cloudflare; Cloudflare Access in front, an email allowlist) get in. It reaches only the demo Grafana and the read-only Dagster webserver. Grafana: only the gateway gets in; it reaches
 # only ClickHouse (as iso_ro) and VictoriaMetrics. No internet egress for either.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -11,6 +10,12 @@ spec:
     matchLabels: {app: miso-lab-gateway}
   ingress:
     - fromEntities: [ingress]
+      toPorts:
+        - ports: [{port: "8080", protocol: TCP}]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflare
+            app: cloudflared-personal
       toPorts:
         - ports: [{port: "8080", protocol: TCP}]
   egress:

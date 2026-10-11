@@ -1,0 +1,72 @@
+# Public front door for phillips-homelab.net hosts: a Cloudflare Tunnel in Casey's personal Cloudflare account
+# (the one that holds the phillips-homelab.net zone; the other tunnel, cloudflared, lives in the lighttheham
+# account and can't publish this zone). Remotely managed: the tunnel's public hostnames are set in that
+# account's Zero Trust dashboard, and every hostname on it MUST have a Cloudflare Access application in front
+# (today: miso-lab.phillips-homelab.net -> http://gateway.miso-lab.svc.cluster.local:8080, an email allowlist).
+# Outbound only: nothing opens on the home network.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared-personal
+  namespace: cloudflare
+  labels:
+    app: cloudflared-personal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudflared-personal
+  template:
+    metadata:
+      labels:
+        app: cloudflared-personal
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2024.10.0
+          args:
+            - tunnel
+            - --protocol
+            - http2
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-tunnel-personal-token
+                  key: token
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 200m
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
