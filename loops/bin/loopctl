@@ -92,6 +92,13 @@ t = open(sys.argv[1]).read()
 print(re.sub(r'\$\{(\w+)\}', lambda m: os.environ[m.group(1)], t))
 EOF
   echo "spawned sandbox/$name; waiting for pod..."
+  # The sandbox controller creates the pod a moment after the Sandbox; `kubectl
+  # wait` on a pod that doesn't exist yet fails at once (NotFound), so wait for
+  # it to exist first. The in-cluster conductor spawns fast enough to hit this.
+  local w=0
+  until kubectl -n "$NS" get "pod/$name" >/dev/null 2>&1; do
+    sleep 2; w=$((w+1)); [ $w -gt 90 ] && die "sandbox controller created no pod for $name within 3m"
+  done
   kubectl -n "$NS" wait --for=condition=Ready "pod/$name" --timeout=300s >/dev/null
   kubectl -n "$NS" cp "$spec" "$name:/workspace/SPEC.md" >/dev/null 2>&1
   echo "SPEC uploaded; waiting for iteration 1..."
