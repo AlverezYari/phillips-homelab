@@ -58,6 +58,12 @@ spec:
           value: "${MAX_ITER}"
         - name: ENGINE
           value: ${ENGINE}
+        # Spend (loopctl spawn --model / --budget-usd): the model claude
+        # iterations run, and the estimated-USD cap that stops the loop.
+        - name: CLAUDE_MODEL
+          value: "${MODEL}"
+        - name: LOOP_BUDGET_USD
+          value: "${BUDGET_USD}"
         # GATE_CMD must be set at pod creation: a patch after apply
         # races the already-started pod and silently never applies
         # (the first codex smoke ran the full default gate for exactly

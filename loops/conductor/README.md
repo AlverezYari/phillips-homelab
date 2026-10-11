@@ -21,6 +21,16 @@ idle --spawn head of queue--> running --sandbox state done--> reap (files PR)
   The full log goes on the PR as a comment, pass or fail.
 - **Merges are pinned.** It merges with `head_commit_id` set to the reviewed sha, so a
   PR that moved after review is refused, not merged.
+- **Spend is capped.** The harness records each iteration's tokens and estimated
+  cost (`claude -p` `total_cost_usd`, API list prices: a unit for comparing loops,
+  not the subscription bill) in the Sandbox's annotations. The conductor keeps a
+  ledger (ConfigMap `spend-<chain>`) and gives each spawned loop a budget of
+  `min(loop_cap_usd, weekly_cap_usd - last 7 days)`; the harness stops a loop
+  that reaches it (state `exhausted`, so the conductor halts and pings). With less
+  than a quarter of a loop's cap left in the week, the chain waits in phase
+  `capped` (one ping) until old spend ages out. Defaults: $250 a week, $60 a
+  loop, until `conductor-ctl.sh cap` sets them.
+- **Loops run Sonnet unless the queue line says otherwise** (`... max_iter opus`).
 - **Halting is the only failure mode.** Every halt pings the phone (ntfy `loops`) with
   the reason and leaves everything in place for inspection.
 
@@ -28,8 +38,9 @@ idle --spawn head of queue--> running --sandbox state done--> reap (files PR)
 
 ```
 conductor-ctl.sh install                    # push code: this dir + loopctl + sandbox template
-conductor-ctl.sh enqueue corten corten-sources loop-bot/corten corten-1 25 loops/specs/corten-sources/SPEC.md
-conductor-ctl.sh status corten
+conductor-ctl.sh enqueue corten corten-sources loop-bot/corten corten-2 15 loops/specs/corten-sources/SPEC.md [opus]
+conductor-ctl.sh status corten                 # includes the spend ledger
+conductor-ctl.sh cap corten 250 60             # weekly and per-loop caps, estimated USD
 conductor-ctl.sh resume corten [phase]      # after fixing whatever halted it
 conductor-ctl.sh run corten                 # one step now
 ```

@@ -11,6 +11,9 @@
 #     relays to NATS; answers drain from loops.<name>.inbox to /workspace/.inbox
 #   - done: all boxes checked + gate green -> agent writes /workspace/.loop-done
 #   - exit codes: 0 done, 2 blocked-needs-human, 3 budget exhausted
+#   - spend: each claude iteration's tokens and estimated cost go to
+#     /workspace/.usage.jsonl and the Sandbox annotations; LOOP_BUDGET_USD
+#     stops the loop (state exhausted) once the estimate reaches it
 #   - state label loop.phillips.dev/state on own Sandbox CR
 set -uo pipefail
 
@@ -40,7 +43,15 @@ case "$ENGINE" in
   *) echo "unknown ENGINE '$ENGINE' (claude|codex)" >&2; exit 2 ;;
 esac
 BRANCH="${BRANCH:-loop/${LOOP_NAME}}"
-MAX_ITER="${MAX_ITER:-30}"
+MAX_ITER="${MAX_ITER:-15}"
+# CLAUDE_MODEL: the model every claude iteration runs (loopctl spawn --model,
+# default sonnet). Empty means the CLI's own default, which is Opus on Casey's
+# plan: the expensive choice, so it must be asked for.
+CLAUDE_MODEL="${CLAUDE_MODEL:-}"
+# LOOP_BUDGET_USD: stop once this loop's estimated spend reaches it. The
+# estimate is claude -p's total_cost_usd (API list prices), a stable unit for
+# comparing loops, not the subscription bill. Empty: no spend cap.
+LOOP_BUDGET_USD="${LOOP_BUDGET_USD:-}"
 GATE_CMD="${GATE_CMD:-make build test lint}"
 NATS_SERVER="${NATS_SERVER:-nats.loops.svc.cluster.local:4222}"
 NATS_URL="nats://loop:${NATS_PASSWORD:-}@${NATS_SERVER}"
@@ -86,6 +97,31 @@ drain_inbox() { # answers published to loops.<name>.inbox land in .inbox/
   fi
 }
 
+record_usage() { # record_usage <iter>: one line per claude iteration in
+  # .usage.jsonl (PVC, survives restarts), loop totals on the Sandbox
+  # annotations where loopctl and the conductor read them. Best-effort.
+  local u
+  u=$(jq -c --argjson i "$1" '{iter: $i, model: ((.modelUsage // {}) | keys | join(",")),
+      cost_usd: (.total_cost_usd // 0), turns: (.num_turns // 0),
+      input: (.usage.input_tokens // 0), output: (.usage.output_tokens // 0),
+      cache_read: (.usage.cache_read_input_tokens // 0),
+      cache_write: (.usage.cache_creation_input_tokens // 0)}' \
+      < <(grep '^{' "$WS/.iter-$1.log" | tail -n 1) 2>/dev/null) && [ -n "$u" ] \
+    || { log "WARN no usage in iteration $1 log"; return 0; }
+  echo "$u" >> "$WS/.usage.jsonl"
+  read -r loop_cost loop_tokens < <(jq -rs '[(map(.cost_usd) | add * 100 | round / 100),
+      (map(.input + .output + .cache_read + .cache_write) | add)] | @tsv' "$WS/.usage.jsonl")
+  log "usage: $(jq -r '"$\(.cost_usd * 100 | round / 100) est, \(.turns) turns, \(.output) out, \(.cache_read) cache-read tok"' <<<"$u"); loop total \$${loop_cost} est, ${loop_tokens} tok"
+  kubectl -n loops annotate --overwrite sandbox "$LOOP_NAME" \
+    "loop.phillips.dev/cost-usd=${loop_cost}" "loop.phillips.dev/tokens=${loop_tokens}" \
+    >/dev/null 2>&1 || log "WARN usage annotation failed"
+}
+
+over_budget() { # true once LOOP_BUDGET_USD is set and reached
+  [ -n "$LOOP_BUDGET_USD" ] && [ -f "$WS/.usage.jsonl" ] \
+    && jq -se --argjson b "$LOOP_BUDGET_USD" 'map(.cost_usd) | add >= $b' "$WS/.usage.jsonl" >/dev/null
+}
+
 unanswered_decisions() { # true if more decisions were relayed than answered
   local sent answered
   sent=$(ls "$WS/decisions/.sent" 2>/dev/null | wc -l)
@@ -129,9 +165,10 @@ fi
 if [ -n "$MEMORY_URL" ] && [ ! -d "$WS/memory/.git" ]; then
   git clone --depth 1 "$MEMORY_URL" "$WS/memory" || log "WARN memory clone failed"
 fi
+mkdir -p "$WS/logs"
 [ -f "$WS/PROGRESS.md" ] || printf '# PROGRESS\n\n(harness: no iterations yet)\n' > "$WS/PROGRESS.md"
 
-PROMPT='You are one iteration of an autonomous coding loop. Read /workspace/SPEC.md (the task, checkboxes, guardrails) and /workspace/PROGRESS.md (state so far), and check /workspace/.inbox/ for operator answers to earlier decisions. Then do exactly ONE thing: the next unchecked SPEC item. Work in /workspace/repo. Follow SPEC guardrails strictly. If an item is blocked after 3 distinct attempts (see PROGRESS), write a decision file to /workspace/decisions/NNN-slug.json (fields: question, context, options[2-3], recommendation, risk) and move to the next item. Update PROGRESS.md: what you did, gate expectations, what is next, any BLOCKED items. If ALL items are done, create /workspace/.loop-done containing a one-paragraph summary, AND /workspace/PR.md: a reviewer-facing pull-request description in markdown (sections: What changed, How it was verified, Review notes — call out any tradeoffs, dependency changes, or deviations a human reviewer should scrutinize). Write PR.md for a human who has NOT read PROGRESS.md; no process narration or iteration numbers. If ALL remaining items are BLOCKED, or if your ONLY remaining action is waiting for an operator answer to a decision you already filed (a review gate counts — waiting is not working), create /workspace/.loop-blocked with a summary; the harness waits for the answer without spending iterations. Never write secrets to logs or files. Do not run git push (the harness pushes). Consult /workspace/memory/ (gotchas, conventions) if present.'
+PROMPT='You are one iteration of an autonomous coding loop. Read /workspace/SPEC.md (the task, checkboxes, guardrails) and /workspace/PROGRESS.md (state so far), and check /workspace/.inbox/ for operator answers to earlier decisions. Then do exactly ONE thing: the next unchecked SPEC item. Work in /workspace/repo. Follow SPEC guardrails strictly. If an item is blocked after 3 distinct attempts (see PROGRESS), write a decision file to /workspace/decisions/NNN-slug.json (fields: question, context, options[2-3], recommendation, risk) and move to the next item. Update PROGRESS.md: what you did, gate expectations, what is next, any BLOCKED items. If ALL items are done, create /workspace/.loop-done containing a one-paragraph summary, AND /workspace/PR.md: a reviewer-facing pull-request description in markdown (sections: What changed, How it was verified, Review notes — call out any tradeoffs, dependency changes, or deviations a human reviewer should scrutinize). Write PR.md for a human who has NOT read PROGRESS.md; no process narration or iteration numbers. If ALL remaining items are BLOCKED, or if your ONLY remaining action is waiting for an operator answer to a decision you already filed (a review gate counts — waiting is not working), create /workspace/.loop-blocked with a summary; the harness waits for the answer without spending iterations. Never write secrets to logs or files. Do not run git push (the harness pushes). Consult /workspace/memory/ (gotchas, conventions) if present. Keep your context small, it is what this loop pays for: send long output (builds, test suites, fuzz and audit runs) to a file under /workspace/logs/ and read only what you need (tail, grep, a line range); read large files by range, not whole; do not re-read a file you already have unless it changed.'
 
 # ---- iteration loop --------------------------------------------------------
 ensure_inbox_consumer
@@ -161,13 +198,18 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
       - <<<"$PROMPT") \
       > "$WS/.iter-${iter}.log" 2>&1
   else
+    # json output: the final message plus the iteration's token usage and
+    # cost estimate (record_usage). The log is one JSON object, not text.
     claude -p "$PROMPT" \
       --dangerously-skip-permissions \
       --add-dir "$WS" \
+      --output-format json \
+      ${CLAUDE_MODEL:+--model "$CLAUDE_MODEL"} \
       > "$WS/.iter-${iter}.log" 2>&1
   fi
   agent_rc=$?
   log "agent exited rc=${agent_rc} ($(wc -l < "$WS/.iter-${iter}.log") log lines)"
+  [ "$ENGINE" = claude ] && record_usage "$iter"
 
   # Pro-plan rate limiting: iterations draw from the shared 5h prompt window.
   # "spend limit": the org's monthly cap (corten-sources burned 16 iterations at
@@ -239,6 +281,17 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
         break
       fi
     done
+  fi
+
+  # Spend cap: checked after the done check, so a loop that finishes on its
+  # last affordable iteration still finishes. Same terminal state as the
+  # iteration budget; the conductor halts on it and pings.
+  if over_budget; then
+    log "spend budget reached (\$${LOOP_BUDGET_USD} est); stopping"
+    printf '\n> harness: stopped, spend budget ($%s est) reached.\n' "$LOOP_BUDGET_USD" >> "$WS/PROGRESS.md"
+    npub done "{\"iter\":${iter},\"exhausted\":true,\"reason\":\"spend budget\"}"
+    set_state exhausted; term "spend budget reached (\$${LOOP_BUDGET_USD} est) after ${iter} iterations"
+    exit 0
   fi
 
   # Review-wait: an unanswered decision exists, the inbox is empty, and this

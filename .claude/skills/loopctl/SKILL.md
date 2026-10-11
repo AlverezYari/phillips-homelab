@@ -18,7 +18,10 @@ project-loop-rig.
 ## Verbs (script: `loops/bin/loopctl`)
 
 ```sh
-loops/bin/loopctl spawn <name> <owner/repo> --spec <SPEC.md> [--max-iter N] [--image TAG]
+loops/bin/loopctl spawn <name> <owner/repo> --spec <SPEC.md> [--max-iter N] [--image TAG] [--model sonnet|opus] [--budget-usd N]
+#   --model defaults to sonnet; ask for opus only for design- or probe-heavy loops.
+#   --budget-usd stops the loop once claude's estimated spend reaches it.
+#   `loopctl status <name>` shows the loop's spend so far.
 loops/bin/loopctl status [name]     # fleet table, or one loop's PROGRESS/decisions
 loops/bin/loopctl logs <name> [-f]  # harness stdout
 loops/bin/loopctl answer <name> '<json-or-text>'  # -> loops.<name>.inbox (durable)

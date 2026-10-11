@@ -8,11 +8,17 @@
 #   conductor.sh <chain>
 #
 # ConfigMap queue-<chain>   (written by loops/conductor/enqueue.sh)
-#   queue: one loop per line, "name owner/repo image max_iter", run top-down
+#   queue: one loop per line, "name owner/repo image max_iter [model]", run
+#   top-down; model defaults to sonnet
 #   <name>.md: that loop's SPEC
 # ConfigMap conductor-<chain>   (owned by this script)
-#   phase: idle | running | reviewing | halted
+#   phase: idle | running | reviewing | capped | halted
 #   loop, job, next_seed, note
+#   weekly_cap_usd, loop_cap_usd: spend caps (conductor-ctl.sh cap), in the
+#   harness's estimated USD (claude -p total_cost_usd at API list prices)
+# ConfigMap spend-<chain>   (owned by this script)
+#   ledger: one line per loop, "epoch loop cost_usd tokens", from the loop's
+#   Sandbox annotations; refreshed every tick while it runs
 #
 # The step for each phase:
 #   idle       spawn the head of the queue (nothing queued: stay idle)
@@ -20,6 +26,8 @@
 #              blocked / exhausted / gone -> halt
 #   reviewing  Job passed -> merge exactly the reviewed sha, go idle and spawn
 #              Job failed -> comment the review log on the PR, halt
+#   capped     the last 7 days' spend left too little for another loop; spawn
+#              once it ages out (or the cap is raised)
 #   halted     nothing. A person (or a Claude session) reads the note, fixes
 #              things and resumes:  conductor-ctl.sh <chain> resume
 #
@@ -36,6 +44,11 @@ REVIEW_IMAGE=${REVIEW_IMAGE:-zot.phillips-homelab.net/loop-dev:corten-1}
 REVIEW_SCRIPT=${REVIEW_SCRIPT:-review-$CHAIN.sh}
 NTFY_URL=${NTFY_URL:-http://ntfy.stock-bot.svc.cluster.local/loops}
 FJO_API=${FJO_API:-http://forgejo-http.forgejo.svc.cluster.local:3000/api/v1}
+SPEND=spend-$CHAIN
+# Defaults until conductor-ctl.sh cap sets them: starting points, to be tuned
+# against the ledger once it holds a week of real loops.
+DEFAULT_WEEKLY_CAP_USD=${WEEKLY_CAP_USD:-250}
+DEFAULT_LOOP_CAP_USD=${LOOP_CAP_USD:-60}
 export NTFY_URL
 
 log() { echo "[conductor $CHAIN $(date -u +%H:%M:%S)] $*"; }
@@ -69,11 +82,45 @@ phase=$(get "$STATE" phase)
 loop=$(get "$STATE" loop)
 log "phase=$phase loop=${loop:-none}"
 
+# Spend ledger. record_spend <loop>: upsert that loop's line from its Sandbox
+# annotations (written by the harness after every iteration).
+record_spend() {
+  local cost tokens cur
+  cost=$(kubectl -n "$NS" get sandbox "$1" -o jsonpath='{.metadata.annotations.loop\.phillips\.dev/cost-usd}' 2>/dev/null || true)
+  tokens=$(kubectl -n "$NS" get sandbox "$1" -o jsonpath='{.metadata.annotations.loop\.phillips\.dev/tokens}' 2>/dev/null || true)
+  [ -n "$cost" ] || return 0
+  kubectl -n "$NS" get configmap "$SPEND" >/dev/null 2>&1 \
+    || kubectl -n "$NS" create configmap "$SPEND" --from-literal=ledger= >/dev/null
+  cur=$(get "$SPEND" ledger | awk -v l="$1" '$2 != l')
+  kubectl -n "$NS" patch configmap "$SPEND" --type merge -p "$(jq -cn \
+    --arg q "$(printf '%s\n%s %s %s %s' "$cur" "$(date +%s)" "$1" "$cost" "${tokens:-0}" | sed '/^$/d')" \
+    '{data: {ledger: $q}}')" >/dev/null
+}
+spent_7d() { # estimated USD recorded in the last 7 days
+  { get "$SPEND" ledger 2>/dev/null || true; } \
+    | awk -v since="$(( $(date +%s) - 604800 ))" '$1 >= since {s += $3} END {printf "%.2f", s}'
+}
+
 spawn_next() {
-  local line name repo image max_iter rest spec
+  local line name repo image max_iter model rest spec weekly loop_cap spent budget
   line=$(get "$QUEUE" queue | sed '/^[[:space:]]*\(#\|$\)/d' | head -1)
   [ -n "$line" ] || { log "queue empty"; set_state phase idle loop ""; return; }
-  read -r name repo image max_iter <<<"$line"
+  read -r name repo image max_iter model <<<"$line"
+  model=${model:-sonnet}
+  # The loop's budget is the per-loop cap or what the week has left, whichever
+  # is less. Under a quarter of a loop's cap left: wait (phase capped).
+  weekly=$(get "$STATE" weekly_cap_usd); weekly=${weekly:-$DEFAULT_WEEKLY_CAP_USD}
+  loop_cap=$(get "$STATE" loop_cap_usd); loop_cap=${loop_cap:-$DEFAULT_LOOP_CAP_USD}
+  spent=$(spent_7d)
+  budget=$(awk -v w="$weekly" -v s="$spent" -v l="$loop_cap" 'BEGIN {r = w - s; printf "%.2f", (r < l ? r : l)}')
+  if awk -v b="$budget" -v l="$loop_cap" 'BEGIN {exit !(b < l / 4)}'; then
+    if [ "$phase" != capped ]; then
+      log "capped: \$$spent of \$$weekly spent in 7 days; $name waits"
+      ping_phone "Conductor capped: $CHAIN" "money_with_wings" "\$$spent of the \$$weekly weekly cap spent (estimated); $name waits until older spend ages out or the cap is raised (conductor-ctl.sh cap)."
+    fi
+    set_state phase capped loop "" note "capped: \$$spent of \$$weekly in 7 days; next: $name"
+    return
+  fi
   spec=$(mktemp)
   get "$QUEUE" "$name.md" >"$spec"
   [ -s "$spec" ] || halt "queue head $name has no $name.md in $QUEUE"
@@ -82,8 +129,9 @@ spawn_next() {
   kubectl -n "$NS" patch configmap "$QUEUE" --type merge \
     -p "$(jq -cn --arg q "$rest" '{data: {queue: $q}}')" >/dev/null
   set_state phase running loop "$name" job "" note "spawning"
-  log "spawning $name ($repo, $image, max $max_iter)"
+  log "spawning $name ($repo, $image, $model, max $max_iter, \$$budget est; 7-day spend \$$spent of \$$weekly)"
   "$LOOPCTL" spawn "$name" "$repo" --spec "$spec" --max-iter "$max_iter" --image "$image" \
+    --model "$model" --budget-usd "$budget" \
     || halt "spawn of $name failed"
   set_state note "spawned $(date -u +%FT%TZ)"
 }
@@ -140,13 +188,14 @@ case "$phase" in
     log "halted: $(get "$STATE" note)"
     ;;
 
-  idle)
+  idle|capped)
     spawn_next
     ;;
 
   running)
     state=$(kubectl -n "$NS" get sandbox "$loop" -o jsonpath='{.metadata.labels.loop\.phillips\.dev/state}' 2>/dev/null || echo gone)
     log "sandbox $loop: ${state:-unknown}"
+    record_spend "$loop"
     case "$state" in
       starting|running|"") ;;
       done)
