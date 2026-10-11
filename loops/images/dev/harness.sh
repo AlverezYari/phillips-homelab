@@ -170,8 +170,10 @@ while [ "$iter" -lt "$MAX_ITER" ]; do
   log "agent exited rc=${agent_rc} ($(wc -l < "$WS/.iter-${iter}.log") log lines)"
 
   # Pro-plan rate limiting: iterations draw from the shared 5h prompt window.
+  # "spend limit": the org's monthly cap (corten-sources burned 16 iterations at
+  # 7s each on it, 2026-10-10, because only the 5h-window wording matched).
   # Back off without burning budget; give up after too many in a row.
-  if [ "$agent_rc" -ne 0 ] && grep -qiE 'rate.?limit|usage limit|limit (reached|exceeded)' "$WS/.iter-${iter}.log"; then
+  if [ "$agent_rc" -ne 0 ] && grep -qiE 'rate.?limit|usage limit|spend limit|limit (reached|exceeded)' "$WS/.iter-${iter}.log"; then
     rl_count=$(( ${rl_count:-0} + 1 ))
     if [ "$rl_count" -ge "${RATE_LIMIT_MAX_BACKOFFS:-8}" ]; then
       npub done "{\"iter\":${iter},\"exhausted\":true,\"reason\":\"rate-limited\"}"

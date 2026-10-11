@@ -26,7 +26,13 @@ loops/bin/loopctl pause <name> / resume <name>    # Suspended keeps the PVC
 loops/bin/loopctl reap <name> [--no-pr]  # PR (PR.md body + PROGRESS comment + review request) then delete
 loops/bin/loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]  # file a PR for ANY branch (fix/docs too, not just loop/*); --body-file also refreshes the body of an existing PR on that branch
 loops/bin/loopctl merge <owner/repo> <pr#>             # merge a PR — the conductor's landing verb
+loops/bin/loopctl mkrepo <loop-bot/name> [description] # create a private loop-bot repo + Casey as admin collaborator
 ```
+
+**New repo for a loop: `loopctl mkrepo`, never ask Casey.** Forgejo push-to-create is
+off and Casey's own user cannot create loop-bot repos; the loop-bot token (in-cluster)
+can. After mkrepo, push from the laptop over SSH
+(`git@code.phillips-homelab.net:loop-bot/<name>.git`) — Casey's key has admin on it.
 
 `pr`/`merge` exist so the conductor never improvises raw token curls
 (added 2026-07-24 after a night of exactly that): the FJO token stays
@@ -37,6 +43,11 @@ loop-bot's API merges.
 ## Conductor session start
 
 1. `loops/bin/loopctl status` — rediscover fleet state (you are stateless).
+   Also `loops/conductor/conductor-ctl.sh status <chain>` for chains the
+   in-cluster conductor runs (`loops/conductor/README.md`): a queued chain
+   spawns, reviews and merges on its own; a `halted` one is waiting for you.
+   To keep work going while you're away, enqueue written specs instead of
+   watching loops from the session.
 2. For `blocked` loops: `status <name>` shows unrelayed/relayed decisions;
    batch-present them to Casey with recommendations; `answer` each.
 3. Never edit a running loop's /workspace or SPEC.md; never patch code in a
