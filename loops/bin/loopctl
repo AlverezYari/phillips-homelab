@@ -63,12 +63,15 @@ helper_pod() {
 }
 
 cmd_spawn() {
-  local name=${1:?usage: loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG] [--engine claude|codex] [--gate CMD]}
+  local name=${1:?usage: loopctl spawn <name> <owner/repo> --spec <file> [--max-iter N] [--image TAG] [--engine claude|codex] [--gate CMD] [--model M] [--budget-usd N]}
   local repo=${2:?owner/repo required}; shift 2
-  local spec="" max_iter=15 image="" engine=claude gate=""
+  # --model: sonnet unless asked; Opus (the CLI default) costs several times
+  # more and is for loops that need it. --budget-usd: estimated-spend cap.
+  local spec="" max_iter=15 image="" engine=claude gate="" model=sonnet budget=""
   while [ $# -gt 0 ]; do case $1 in
     --spec) spec=$2; shift 2;; --max-iter) max_iter=$2; shift 2;; --image) image=$2; shift 2;;
     --engine) engine=$2; shift 2;; --gate) gate=$2; shift 2;;
+    --model) model=$2; shift 2;; --budget-usd) budget=$2; shift 2;;
     *) die "unknown flag $1";;
   esac; done
   [ -f "$spec" ] || die "--spec <file> required and must exist"
@@ -79,7 +82,9 @@ cmd_spawn() {
   fi
   kubectl -n "$NS" get sandbox "$name" >/dev/null 2>&1 && die "sandbox '$name' already exists (reap it first)"
 
+  [ -z "$budget" ] || [[ $budget =~ ^[0-9]+(\.[0-9]+)?$ ]] || die "--budget-usd must be a number"
   LOOP=$name REPO=$repo MAX_ITER=$max_iter ENGINE=$engine GATE="${gate:-make build test lint}" \
+    MODEL=$model BUDGET_USD=$budget \
     IMAGE="${image:-$(default_image_tag)}" \
     python3 - "$TEMPLATE" <<'EOF' | kubectl apply -f - >/dev/null
 import os, re, sys
@@ -94,8 +99,9 @@ EOF
   until kubectl -n "$NS" exec "$name" -- test -f /workspace/.iter-count 2>/dev/null; do
     sleep 3; i=$((i+1)); [ $i -gt 60 ] && die "harness did not start iterating within 3m — check: loopctl logs $name"
   done
-  echo "loop '$name' running against $repo (budget $max_iter). Watch: loopctl logs $name -f"
-  ping_phone "Loop spawned: $name" "arrow_forward" "$repo, budget $max_iter iterations. Decisions and completion will ping here."
+  local spend="${budget:+, \$$budget est}"
+  echo "loop '$name' running against $repo ($model, budget $max_iter iterations$spend). Watch: loopctl logs $name -f"
+  ping_phone "Loop spawned: $name" "arrow_forward" "$repo, $model, budget $max_iter iterations$spend. Decisions and completion will ping here."
 }
 
 cmd_status() {
@@ -117,7 +123,7 @@ for s in items:
     return
   fi
   echo "=== sandbox/$name"
-  kubectl -n "$NS" get sandbox "$name" -o jsonpath='state={.metadata.labels.loop\.phillips\.dev/state} mode={.spec.operatingMode}{"\n"}' 2>/dev/null || { echo "(no such sandbox)"; return; }
+  kubectl -n "$NS" get sandbox "$name" -o jsonpath='state={.metadata.labels.loop\.phillips\.dev/state} mode={.spec.operatingMode} spend=${.metadata.annotations.loop\.phillips\.dev/cost-usd} est ({.metadata.annotations.loop\.phillips\.dev/tokens} tok){"\n"}' 2>/dev/null || { echo "(no such sandbox)"; return; }
   kubectl -n "$NS" get pod "$name" -o wide 2>/dev/null | tail -1 || true
   echo "=== PROGRESS (tail)"
   kubectl -n "$NS" exec "$name" -- sh -c 'echo "iteration: $(cat /workspace/.iter-count 2>/dev/null)/$MAX_ITER"; tail -20 /workspace/PROGRESS.md 2>/dev/null; ls /workspace/decisions/*.json 2>/dev/null | sed "s/^/UNRELAYED DECISION: /"' 2>/dev/null \

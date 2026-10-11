@@ -16,12 +16,13 @@
 #   kubectl -n buildkit port-forward svc/buildkit 1234:1234 &
 #   buildctl --addr tcp://127.0.0.1:1234 build --frontend dockerfile.v0 \
 #     --local context=/tmp/corten-ctx --local dockerfile=/tmp/corten-ctx \
-#     --output type=image,name=zot.phillips-homelab.net/loop-dev:corten-1,push=true,oci-mediatypes=true
+#     --output type=image,name=zot.phillips-homelab.net/loop-dev:corten-2,push=true,oci-mediatypes=true
 #
 # Context contents: requirements.lock (dbt's full pinned dependency tree), shared/ (pinned
 # corpus repos and installed-package snapshots), shared.sha256 (content hash of shared/,
 # also baked into the image for the record).
-FROM zot.phillips-homelab.net/loop-dev:rust-2
+# rust-3: the harness with --model, usage records and the spend budget.
+FROM zot.phillips-homelab.net/loop-dev:rust-3
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends python3 \
