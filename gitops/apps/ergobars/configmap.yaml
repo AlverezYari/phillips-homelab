@@ -75,6 +75,14 @@ data:
             client_max_body_size 256k;
         }
 
+        # A test answer may carry one screenshot (5 MB, checked again by the
+        # board: [setups].max_image_bytes; the page re-encodes bigger pastes).
+        location = /board/tests/answer {
+            proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
+            include /etc/nginx/conf.d/board-proxy.inc;
+            client_max_body_size 6m;
+        }
+
         location = /setups {
             proxy_pass http://ergobars-board.ergobars.svc.cluster.local:8000;
             include /etc/nginx/conf.d/board-proxy.inc;
