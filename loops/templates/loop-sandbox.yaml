@@ -32,7 +32,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: loop
-        # default-image-tag: 260809-codex2
+        # default-image-tag: 261011-spend
         # (bump via PR; loopctl spawn --image TAG substitutes at render
         # time — a patch after apply races the already-started pod and
         # the pod keeps the old image, same trap as GATE_CMD below.)
