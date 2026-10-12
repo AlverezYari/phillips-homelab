@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kindling-conformance
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kindling-conformance
+  project: default
+  # ESO defaults these fields server-side; without the ignore the app never reports Synced.
+  ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
+  source:
+    path: gitops/tools/apps/kindling-conformance
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      # Argo owns only the namespace scaffolding below. The per-run stack is applied by
+      # `loopctl conform` and is not tracked here, so prune never touches it.
+      prune: true
+      selfHeal: true
