@@ -1,0 +1,29 @@
+# One run at a time. The stack is sized to fit 8 CPU / 12 GiB requests (build-conformance
+# spec); limits leave room for the Kindling cargo build in its init container.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: conformance-quota
+  namespace: kindling-conformance
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 14Gi
+    limits.cpu: "20"
+    limits.memory: 24Gi
+    persistentvolumeclaims: "4"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: conformance-defaults
+  namespace: kindling-conformance
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: 250m
+      memory: 256Mi
+    default:
+      cpu: "1"
+      memory: 1Gi

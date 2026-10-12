@@ -11,6 +11,7 @@
 #   loopctl prune [--keep N] [--dry-run]
 #   loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]
 #   loopctl merge <owner/repo> <pr#>
+#   loopctl conform <owner/repo> <ref> [--pr N]
 #   loopctl release <owner/repo> <tag> [title...]
 #   loopctl mkrepo <loop-bot/name> [description...]
 #
@@ -57,7 +58,7 @@ helper_pod() {
     [ -n "$extra_container" ] && printf '%s\n' "$extra_container"
     echo "    command: [bash, -c, $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$script")]"
   } | kubectl apply -f - >/dev/null
-  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout=900s >/dev/null 2>&1 \
+  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout="${HELPER_TIMEOUT:-900s}" >/dev/null 2>&1 \
     || { kubectl -n "$NS" logs "$pod" 2>/dev/null; kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1; die "helper pod $verb failed"; }
   kubectl -n "$NS" logs "$pod" 2>/dev/null
   kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1
@@ -389,6 +390,56 @@ if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge fail
 # close: retire a PR without merging (review-loop reaps auto-file PRs
 # for branches that only carry a REVIEW.md; those need closing, not
 # merging). Same in-cluster token invariant as pr/merge.
+# conform: run a repo's conformance stack (conformance/k8s at <ref>) in the
+# gitops-owned kindling-conformance namespace, print the driver's report and
+# post it on the PR. Contract: loop-bot/kindling docs/specs/build-conformance-run.md.
+# The helper pod runs as loops/conformance-runner (namespace admin there only),
+# so the token and the stack both stay in-cluster.
+cmd_conform() {
+  local repo=${1:?usage: loopctl conform <owner/repo> <ref> [--pr N]}
+  local ref=${2:?ref required}; shift 2
+  local pr=""
+  while [ $# -gt 0 ]; do case $1 in --pr) pr=$2; shift 2;; *) die "unknown flag $1";; esac; done
+  [[ $ref =~ ^[A-Za-z0-9._/-]+$ ]] || die "ref has unexpected characters"
+  [ -z "$pr" ] || [[ $pr =~ ^[0-9]+$ ]] || die "--pr must be a number"
+  HELPER_TIMEOUT=6000s helper_pod conform "
+set -uo pipefail
+F=$FJO_API
+CNS=kindling-conformance
+URL=http://forgejo-http.forgejo.svc.cluster.local:3000/${repo}.git
+# The auth header goes through git's env config, never argv, so /proc/<pid>/cmdline can't show the token.
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0=\"Authorization: token \${FORGEJO_TOKEN}\"
+git clone -q \"\$URL\" /tmp/src
+cd /tmp/src
+git fetch -q origin '${ref}' && git checkout -q FETCH_HEAD || { echo 'conform: cannot check out ${ref}'; exit 1; }
+SHA=\$(git rev-parse HEAD)
+# The namespace belongs to gitops: a base that declares it would be deleted on teardown.
+if kubectl kustomize conformance/k8s | grep -q '^kind: Namespace\$'; then echo 'conform: conformance/k8s declares the Namespace; refusing'; exit 1; fi
+kubectl -n \$CNS delete -k conformance/k8s --ignore-not-found --wait=true >/dev/null 2>&1
+kubectl -n \$CNS delete configmap conformance-ref --ignore-not-found >/dev/null
+kubectl -n \$CNS create configmap conformance-ref --from-literal=REPO_URL=\"\$URL\" --from-literal=REF=\"\$SHA\" >/dev/null
+kubectl -n \$CNS apply -k conformance/k8s >/dev/null || { echo 'conform: apply failed'; exit 1; }
+end=\$((\$(date +%s) + 5400)); state=timeout
+while [ \$(date +%s) -lt \$end ]; do
+  c=\$(kubectl -n \$CNS get job driver -o jsonpath='{.status.conditions[?(@.status==\"True\")].type}' 2>/dev/null)
+  case \"\$c\" in *Complete*) state=complete; break;; *Failed*) state=failed; break;; esac
+  sleep 20
+done
+kubectl -n \$CNS logs job/driver -c driver 2>/dev/null > /tmp/log
+sed -n '/^===== KINDLING CONFORMANCE REPORT BEGIN =====\$/,/^===== KINDLING CONFORMANCE REPORT END =====\$/p' /tmp/log | sed '1d;\$d' > /tmp/report.md
+[ -s /tmp/report.md ] || { echo \"(no report; driver \$state)\" > /tmp/report.md; kubectl -n \$CNS get pods >> /tmp/report.md 2>&1; tail -40 /tmp/log >> /tmp/report.md; }
+echo \"conformance \$state at ${ref} (\$SHA)\"
+cat /tmp/report.md
+if [ -n '${pr}' ]; then
+  jq -n --arg b \"\$(printf '## Conformance: %s at \\x60%s\\x60\\n\\n' \"\$state\" \"\$SHA\"; head -c 60000 /tmp/report.md)\" '{body: \$b}' \\
+    | curl -s -o /dev/null -X POST \"\$F/repos/${repo}/issues/${pr}/comments\" -H \"Authorization: token \${FORGEJO_TOKEN}\" -H 'Content-Type: application/json' -d @-
+  echo 'report posted on PR #${pr}'
+fi
+kubectl -n \$CNS delete -k conformance/k8s --wait=false >/dev/null 2>&1
+kubectl -n \$CNS delete configmap conformance-ref --ignore-not-found >/dev/null
+[ \"\$state\" = complete ]" "  serviceAccountName: conformance-runner"
+}
+
 cmd_close() {
   local repo=${1:?usage: loopctl close <owner/repo> <pr#>}
   local idx=${2:?PR number required}
@@ -430,8 +481,9 @@ case $cmd in
   pr) cmd_pr "$@";;
   issue) cmd_issue "$@";;
   merge) cmd_merge "$@";;
+  conform) cmd_conform "$@";;
   close) cmd_close "$@";;
   release) cmd_release "$@";;
   mkrepo) cmd_mkrepo "$@";;
-  *) sed -n '2,16p' "$0";;
+  *) sed -n '2,17p' "$0";;
 esac
