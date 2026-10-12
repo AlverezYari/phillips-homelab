@@ -7,7 +7,8 @@
 #   loopctl logs <name> [-f]
 #   loopctl answer <name> <json-or-text>
 #   loopctl pause <name> | resume <name>
-#   loopctl reap <name> [--no-pr]
+#   loopctl reap <name> [--no-pr] [--now]
+#   loopctl prune [--keep N] [--dry-run]
 #   loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]
 #   loopctl merge <owner/repo> <pr#>
 #   loopctl release <owner/repo> <tag> [title...]
@@ -80,7 +81,12 @@ cmd_spawn() {
     kubectl -n "$NS" get secret codex-auth >/dev/null 2>&1 \
       || die "--engine codex needs secret codex-auth (kubectl -n $NS create secret generic codex-auth --from-file=CODEX_AUTH_JSON=\$HOME/.codex/auth.json)"
   fi
-  kubectl -n "$NS" get sandbox "$name" >/dev/null 2>&1 && die "sandbox '$name' already exists (reap it first)"
+  if kubectl -n "$NS" get sandbox "$name" >/dev/null 2>&1; then
+    # A reaped loop kept for inspection gives way to a respawn of the same name.
+    [ "$(kubectl -n "$NS" get sandbox "$name" -o jsonpath='{.metadata.labels.loop\.phillips\.dev/state}')" = reaped ] \
+      || die "sandbox '$name' already exists (reap it first)"
+    delete_sandbox "$name"
+  fi
 
   [ -z "$budget" ] || [[ $budget =~ ^[0-9]+(\.[0-9]+)?$ ]] || die "--budget-usd must be a number"
   LOOP=$name REPO=$repo MAX_ITER=$max_iter ENGINE=$engine GATE="${gate:-make build test lint}" \
@@ -171,7 +177,8 @@ cmd_cat() {
 
 cmd_reap() {
   local name=${1:?usage: loopctl reap <name> [--no-pr]}
-  local nopr=${2:-}
+  shift; local nopr="" now=""
+  while [ $# -gt 0 ]; do case $1 in --no-pr) nopr=--no-pr;; --now) now=1;; *) die "unknown flag $1";; esac; shift; done
   if [ "$nopr" != "--no-pr" ] && kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1; then
     local repo
     repo=$(kubectl -n "$NS" get sandbox "$name" -o jsonpath='{.spec.podTemplate.spec.containers[0].env[?(@.name=="REPO_URL")].value}' \
@@ -214,10 +221,59 @@ fi" \
     persistentVolumeClaim: {claimName: workspace-$name}" \
       "    volumeMounts: [{name: ws, mountPath: /ws}]"
   fi
-  kubectl -n "$NS" delete sandbox "$name" && echo "sandbox deleted"
+  if [ -n "$now" ]; then
+    delete_sandbox "$name"
+    ping_phone "Loop reaped: $name" "package" "Sandbox deleted; PR (if any) is review-requested in FJO."
+    return
+  fi
+  # Snake tail: a reaped loop stays on the board, suspended with its PVC, so
+  # it can be inspected (loopctl resume / helper pod) for a while. prune drops
+  # the oldest reaped loops beyond the newest $KEEP.
+  kubectl -n "$NS" patch sandbox "$name" --type=merge -p '{"spec":{"operatingMode":"Suspended"}}' >/dev/null
+  kubectl -n "$NS" label sandbox "$name" --overwrite loop.phillips.dev/state=reaped >/dev/null
+  kubectl -n "$NS" annotate sandbox "$name" --overwrite "loop.phillips.dev/reaped-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null
+  echo "sandbox suspended and kept for inspection (PVC retained)"
+  cmd_prune
+  ping_phone "Loop reaped: $name" "package" "Sandbox kept (suspended) for inspection; PR (if any) is review-requested in FJO."
+}
+
+delete_sandbox() {
+  local name=$1
+  kubectl -n "$NS" delete sandbox "$name" >/dev/null && echo "sandbox $name deleted"
   sleep 5
-  kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1 && echo "WARNING: PVC workspace-$name still present" || echo "PVC cleaned up"
-  ping_phone "Loop reaped: $name" "package" "Sandbox deleted; PR (if any) is review-requested in FJO."
+  kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1 && echo "WARNING: PVC workspace-$name still present" || echo "PVC workspace-$name cleaned up"
+}
+
+# prune: keep the newest $KEEP reaped loops (default 4, LOOP_KEEP overrides),
+# delete older ones with their PVCs. Loops left finished but never reaped
+# (done/failed/exhausted/stopped/budget) are pruned once older than 7 days.
+# Running, starting and blocked loops are never touched.
+cmd_prune() {
+  local keep=${LOOP_KEEP:-4} dry=""
+  while [ $# -gt 0 ]; do case $1 in --keep) keep=$2; shift 2;; --dry-run) dry=1; shift;; *) die "unknown flag $1";; esac; done
+  [[ $keep =~ ^[0-9]+$ ]] || die "--keep must be a number"
+  local victims
+  victims=$(kubectl -n "$NS" get sandboxes -o json | KEEP=$keep python3 -c "
+import json, os, sys, datetime
+now = datetime.datetime.now(datetime.timezone.utc)
+ts = lambda v: datetime.datetime.fromisoformat(v.replace('Z', '+00:00'))
+reaped, stale = [], []
+for s in json.load(sys.stdin).get('items', []):
+    m = s['metadata']
+    st = m.get('labels', {}).get('loop.phillips.dev/state', '')
+    created = ts(m['creationTimestamp'])
+    if st == 'reaped':
+        reaped.append((ts(m.get('annotations', {}).get('loop.phillips.dev/reaped-at', m['creationTimestamp'])), m['name']))
+    elif (st in ('done', 'failed', 'exhausted', 'stopped') or st.startswith('budget')) and now - created > datetime.timedelta(days=7):
+        stale.append(m['name'])
+reaped.sort(reverse=True)
+for _, n in reaped[int(os.environ['KEEP']):]: print(n)
+for n in stale: print(n)
+")
+  [ -n "$victims" ] || { echo "prune: nothing to remove (keeping newest $keep reaped)"; return 0; }
+  for v in $victims; do
+    if [ -n "$dry" ]; then echo "would delete $v"; else delete_sandbox "$v"; fi
+  done
 }
 
 # pr/merge: the conductor's landing verbs. reap files a PR only for a
@@ -369,6 +425,7 @@ case $cmd in
   pause) cmd_pause "$@";;
   resume) cmd_resume "$@";;
   reap) cmd_reap "$@";;
+  prune) cmd_prune "$@";;
   cat) cmd_cat "$@";;
   pr) cmd_pr "$@";;
   issue) cmd_issue "$@";;
@@ -376,5 +433,5 @@ case $cmd in
   close) cmd_close "$@";;
   release) cmd_release "$@";;
   mkrepo) cmd_mkrepo "$@";;
-  *) sed -n '2,15p' "$0";;
+  *) sed -n '2,16p' "$0";;
 esac
