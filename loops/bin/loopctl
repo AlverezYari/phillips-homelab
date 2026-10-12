@@ -407,9 +407,11 @@ set -uo pipefail
 F=$FJO_API
 CNS=kindling-conformance
 URL=http://forgejo-http.forgejo.svc.cluster.local:3000/${repo}.git
-git -c http.extraHeader=\"Authorization: token \${FORGEJO_TOKEN}\" clone -q \"\$URL\" /tmp/src
+# The auth header goes through git's env config, never argv, so /proc/<pid>/cmdline can't show the token.
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0=\"Authorization: token \${FORGEJO_TOKEN}\"
+git clone -q \"\$URL\" /tmp/src
 cd /tmp/src
-git -c http.extraHeader=\"Authorization: token \${FORGEJO_TOKEN}\" fetch -q origin '${ref}' && git checkout -q FETCH_HEAD || { echo 'conform: cannot check out ${ref}'; exit 1; }
+git fetch -q origin '${ref}' && git checkout -q FETCH_HEAD || { echo 'conform: cannot check out ${ref}'; exit 1; }
 SHA=\$(git rev-parse HEAD)
 # The namespace belongs to gitops: a base that declares it would be deleted on teardown.
 if kubectl kustomize conformance/k8s | grep -q '^kind: Namespace\$'; then echo 'conform: conformance/k8s declares the Namespace; refusing'; exit 1; fi
