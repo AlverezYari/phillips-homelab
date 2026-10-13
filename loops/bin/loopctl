@@ -58,8 +58,21 @@ helper_pod() {
     [ -n "$extra_container" ] && printf '%s\n' "$extra_container"
     echo "    command: [bash, -c, $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$script")]"
   } | kubectl apply -f - >/dev/null
-  kubectl -n "$NS" wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" --timeout="${HELPER_TIMEOUT:-900s}" >/dev/null 2>&1 \
-    || { kubectl -n "$NS" logs "$pod" 2>/dev/null; kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1; die "helper pod $verb failed"; }
+  # Poll the phase instead of `kubectl wait --for=Succeeded`, which sat out the
+  # whole timeout when the pod had already failed.
+  local limit=${HELPER_TIMEOUT:-900s} phase=""
+  local deadline=$(( $(date +%s) + ${limit%s} ))
+  while :; do
+    phase=$(kubectl -n "$NS" get pod "$pod" -o jsonpath='{.status.phase}' 2>/dev/null)
+    case "$phase" in Succeeded|Failed) break;; esac
+    [ "$(date +%s)" -lt "$deadline" ] || { phase=timeout; break; }
+    sleep 5
+  done
+  if [ "$phase" != Succeeded ]; then
+    kubectl -n "$NS" logs "$pod" 2>/dev/null
+    kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1
+    die "helper pod $verb failed ($phase)"
+  fi
   kubectl -n "$NS" logs "$pod" 2>/dev/null
   kubectl -n "$NS" delete pod "$pod" --wait=false >/dev/null 2>&1
 }
@@ -411,7 +424,10 @@ URL=http://forgejo-http.forgejo.svc.cluster.local:3000/${repo}.git
 export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0=\"Authorization: token \${FORGEJO_TOKEN}\"
 git clone -q \"\$URL\" /tmp/src
 cd /tmp/src
-git fetch -q origin '${ref}' && git checkout -q FETCH_HEAD || { echo 'conform: cannot check out ${ref}'; exit 1; }
+# A sha (full or abbreviated) reachable from any branch resolves in the clone; otherwise fetch the ref by name.
+if c=\$(git rev-parse -q --verify '${ref}^{commit}'); then git checkout -q \"\$c\"
+elif git fetch -q origin '${ref}'; then git checkout -q FETCH_HEAD
+else echo 'conform: cannot check out ${ref}'; exit 1; fi
 SHA=\$(git rev-parse HEAD)
 # The namespace belongs to gitops: a base that declares it would be deleted on teardown.
 if kubectl kustomize conformance/k8s | grep -q '^kind: Namespace\$'; then echo 'conform: conformance/k8s declares the Namespace; refusing'; exit 1; fi
