@@ -2,6 +2,9 @@ apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: iso-lab-pg
+  annotations:
+    # PAUSED 2026-10-14: hibernated (pod gone, PVC kept). Remove to resume.
+    cnpg.io/hibernation: "on"
 spec:
   instances: 1
 

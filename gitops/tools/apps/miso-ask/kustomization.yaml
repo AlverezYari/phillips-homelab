@@ -10,6 +10,10 @@ resources:
   - externalsecret.yaml
   - network-policy.yaml
   - reference-grant.yaml
+# PAUSED 2026-10-14: the demo window closed. Data stays (PVCs, lake, Postgres); to resume,
+# revert the PR that added the replicas: 0 block below.
+replicas:
+  - {name: miso-ask, count: 0}
 configMapGenerator:
   - name: miso-ask-settings
     envs:

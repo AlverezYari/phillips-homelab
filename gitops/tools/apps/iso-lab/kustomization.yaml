@@ -13,7 +13,7 @@ resources:
   - miso-api.yaml
   - network-policy.yaml
   - vmpodscrape-clickhouse.yaml
-  - vmrule.yaml
+  # - vmrule.yaml   # PAUSED 2026-10-14: off while scaled to zero (stale-poll/scrape-down would fire)
   - dagster-webserver-readonly.yaml
   - vmalertmanagerconfig-ntfy.yaml
 # Same image and tag as the Dagster code server (../iso-lab-dagster.yml); bump both.
@@ -21,6 +21,14 @@ images:
   - name: iso-lab
     newName: zot.phillips-homelab.net/iso-lab
     newTag: "f4fcddf"
+# PAUSED 2026-10-14: the demo window closed. Data stays (PVCs, lake, Postgres); to resume,
+# revert the PR that added the replicas: 0 block below.
+replicas:
+  - {name: clickhouse, count: 0}
+  - {name: mcp-clickhouse, count: 0}
+  - {name: iso-analysis, count: 0}
+  - {name: miso-api, count: 0}
+  - {name: dagster-webserver-read-only, count: 0}
 configMapGenerator:
   - name: clickhouse-config
     files:
