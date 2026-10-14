@@ -887,6 +887,80 @@ data:
           "interval": "5m"
         },
         {
+          "id": 19,
+          "type": "timeseries",
+          "title": "Ancillary-service MCPs, hourly (MISO's daily report)",
+          "description": "rt_asm_mcp_hourly, hourly, $/MW: MISO's real-time ancillary clearing prices from its daily ASM report (preliminary the next day, final ~5 days later), highest across reserve zones. Each hour is the mean of that hour's 5-min prices (equal to the cent when the live feed caught all 12), so it also covers intervals the live hub feed never captured, e.g. while the lab was paused on 2026-10-14 (quirks 23 and 24). Hour starts in UTC.",
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 33
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "iso-clickhouse"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "iso-clickhouse"
+              },
+              "editorType": "sql",
+              "format": 0,
+              "queryType": "timeseries",
+              "pluginVersion": "4.14.0",
+              "rawSql": "SELECT $__timeInterval(interval_start_utc) AS time,\n    maxIf(mcp, mcp_type = 'GENREGMCP') AS \"Regulation\", maxIf(mcp, mcp_type = 'REGMILEAGEMCP') AS \"Reg mileage\",\n    maxIf(mcp, mcp_type = 'GENSPINMCP') AS \"Spinning\", maxIf(mcp, mcp_type = 'GENSUPPMCP') AS \"Supplemental\"\nFROM rt_asm_mcp_hourly\nWHERE $__timeFilter(interval_start_utc)\nGROUP BY time ORDER BY time",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 1,
+                "fillOpacity": 0,
+                "showPoints": "never",
+                "spanNulls": false,
+                "lineInterpolation": "linear",
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "scaleDistribution": {
+                  "type": "symlog",
+                  "log": 10,
+                  "linearThreshold": 200
+                }
+              },
+              "decimals": 2
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "calcs": [
+                "mean",
+                "min",
+                "max"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "interval": "1h",
+          "timeFrom": "7d"
+        },
+        {
           "id": 11,
           "type": "row",
           "title": "Congestion",
@@ -896,7 +970,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 33
+            "y": 40
           }
         },
         {
@@ -908,7 +982,7 @@ data:
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 41
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
@@ -974,7 +1048,7 @@ data:
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 34
+            "y": 41
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
@@ -1036,7 +1110,7 @@ data:
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 44
+            "y": 51
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
@@ -1107,7 +1181,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 52
+            "y": 59
           }
         },
         {
@@ -1119,7 +1193,7 @@ data:
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 53
+            "y": 60
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
@@ -1187,7 +1261,7 @@ data:
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 60
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
@@ -1321,7 +1395,7 @@ data:
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 62
+            "y": 69
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
