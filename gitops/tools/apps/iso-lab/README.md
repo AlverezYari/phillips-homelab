@@ -38,10 +38,11 @@ Cloudflare tunnel). Glance has a link.
   `*.misoenergy.org` by toFQDNs. It may also reach Garage, ClickHouse, its Postgres and ntfy.
   ClickHouse may reach only Garage. Webserver and daemon have no policy yet.
 
-## Paused: how to rehydrate
+## Pausing and rehydrating
 
-**State since 2026-10-14 20:43 UTC** (#637, plus the PR that added this section): the whole MISO stack
-is scaled to zero after the demo window closed. **No data was deleted:**
+**History:** paused 2026-10-14 20:43 UTC (#637; tunnel off in #638), rehydrated 2026-10-14 (the revert
+PR that added this line). To pause again, re-apply #637 and #638. While paused, the state is as
+follows. **No data is deleted:**
 
 - **Still there:** the Garage lake (`s3://iso-market-data`), the ClickHouse PVC `data-clickhouse-0`
   (50Gi), the Postgres PVC `iso-lab-pg-1` (10Gi, Dagster run history and schedule state), the miso-ask

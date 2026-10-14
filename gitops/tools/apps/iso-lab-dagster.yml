@@ -47,10 +47,8 @@ spec:
               class: DefaultRunLauncher
               config: {}
 
-        # PAUSED 2026-10-14 (demo window closed): webserver 0, daemon and code server off, so
-        # nothing polls MISO. The chart can't scale those two to 0 (it treats 0 as 1). Revert to resume.
         dagsterWebserver:
-          replicaCount: 0
+          replicaCount: 1
           resources:
             requests: {cpu: 50m, memory: 256Mi}
             limits: {memory: 1Gi}
@@ -74,7 +72,7 @@ spec:
               mountPath: /tmp
 
         dagsterDaemon:
-          enabled: false
+          enabled: true
           resources:
             requests: {cpu: 50m, memory: 256Mi}
             limits: {memory: 1Gi}
@@ -137,7 +135,7 @@ spec:
 
         dagster-user-deployments:
           enabled: true
-          enableSubchart: false
+          enableSubchart: true
           deployments:
             - name: iso-lab
               image:
