@@ -12,7 +12,9 @@ metadata:
   labels:
     app: cloudflared-personal
 spec:
-  replicas: 2
+  # PAUSED 2026-10-14: the miso-lab demo window closed, so the tunnel is offline (0 replicas). Set back
+  # to 2 to reopen; see gitops/tools/apps/iso-lab/README.md "Paused: how to rehydrate".
+  replicas: 0
   selector:
     matchLabels:
       app: cloudflared-personal
