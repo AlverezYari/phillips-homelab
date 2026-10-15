@@ -1,12 +1,15 @@
-# Runs cloudflare-setup.py after every sync (Argo PostSync hook, re-created each time). It reads the token and
-# the Access allowlist from the kd-staging-cloudflare Secret (1Password item kd-staging-cloudflare).
+# Runs cloudflare-setup.py. A plain Job, not a PostSync hook: a hook makes every sync wait until all resources
+# are healthy, which deadlocked the first sync (the certificate could only become healthy from a later revision).
+# After it finishes, the TTL deletes it and Argo's self-heal recreates it, so it re-runs about daily and picks up
+# allowlist changes. It reads the token and the Access allowlist from the kd-staging-cloudflare Secret
+# (1Password item kd-staging-cloudflare); until that Secret exists the pod just waits.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: cloudflare-setup
   annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    # Job specs are immutable: replace instead of patching when the spec changes.
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 86400

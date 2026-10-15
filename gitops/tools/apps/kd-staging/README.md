@@ -12,9 +12,9 @@ Cloudflare tunnel.
 | kd-whoami.phillips-homelab.net | whoami behind oauth2-proxy; only the editors group gets in |
 
 All four sit behind one Cloudflare Access app (`kd-staging`) whose allowlist is the `access-emails` field of
-the 1Password item `kd-staging-cloudflare`. The `cloudflare-setup` PostSync job publishes the hosts:
+the 1Password item `kd-staging-cloudflare`. The `cloudflare-setup` job (re-runs about daily) publishes the hosts:
 Access first, then the tunnel routes (other routes kept), then the DNS CNAMEs. Edit the emails in 1Password,
-then re-sync the app in Argo to apply them.
+they apply on the next daily run, or delete the job to run it now.
 
 - **Certificate:** cert-manager `kd-staging-tls` (Let's Encrypt) from the namespace issuer `kd-staging-letsencrypt`, which uses this app's own Cloudflare token for DNS-01; kd reloads it on renewal.
 - **Back-channel:** the demo apps map kd-staging.phillips-homelab.net to kd's pinned ClusterIP
