@@ -1,0 +1,100 @@
+# kd: one pod, Recreate (single writer on the volume), state on syno-iscsi-default (Retain).
+# The Service pins its ClusterIP so the demo apps can map kd-staging.phillips-homelab.net to it with
+# hostAliases: their back-channel calls (token, userinfo, JWKS) stay inside the cluster instead of going out
+# through Cloudflare Access, while browsers use the same public URL.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kd-state
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kd
+  labels: {app: kd}
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: kd}
+  template:
+    metadata:
+      labels: {app: kd}
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        - name: seed-config
+          image: busybox:1.37.0
+          command: ["sh", "-c", "[ -f /state/kd.toml ] || cp /seed/kd.toml /state/kd.toml"]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 32Mi}
+          volumeMounts:
+            - {name: state, mountPath: /state}
+            - {name: seed, mountPath: /seed, readOnly: true}
+      containers:
+        - name: kd
+          image: zot.phillips-homelab.net/kd:staging-1
+          args: ["--config", "/state/kd.toml", "--state", "/state/data", "serve"]
+          envFrom:
+            - secretRef: {name: kd-staging-apps}
+          env:
+            - {name: TMPDIR, value: /tmp}
+          ports:
+            - {name: https, containerPort: 8443}
+            - {name: ldaps, containerPort: 1636}
+            - {name: ldap, containerPort: 1389}
+          readinessProbe:
+            httpGet: {path: /admin/health, port: 8443, scheme: HTTPS}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /admin/health, port: 8443, scheme: HTTPS}
+            periodSeconds: 20
+            failureThreshold: 6
+          # Sized from the 2026-10-15 load test: ~12 MB idle, 71 MB at the worst spike; sign-ins are CPU bound.
+          resources:
+            requests: {cpu: 100m, memory: 64Mi}
+            limits: {cpu: "2", memory: 256Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: state, mountPath: /state}
+            - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: state
+          persistentVolumeClaim: {claimName: kd-state}
+        - name: seed
+          configMap: {name: kd-seed}
+        - name: tls
+          secret: {secretName: kd-staging-tls, defaultMode: 0440}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kd
+spec:
+  selector: {app: kd}
+  # Pinned: the demo apps' hostAliases point kd-staging.phillips-homelab.net here.
+  clusterIP: 10.100.77.10
+  ports:
+    - {name: https-public, port: 443, targetPort: 8443}
+    - {name: https, port: 8443, targetPort: 8443}
+    - {name: ldaps, port: 1636, targetPort: 1636}

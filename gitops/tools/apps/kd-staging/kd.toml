@@ -1,0 +1,53 @@
+# Seed config for kd-staging. Copied to the volume only on the first start: after that the console owns
+# /state/kd.toml (edits, History and rollback write it), so changing this file does not touch a running
+# install. Secrets are env references filled from the kd-staging-apps Secret.
+[host]
+bind = "0.0.0.0"
+https_port = 8443
+tls_cert_file = "/tls/tls.crt"
+tls_key_file = "/tls/tls.key"
+# Public traffic arrives from the cloudflared-personal pods; trust their X-Forwarded-For for per-client limits.
+trusted_proxies = ["10.244.0.0/16"]
+
+[oidc]
+issuer = "https://kd-staging.phillips-homelab.net/oidc"
+
+[directory]
+base_dn = "dc=kd-staging,dc=local"
+email_verified = true
+
+[directory.ports]
+ldap = 1389
+ldaps = 1636
+
+# People are added in the console (that is the test). Group names match the demo apps' role mapping:
+# admins -> Grafana Admin and Gitea admin; editors -> Grafana Editor and allowed through oauth2-proxy.
+[directory.groups.admins]
+members = []
+
+[directory.groups.editors]
+members = []
+
+[oidc.clients.grafana]
+name = "Grafana"
+redirect_uris = ["https://kd-grafana.phillips-homelab.net/login/generic_oauth"]
+grant_types = ["authorization_code", "refresh_token"]
+auth_method = "client_secret_basic"
+refresh_without_offline_access = false
+client_secret = { env = "GRAFANA_OIDC_SECRET" }
+
+[oidc.clients.gitea]
+name = "Gitea"
+redirect_uris = ["https://kd-git.phillips-homelab.net/user/oauth2/kd/callback"]
+grant_types = ["authorization_code", "refresh_token"]
+auth_method = "client_secret_basic"
+refresh_without_offline_access = false
+client_secret = { env = "GITEA_OIDC_SECRET" }
+
+[oidc.clients.oauth2-proxy]
+name = "whoami (oauth2-proxy)"
+redirect_uris = ["https://kd-whoami.phillips-homelab.net/oauth2/callback"]
+grant_types = ["authorization_code", "refresh_token"]
+auth_method = "client_secret_basic"
+refresh_without_offline_access = false
+client_secret = { env = "PROXY_OIDC_SECRET" }

@@ -1,0 +1,13 @@
+# kd serves this Let's Encrypt certificate on HTTPS and LDAPS ([host] tls_cert_file / tls_key_file) and
+# reloads it when cert-manager renews it, so browsers, the tunnel and the demo apps need no private CA.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kd-staging-tls
+spec:
+  dnsNames:
+  - kd-staging.phillips-homelab.net
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: kd-staging-tls

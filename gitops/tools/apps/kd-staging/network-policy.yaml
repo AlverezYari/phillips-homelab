@@ -1,0 +1,58 @@
+# Ingress lockdown. Public traffic only from the personal tunnel's cloudflared pods (the phillips-homelab.net
+# tunnel), to each app's one port. kd also takes the demo apps' back-channel calls (token, userinfo,
+# discovery, JWKS). whoami is reachable only through oauth2-proxy. Egress is left open (the apps call nothing
+# outside the namespace except DNS; the Cloudflare job needs api.cloudflare.com).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kd
+spec:
+  endpointSelector:
+    matchLabels: {app: kd}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflare
+            app: cloudflared-personal
+      toPorts:
+        - ports:
+            - {port: "8443", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels: {app: grafana}
+        - matchLabels: {app: gitea}
+        - matchLabels: {app: oauth2-proxy}
+      toPorts:
+        - ports:
+            - {port: "8443", protocol: TCP}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: demo-apps
+spec:
+  endpointSelector:
+    matchExpressions:
+      - {key: app, operator: In, values: [grafana, gitea, oauth2-proxy]}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflare
+            app: cloudflared-personal
+      toPorts:
+        - ports:
+            - {port: "3000", protocol: TCP}
+            - {port: "4180", protocol: TCP}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: whoami
+spec:
+  endpointSelector:
+    matchLabels: {app: whoami}
+  ingress:
+    - fromEndpoints:
+        - matchLabels: {app: oauth2-proxy}
+      toPorts:
+        - ports:
+            - {port: "8080", protocol: TCP}

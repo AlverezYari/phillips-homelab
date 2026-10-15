@@ -1,0 +1,25 @@
+# kd-staging: a kd staging server plus three demo apps that sign in through it (Grafana, Gitea, whoami
+# behind oauth2-proxy). Isolated in its own namespace; public only through the personal Cloudflare tunnel,
+# behind one Cloudflare Access app (email allowlist). See kd-staging/README.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kd-staging
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kd-staging
+  project: default
+  source:
+    path: gitops/tools/apps/kd-staging
+    repoURL: 'https://github.com/AlverezYari/phillips-homelab.git'
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
