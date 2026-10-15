@@ -11,7 +11,7 @@ Cloudflare tunnel.
 | kd-git.phillips-homelab.net | Gitea; kd is the only sign-in; admins group = Gitea admin |
 | kd-whoami.phillips-homelab.net | whoami behind oauth2-proxy; only the editors group gets in |
 
-All four sit behind one Cloudflare Access app (`kd-staging`) whose allowlist is the `access-emails` field of
+All four sit behind Cloudflare Access (one zone-level app per host, named `kd-staging <host>`), whose allowlist is the `access-emails` field of
 the 1Password item `kd-staging-cloudflare`. The `cloudflare-setup` job (re-runs about daily) publishes the hosts:
 Access first, then the tunnel routes (other routes kept), then the DNS CNAMEs. Edit the emails in 1Password,
 they apply on the next daily run, or delete the job to run it now.

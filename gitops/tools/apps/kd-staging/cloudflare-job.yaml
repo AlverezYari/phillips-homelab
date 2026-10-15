@@ -14,6 +14,10 @@ spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 86400
   template:
+    metadata:
+      annotations:
+        # Bump when cloudflare-setup.py changes: a new pod template makes Argo replace the Job, so it re-runs.
+        kd-staging/setup-rev: "2"
     spec:
       restartPolicy: Never
       enableServiceLinks: false

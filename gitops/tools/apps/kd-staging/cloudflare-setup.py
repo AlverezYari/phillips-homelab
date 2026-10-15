@@ -1,6 +1,6 @@
 """Publishes the kd-staging hostnames on the personal Cloudflare tunnel, behind one Access app.
 
-Idempotent; safe to re-run. Order matters: the Access app (email allowlist) is created or updated FIRST, so a
+Idempotent; safe to re-run. Order matters: the Access apps (email allowlist) are created or updated FIRST, so a
 hostname is never routed without Access in front of it. Then the tunnel's ingress list gets the kd-* entries
 (every other entry, including miso-lab and the catch-all, is kept as is), then the proxied DNS CNAMEs.
 
@@ -54,27 +54,27 @@ def main():
     zone_id, acct = zones[0]["id"], zones[0]["account"]["id"]
     print(f"zone {ZONE}, {len(EMAILS)} allowed email(s)")
 
-    # 1. Access: one reusable allow policy and one self-hosted app covering every kd-* host.
+    # 1. Access: one zone-level self-hosted app per kd-* host, each with its own allow policy (the email list).
+    # Zone-scoped on purpose: the token has the zone-level "Access: Apps and Policies" permission; account-level
+    # reusable policies would need the separate account permission "Access: Policies".
     include = [{"email": {"email": e}} for e in EMAILS]
-    policy = {"name": APP_NAME + "-allow", "decision": "allow", "include": include, "session_duration": "24h"}
-    found = [p for p in call("GET", f"/accounts/{acct}/access/policies") if p["name"] == policy["name"]]
-    if found:
-        pid = found[0]["id"]
-        call("PUT", f"/accounts/{acct}/access/policies/{pid}", policy)
-    else:
-        pid = call("POST", f"/accounts/{acct}/access/policies", policy)["id"]
-    app = {
-        "name": APP_NAME, "type": "self_hosted", "domain": HOSTS[0],
-        "destinations": [{"type": "public", "uri": h} for h in HOSTS],
-        "session_duration": "24h", "app_launcher_visible": False,
-        "policies": [{"id": pid, "precedence": 1}],
-    }
-    apps = [a for a in call("GET", f"/accounts/{acct}/access/apps") if a.get("name") == APP_NAME]
-    if apps:
-        call("PUT", f"/accounts/{acct}/access/apps/{apps[0]['id']}", app)
-    else:
-        call("POST", f"/accounts/{acct}/access/apps", app)
-    print(f"access app {APP_NAME}: {len(HOSTS)} hosts, policy {policy['name']}")
+    existing = {a.get("name"): a for a in call("GET", f"/zones/{zone_id}/access/apps")}
+    for h in HOSTS:
+        name = f"{APP_NAME} {h.split('.')[0]}"
+        app = {"name": name, "type": "self_hosted", "domain": h, "session_duration": "24h",
+               "app_launcher_visible": False}
+        if name in existing:
+            app_id = existing[name]["id"]
+            call("PUT", f"/zones/{zone_id}/access/apps/{app_id}", app)
+        else:
+            app_id = call("POST", f"/zones/{zone_id}/access/apps", app)["id"]
+        policy = {"name": "allow listed emails", "decision": "allow", "include": include, "precedence": 1}
+        have = call("GET", f"/zones/{zone_id}/access/apps/{app_id}/policies")
+        if have:
+            call("PUT", f"/zones/{zone_id}/access/apps/{app_id}/policies/{have[0]['id']}", policy)
+        else:
+            call("POST", f"/zones/{zone_id}/access/apps/{app_id}/policies", policy)
+    print(f"access: {len(HOSTS)} zone apps, each allowing the listed emails")
 
     # 2. Tunnel ingress: replace only the kd-* rules, keep everything else and the catch-all last.
     tunnel = None
