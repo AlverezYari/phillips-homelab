@@ -140,10 +140,16 @@ spec:
             - name: iso-lab
               image:
                 repository: zot.phillips-homelab.net/iso-lab
-                tag: "cb565bf"   # bump to deploy a new build
+                tag: "fcfb95f"   # bump to deploy a new build
                 pullPolicy: IfNotPresent
               dagsterApiGrpcArgs: ["-m", "iso_lab.definitions"]
               port: 4000
+              # Recreate, not RollingUpdate: runs execute inside this pod, and during a rolling update
+              # the old pod keeps taking run launches after the new one is up. Such a run dies with the
+              # old pod but began after the new server started, so defs/reaper.py can't tell it's dead:
+              # it kept the clickhouse_dbt slot and every live dbt build waited 25 min (2026-10-14 23:51).
+              # With Recreate every orphan began before the new server, which is the reaper's rule.
+              deploymentStrategy: {type: Recreate}
               envSecrets:
                 - name: iso-lab-env
               env:
