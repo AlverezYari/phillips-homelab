@@ -1,5 +1,5 @@
 # loopctl conform runs a helper pod in `loops` as this SA. It applies and tears down the
-# per-run stack here, so it gets namespace admin in kindling-conformance and nothing else.
+# per-run stack here, so it gets namespace admin in kd-conformance and nothing else.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -10,7 +10,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: conformance-runner
-  namespace: kindling-conformance
+  namespace: kd-conformance
 subjects:
 - kind: ServiceAccount
   name: conformance-runner

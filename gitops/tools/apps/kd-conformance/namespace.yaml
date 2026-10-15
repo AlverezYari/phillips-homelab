@@ -1,10 +1,10 @@
-# Kindling's conformance stage (loop-bot/kindling docs/CONFORMANCE-RUNNER.md): the OIDF
+# kd's conformance stage (the kd repo's docs/CONFORMANCE-RUNNER.md): the OIDF
 # suite, Keycloak/OpenLDAP twins and live apps run here against a PR's build, driven by
 # `loopctl conform`. Baseline is enough: the stack needs no privileges.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: kindling-conformance
+  name: kd-conformance
   labels:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: restricted

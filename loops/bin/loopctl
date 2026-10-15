@@ -404,8 +404,8 @@ if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge fail
 # for branches that only carry a REVIEW.md; those need closing, not
 # merging). Same in-cluster token invariant as pr/merge.
 # conform: run a repo's conformance stack (conformance/k8s at <ref>) in the
-# gitops-owned kindling-conformance namespace, print the driver's report and
-# post it on the PR. Contract: loop-bot/kindling docs/specs/build-conformance-run.md.
+# gitops-owned kd-conformance namespace, print the driver's report and
+# post it on the PR. Contract: the kd repo's docs/specs/build-conformance-run.md.
 # The helper pod runs as loops/conformance-runner (namespace admin there only),
 # so the token and the stack both stay in-cluster.
 cmd_conform() {
@@ -418,7 +418,7 @@ cmd_conform() {
   HELPER_TIMEOUT=6000s helper_pod conform "
 set -uo pipefail
 F=$FJO_API
-CNS=kindling-conformance
+CNS=kd-conformance
 URL=http://forgejo-http.forgejo.svc.cluster.local:3000/${repo}.git
 # The auth header goes through git's env config, never argv, so /proc/<pid>/cmdline can't show the token.
 export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0=\"Authorization: token \${FORGEJO_TOKEN}\"
@@ -442,7 +442,7 @@ while [ \$(date +%s) -lt \$end ]; do
   sleep 20
 done
 kubectl -n \$CNS logs job/driver -c driver 2>/dev/null > /tmp/log
-sed -n '/^===== KINDLING CONFORMANCE REPORT BEGIN =====\$/,/^===== KINDLING CONFORMANCE REPORT END =====\$/p' /tmp/log | sed '1d;\$d' > /tmp/report.md
+sed -n '/^===== KD CONFORMANCE REPORT BEGIN =====\$/,/^===== KD CONFORMANCE REPORT END =====\$/p' /tmp/log | sed '1d;\$d' > /tmp/report.md
 [ -s /tmp/report.md ] || { echo \"(no report; driver \$state)\" > /tmp/report.md; kubectl -n \$CNS get pods >> /tmp/report.md 2>&1; tail -40 /tmp/log >> /tmp/report.md; }
 echo \"conformance \$state at ${ref} (\$SHA)\"
 cat /tmp/report.md

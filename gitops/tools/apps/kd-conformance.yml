@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kindling-conformance
+  name: kd-conformance
   namespace: argocd
   finalizers:
   - resources-finalizer.argocd.argoproj.io
 spec:
   destination:
     server: https://kubernetes.default.svc
-    namespace: kindling-conformance
+    namespace: kd-conformance
   project: default
   # ESO defaults these fields server-side; without the ignore the app never reports Synced.
   ignoreDifferences:
@@ -19,7 +19,7 @@ spec:
     - /spec/target/deletionPolicy
     - /spec/data
   source:
-    path: gitops/tools/apps/kindling-conformance
+    path: gitops/tools/apps/kd-conformance
     repoURL: https://github.com/AlverezYari/phillips-homelab.git
     targetRevision: main
   syncPolicy:
