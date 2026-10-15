@@ -16,7 +16,7 @@ the 1Password item `kd-staging-cloudflare`. The `cloudflare-setup` PostSync job 
 Access first, then the tunnel routes (other routes kept), then the DNS CNAMEs. Edit the emails in 1Password,
 then re-sync the app in Argo to apply them.
 
-- **Certificate:** cert-manager `kd-staging-tls` (Let's Encrypt); kd reloads it on renewal.
+- **Certificate:** cert-manager `kd-staging-tls` (Let's Encrypt) from the namespace issuer `kd-staging-letsencrypt`, which uses this app's own Cloudflare token for DNS-01; kd reloads it on renewal.
 - **Back-channel:** the demo apps map kd-staging.phillips-homelab.net to kd's pinned ClusterIP
   (10.100.77.10) with hostAliases, so their token/userinfo calls never go through Access.
 - **Config:** `kd.toml` is a seed copied to the volume on first start only; the console owns it after.
