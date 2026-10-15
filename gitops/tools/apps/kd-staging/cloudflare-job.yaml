@@ -1,0 +1,36 @@
+# Runs cloudflare-setup.py after every sync (Argo PostSync hook, re-created each time). It reads the token and
+# the Access allowlist from the kd-staging-cloudflare Secret (1Password item kd-staging-cloudflare).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cloudflare-setup
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: Never
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: setup
+          image: python:3.12-alpine
+          command: ["python3", "-I", "/setup/cloudflare-setup.py"]
+          envFrom:
+            - secretRef: {name: kd-staging-cloudflare}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: setup, mountPath: /setup, readOnly: true}
+      volumes:
+        - name: setup
+          configMap: {name: cloudflare-setup}

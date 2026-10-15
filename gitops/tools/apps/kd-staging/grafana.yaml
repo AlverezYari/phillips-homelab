@@ -1,0 +1,76 @@
+# Demo app 1: Grafana signs in with kd (generic OAuth, PKCE). Role comes from kd groups:
+# admins -> Admin, editors -> Editor, everyone else Viewer. State is throwaway (emptyDir).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels: {app: grafana}
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: grafana}
+  template:
+    metadata:
+      labels: {app: grafana}
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      hostAliases:
+        - ip: 10.100.77.10
+          hostnames: [kd-staging.phillips-homelab.net]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: grafana
+          image: grafana/grafana:13.2.3
+          env:
+            - {name: GF_SERVER_ROOT_URL, value: "https://kd-grafana.phillips-homelab.net/"}
+            - {name: GF_USERS_ALLOW_SIGN_UP, value: "false"}
+            - {name: GF_AUTH_DISABLE_LOGIN_FORM, value: "true"}
+            - {name: GF_AUTH_GENERIC_OAUTH_ENABLED, value: "true"}
+            - {name: GF_AUTH_GENERIC_OAUTH_NAME, value: kd}
+            - {name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID, value: grafana}
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom: {secretKeyRef: {name: kd-staging-apps, key: GRAFANA_OIDC_SECRET}}
+            - {name: GF_AUTH_GENERIC_OAUTH_SCOPES, value: "openid profile email groups"}
+            - {name: GF_AUTH_GENERIC_OAUTH_AUTH_URL, value: "https://kd-staging.phillips-homelab.net/oidc/authorize"}
+            - {name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL, value: "https://kd-staging.phillips-homelab.net/oidc/token"}
+            - {name: GF_AUTH_GENERIC_OAUTH_API_URL, value: "https://kd-staging.phillips-homelab.net/oidc/userinfo"}
+            - {name: GF_AUTH_GENERIC_OAUTH_USE_PKCE, value: "true"}
+            - {name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP, value: "true"}
+            - {name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH, value: preferred_username}
+            - {name: GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH, value: email}
+            - {name: GF_AUTH_GENERIC_OAUTH_GROUPS_ATTRIBUTE_PATH, value: groups}
+            - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+              value: "contains(groups[*], 'admins') && 'Admin' || contains(groups[*], 'editors') && 'Editor' || 'Viewer'"
+            - {name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT, value: "true"}
+            - {name: GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN, value: "true"}
+            - {name: GF_ANALYTICS_REPORTING_ENABLED, value: "false"}
+            - {name: GF_ANALYTICS_CHECK_FOR_UPDATES, value: "false"}
+          ports:
+            - {containerPort: 3000}
+          readinessProbe:
+            httpGet: {path: /api/health, port: 3000}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/grafana}
+      volumes:
+        - {name: data, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  selector: {app: grafana}
+  ports:
+    - {port: 3000, targetPort: 3000}

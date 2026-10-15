@@ -1,0 +1,105 @@
+# Demo app 3: a page protected by oauth2-proxy. Only kd's editors group gets through; everyone else is
+# refused after signing in. Plain HTTP inside the cluster; TLS is at the Cloudflare edge.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whoami
+  labels: {app: whoami}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: whoami}
+  template:
+    metadata:
+      labels: {app: whoami}
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: whoami
+          image: traefik/whoami:v1.10.4
+          args: ["--port", "8080"]
+          ports:
+            - {containerPort: 8080}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 32Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+spec:
+  selector: {app: whoami}
+  ports:
+    - {port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  labels: {app: oauth2-proxy}
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: oauth2-proxy}
+  template:
+    metadata:
+      labels: {app: oauth2-proxy}
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      hostAliases:
+        - ip: 10.100.77.10
+          hostnames: [kd-staging.phillips-homelab.net]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5
+          env:
+            - {name: OAUTH2_PROXY_PROVIDER, value: oidc}
+            - {name: OAUTH2_PROXY_OIDC_ISSUER_URL, value: "https://kd-staging.phillips-homelab.net/oidc"}
+            - {name: OAUTH2_PROXY_CLIENT_ID, value: oauth2-proxy}
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom: {secretKeyRef: {name: kd-staging-apps, key: PROXY_OIDC_SECRET}}
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom: {secretKeyRef: {name: kd-staging-apps, key: PROXY_COOKIE_SECRET}}
+            - {name: OAUTH2_PROXY_REDIRECT_URL, value: "https://kd-whoami.phillips-homelab.net/oauth2/callback"}
+            - {name: OAUTH2_PROXY_SCOPE, value: "openid profile email groups"}
+            - {name: OAUTH2_PROXY_CODE_CHALLENGE_METHOD, value: S256}
+            - {name: OAUTH2_PROXY_OIDC_GROUPS_CLAIM, value: groups}
+            - {name: OAUTH2_PROXY_ALLOWED_GROUPS, value: editors}
+            - {name: OAUTH2_PROXY_COOKIE_SECURE, value: "true"}
+            - {name: OAUTH2_PROXY_EMAIL_DOMAINS, value: "*"}
+            - {name: OAUTH2_PROXY_UPSTREAMS, value: "http://whoami:8080"}
+            - {name: OAUTH2_PROXY_HTTP_ADDRESS, value: "0.0.0.0:4180"}
+            - {name: OAUTH2_PROXY_SKIP_PROVIDER_BUTTON, value: "true"}
+            - {name: OAUTH2_PROXY_REVERSE_PROXY, value: "true"}
+          ports:
+            - {containerPort: 4180}
+          readinessProbe:
+            httpGet: {path: /ping, port: 4180}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+spec:
+  selector: {app: oauth2-proxy}
+  ports:
+    - {port: 4180, targetPort: 4180}

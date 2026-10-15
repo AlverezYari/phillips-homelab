@@ -1,0 +1,107 @@
+# Demo app 2: Gitea with kd as its only sign-in (local registration off, auto-register on first
+# kd sign-in). Repos persist on a small volume so you can actually use it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-env
+data:
+  GITEA_WORK_DIR: /data
+  GITEA_CUSTOM: /data/custom
+  GITEA_APP_INI: /data/custom/conf/app.ini
+  GITEA__server__ROOT_URL: https://kd-git.phillips-homelab.net/
+  GITEA__server__DOMAIN: kd-git.phillips-homelab.net
+  GITEA__server__PROTOCOL: http
+  GITEA__server__HTTP_PORT: "3000"
+  GITEA__server__DISABLE_SSH: "true"
+  GITEA__security__INSTALL_LOCK: "true"
+  GITEA__database__DB_TYPE: sqlite3
+  GITEA__service__DISABLE_REGISTRATION: "false"
+  GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
+  GITEA__service__SHOW_REGISTRATION_BUTTON: "false"
+  GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
+  GITEA__oauth2_client__USERNAME: nickname
+  GITEA__oauth2_client__ACCOUNT_LINKING: auto
+  GITEA__openid__ENABLE_OPENID_SIGNIN: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  labels: {app: gitea}
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: gitea}
+  template:
+    metadata:
+      labels: {app: gitea}
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      hostAliases:
+        - ip: 10.100.77.10
+          hostnames: [kd-staging.phillips-homelab.net]
+      securityContext:
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        - name: auth-setup
+          image: gitea/gitea:28.1.0-rootless
+          command: ["sh", "-eu", "/setup/gitea-setup.sh"]
+          envFrom:
+            - configMapRef: {name: gitea-env}
+          env:
+            - name: GITEA_OIDC_SECRET
+              valueFrom: {secretKeyRef: {name: kd-staging-apps, key: GITEA_OIDC_SECRET}}
+          securityContext: {allowPrivilegeEscalation: false, runAsUser: 1000, runAsGroup: 1000, capabilities: {drop: [ALL]}}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: setup, mountPath: /setup, readOnly: true}
+      containers:
+        - name: gitea
+          image: gitea/gitea:28.1.0-rootless
+          envFrom:
+            - configMapRef: {name: gitea-env}
+          ports:
+            - {containerPort: 3000}
+          readinessProbe:
+            httpGet: {path: /api/healthz, port: 3000}
+            periodSeconds: 10
+            failureThreshold: 30
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext: {allowPrivilegeEscalation: false, runAsUser: 1000, runAsGroup: 1000, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: gitea-data}
+        - name: setup
+          configMap: {name: gitea-setup}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+spec:
+  selector: {app: gitea}
+  ports:
+    - {port: 3000, targetPort: 3000}

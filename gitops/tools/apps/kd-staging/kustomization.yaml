@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kd-staging
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - certificate.yaml
+  - kd.yaml
+  - grafana.yaml
+  - gitea.yaml
+  - whoami.yaml
+  - network-policy.yaml
+  - cloudflare-job.yaml
+
+configMapGenerator:
+  - name: kd-seed
+    files:
+      - kd.toml
+  - name: gitea-setup
+    files:
+      - gitea-setup.sh
+  - name: cloudflare-setup
+    files:
+      - cloudflare-setup.py
+generatorOptions:
+  disableNameSuffixHash: true
