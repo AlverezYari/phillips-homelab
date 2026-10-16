@@ -12,6 +12,7 @@
 #   loopctl pr <owner/repo> <branch> [--body-file FILE] [title...]
 #   loopctl merge <owner/repo> <pr#>
 #   loopctl conform <owner/repo> <ref> [--pr N]
+#   loopctl gate <owner/repo> <ref> [--image TAG] [--cmd CMD]   (ref merged with main, gate run in-cluster)
 #   loopctl release <owner/repo> <tag> [title...]
 #   loopctl mkrepo <loop-bot/name> [description...]
 #
@@ -53,7 +54,7 @@ helper_pod() {
     [ -n "$extra_spec" ] && printf '%s\n' "$extra_spec"
     echo "  containers:"
     echo "  - name: c"
-    echo "    image: $(image_from_template)"
+    echo "    image: ${HELPER_IMAGE:-$(image_from_template)}"
     echo "    envFrom: [{secretRef: {name: loop-secrets}}]"
     [ -n "$extra_container" ] && printf '%s\n' "$extra_container"
     echo "    command: [bash, -c, $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$script")]"
@@ -408,6 +409,34 @@ if [ \"\$code\" = 200 ]; then echo \"PR #${idx} merged\"; else echo \"merge fail
 # post it on the PR. Contract: the kd repo's docs/specs/build-conformance-run.md.
 # The helper pod runs as loops/conformance-runner (namespace admin there only),
 # so the token and the stack both stay in-cluster.
+# Run a repo's gate in a cluster pod instead of on the laptop: clone, check out <ref>, merge the default
+# branch (what a merge would produce), run CMD. Prints the tail of the log and exits non-zero on failure.
+cmd_gate() {
+  local repo=${1:?usage: loopctl gate <owner/repo> <ref> [--image TAG] [--cmd CMD]}
+  local ref=${2:?ref required}; shift 2
+  local tag="" cmd="make build test lint"
+  while [ $# -gt 0 ]; do case $1 in --image) tag=$2; shift 2;; --cmd) cmd=$2; shift 2;; *) die "unknown flag $1";; esac; done
+  [[ $ref =~ ^[A-Za-z0-9._/-]+$ ]] || die "ref has unexpected characters"
+  [ -z "$tag" ] || [[ $tag =~ ^[A-Za-z0-9._-]+$ ]] || die "--image tag has unexpected characters"
+  [[ $cmd =~ ^[A-Za-z0-9\ ._/=-]+$ ]] || die "--cmd has unexpected characters"
+  HELPER_IMAGE=${tag:+zot.phillips-homelab.net/loop-dev:$tag} HELPER_TIMEOUT=5400s helper_pod gate "
+set -uo pipefail
+URL=http://forgejo-http.forgejo.svc.cluster.local:3000/${repo}.git
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0=\"Authorization: token \${FORGEJO_TOKEN}\"
+git clone -q \"\$URL\" /tmp/src && cd /tmp/src || exit 1
+git -c user.name=gate -c user.email=gate@loop.invalid fetch -q origin '${ref}' && git checkout -q FETCH_HEAD || { echo 'gate: cannot check out ${ref}'; exit 1; }
+git -c user.name=gate -c user.email=gate@loop.invalid merge -q --no-edit origin/HEAD >/dev/null 2>&1 || { echo 'gate: ${ref} does not merge cleanly with the default branch'; exit 1; }
+echo \"gate: ${ref} at \$(git rev-parse --short HEAD) (merged with default branch): ${cmd}\"
+# The gate must not see cluster credentials; tests that need a cluster skip without a kubeconfig.
+unset FORGEJO_TOKEN GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+export KUBECONFIG=/dev/null CARGO_BUILD_JOBS=4
+timeout 80m ${cmd} > /tmp/gate.log 2>&1; rc=\$?
+grep -E 'test result:|FAILED|panicked|^error' /tmp/gate.log | sort | uniq -c | sort -rn | head -30
+echo '--- tail ---'; tail -60 /tmp/gate.log
+echo \"gate rc=\$rc\"
+exit \$rc" "  automountServiceAccountToken: false" "    resources: {requests: {cpu: '1', memory: 2Gi}, limits: {cpu: '4', memory: 8Gi}}"
+}
+
 cmd_conform() {
   local repo=${1:?usage: loopctl conform <owner/repo> <ref> [--pr N]}
   local ref=${2:?ref required}; shift 2
@@ -498,6 +527,7 @@ case $cmd in
   issue) cmd_issue "$@";;
   merge) cmd_merge "$@";;
   conform) cmd_conform "$@";;
+  gate) cmd_gate "$@";;
   close) cmd_close "$@";;
   release) cmd_release "$@";;
   mkrepo) cmd_mkrepo "$@";;
