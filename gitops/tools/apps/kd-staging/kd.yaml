@@ -50,7 +50,7 @@ spec:
             - {name: seed, mountPath: /seed, readOnly: true}
       containers:
         - name: kd
-          image: zot.phillips-homelab.net/kd:staging-1
+          image: zot.phillips-homelab.net/kd:0.0.2
           args: ["--config", "/state/kd.toml", "--state", "/state/data", "serve"]
           envFrom:
             - secretRef: {name: kd-staging-apps}
