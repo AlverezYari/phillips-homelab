@@ -33,6 +33,10 @@ spec:
             capabilities:
               drop:
                 - ALL
+              # The caddy binary carries a file capability (cap_net_bind_service);
+              # without it in the bounding set the exec fails with exit 255.
+              add:
+                - NET_BIND_SERVICE
           ports:
             - containerPort: 8080
           # Caddy writes runtime state under XDG dirs; the root fs is read-only.
