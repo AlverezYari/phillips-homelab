@@ -1,0 +1,20 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: esmh
+  namespace: esmh
+spec:
+  endpointSelector:
+    matchLabels:
+      app: esmh
+  ingress:
+    # Only the Cloudflare tunnel may reach the site
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cloudflare
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+  # Static site: no egress needed
+  egress: []

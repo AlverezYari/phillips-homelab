@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esmh
+  namespace: esmh
+  labels:
+    app: esmh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esmh
+  template:
+    metadata:
+      labels:
+        app: esmh
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: ghcr.io/littlebirdistheword/eastside-website:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 8080
+          # Caddy writes runtime state under XDG dirs; the root fs is read-only.
+          env:
+            - name: XDG_DATA_HOME
+              value: /tmp/caddy-data
+            - name: XDG_CONFIG_HOME
+              value: /tmp/caddy-config
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 10m
+            limits:
+              memory: 128Mi
+              cpu: 200m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: {}
