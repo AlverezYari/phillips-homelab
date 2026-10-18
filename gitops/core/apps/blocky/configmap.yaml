@@ -53,6 +53,10 @@ data:
         miso-lab.phillips-homelab.net: 192.168.10.211
         miso-ask.phillips-homelab.net: 192.168.10.211
         llm.phillips-homelab.net: 192.168.10.211
+        # Public via Cloudflare tunnel: send LAN/Tailnet clients out to the CF edge
+        # (same anycast IPs the zone's proxied hosts resolve to) instead of the
+        # Gateway, which has no listener for this host. Exact name beats the apex entry.
+        eastside.phillips-homelab.net: 104.21.35.177,172.67.178.45
         # Synology NAS
         nas.phillips-homelab.net: 192.168.10.195
 
