@@ -1,0 +1,77 @@
+# Rolls the esmh Deployment when a new :latest is published to GHCR.
+# Compares the registry digest to the one recorded on the Deployment
+# (annotation esmh.phillips-homelab.net/image-digest); on change, restarts the
+# rollout (imagePullPolicy: Always pulls the new image) and records the digest.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: esmh-autoroll
+  namespace: esmh
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 120
+      ttlSecondsAfterFinished: 600
+      template:
+        spec:
+          serviceAccountName: esmh-autoroll
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: autoroll
+              image: alpine/k8s:1.34.12
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  REPO=littlebirdistheword/eastside-website
+                  AUTH=$(jq -r '.auths["ghcr.io"].auth' /creds/.dockerconfigjson)
+                  TOKEN=$(curl -fsS -H "Authorization: Basic $AUTH" \
+                    "https://ghcr.io/token?service=ghcr.io&scope=repository:$REPO:pull" | jq -r .token)
+                  REMOTE=$(curl -fsSI -H "Authorization: Bearer $TOKEN" \
+                    -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
+                    "https://ghcr.io/v2/$REPO/manifests/latest" \
+                    | tr -d '\r' | awk -F': ' 'tolower($1)=="docker-content-digest"{print $2}')
+                  case "$REMOTE" in sha256:*) ;; *) echo "bad digest '$REMOTE'"; exit 1;; esac
+                  KEY='esmh\.phillips-homelab\.net/image-digest'
+                  CURRENT=$(kubectl -n esmh get deploy esmh -o jsonpath="{.metadata.annotations.$KEY}")
+                  if [ "$REMOTE" = "$CURRENT" ]; then echo "up to date ($REMOTE)"; exit 0; fi
+                  echo "new image: $CURRENT -> $REMOTE"
+                  kubectl -n esmh rollout restart deploy/esmh
+                  kubectl -n esmh annotate deploy/esmh "esmh.phillips-homelab.net/image-digest=$REMOTE" --overwrite
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  memory: 32Mi
+                  cpu: 10m
+                limits:
+                  memory: 128Mi
+                  cpu: 200m
+              volumeMounts:
+                - name: creds
+                  mountPath: /creds
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              env:
+                - name: HOME
+                  value: /tmp
+          volumes:
+            - name: creds
+              secret:
+                secretName: ghcr-pull
+            - name: tmp
+              emptyDir: {}
