@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: esmh-autoroll
+  namespace: esmh
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: esmh-autoroll
+  namespace: esmh
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["esmh"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: esmh-autoroll
+  namespace: esmh
+subjects:
+  - kind: ServiceAccount
+    name: esmh-autoroll
+    namespace: esmh
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: esmh-autoroll
