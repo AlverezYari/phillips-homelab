@@ -15,6 +15,7 @@ namespace: tipoff
 resources:
   - migrate-job.yaml
   - cronjob-pinnacle.yaml
+  - cronjob-pinnacle-nfl.yaml
   - cronjob-pinnacle-props.yaml
   - cronjob-polymarket.yaml
   - cronjob-novig.yaml
@@ -30,7 +31,7 @@ resources:
 images:
   - name: tipoff
     newName: zot.phillips-homelab.net/tipoff
-    newTag: e4cfb03
+    newTag: 7fe9a44
 
 labels:
   - includeSelectors: false
