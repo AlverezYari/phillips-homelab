@@ -19,6 +19,7 @@ metadata:
     tipoff.io/source: novig-props
 spec:
   schedule: "3-59/5 * * * *"   # 3,8,13,...  3-min offset from pinnacle */5
+  suspend: true  # Novig Hasura allow-list rejects our queries ("query is not allowed"); paused 2026-10-20 until re-matched (tipoff #17)
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 5
