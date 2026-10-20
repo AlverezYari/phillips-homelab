@@ -16,6 +16,12 @@ the 1Password item `kd-staging-cloudflare`. The `cloudflare-setup` job (re-runs 
 Access first, then the tunnel routes (other routes kept), then the DNS CNAMEs. Edit the emails in 1Password,
 they apply on the next daily run, or delete the job to run it now.
 
+Sign-in is the email code (one-time PIN) only: the apps allow just that login and go straight to it, because
+the "Cloudflare" login is limited to members of this Cloudflare account and outside friends hit "Cloudflare
+sign-in is restricted to members of the account". The job's token needs the account permission
+"Access: Organizations, Identity Providers, and Groups Read" to find the one-time PIN login; without it the job
+stops before changing anything.
+
 - **Certificate:** cert-manager `kd-staging-tls` (Let's Encrypt) from the namespace issuer `kd-staging-letsencrypt`, which uses this app's own Cloudflare token for DNS-01; kd reloads it on renewal.
 - **Back-channel:** the demo apps map kd-staging.phillips-homelab.net to kd's pinned ClusterIP
   (10.100.77.10) with hostAliases, so their token/userinfo calls never go through Access.

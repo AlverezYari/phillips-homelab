@@ -1,8 +1,10 @@
 """Publishes the kd-staging hostnames on the personal Cloudflare tunnel, behind one Access app.
 
 Idempotent; safe to re-run. Order matters: the Access apps (email allowlist) are created or updated FIRST, so a
-hostname is never routed without Access in front of it. Then the tunnel's ingress list gets the kd-* entries
-(every other entry, including miso-lab and the catch-all, is kept as is), then the proxied DNS CNAMEs.
+hostname is never routed without Access in front of it. The apps allow only the account's one-time PIN (email
+code) login: the "Cloudflare" login is limited to members of this Cloudflare account, so friends can't use it.
+Then the tunnel's ingress list gets the kd-* entries (every other entry, including miso-lab and the catch-all, is
+kept as is), then the proxied DNS CNAMEs.
 
 Env: CF_API_TOKEN, ACCESS_EMAILS (comma separated). Prints no secrets.
 """
@@ -54,6 +56,14 @@ def main():
     zone_id, acct = zones[0]["id"], zones[0]["account"]["id"]
     print(f"zone {ZONE}, {len(EMAILS)} allowed email(s)")
 
+    # Login: one-time PIN only. The token needs the account permission "Access: Organizations, Identity Providers,
+    # and Groups Read" to see it; without that the list comes back empty, so stop before changing anything.
+    otp = [i for i in call("GET", f"/accounts/{acct}/access/identity_providers") if i.get("type") == "onetimepin"]
+    if not otp:
+        sys.exit("cloudflare: no one-time PIN login visible; give the token the account permission "
+                 "'Access: Organizations, Identity Providers, and Groups Read' (or enable One-time PIN)")
+    otp_id = otp[0]["id"]
+
     # 1. Access: one zone-level self-hosted app per kd-* host, each with its own allow policy (the email list).
     # Zone-scoped on purpose: the token has the zone-level "Access: Apps and Policies" permission; account-level
     # reusable policies would need the separate account permission "Access: Policies".
@@ -62,7 +72,7 @@ def main():
     for h in HOSTS:
         name = f"{APP_NAME} {h.split('.')[0]}"
         app = {"name": name, "type": "self_hosted", "domain": h, "session_duration": "24h",
-               "app_launcher_visible": False}
+               "app_launcher_visible": False, "allowed_idps": [otp_id], "auto_redirect_to_identity": True}
         if name in existing:
             app_id = existing[name]["id"]
             call("PUT", f"/zones/{zone_id}/access/apps/{app_id}", app)
@@ -74,7 +84,7 @@ def main():
             call("PUT", f"/zones/{zone_id}/access/apps/{app_id}/policies/{have[0]['id']}", policy)
         else:
             call("POST", f"/zones/{zone_id}/access/apps/{app_id}/policies", policy)
-    print(f"access: {len(HOSTS)} zone apps, each allowing the listed emails")
+    print(f"access: {len(HOSTS)} zone apps, each allowing the listed emails, one-time PIN login only")
 
     # 2. Tunnel ingress: replace only the kd-* rules, keep everything else and the catch-all last.
     tunnel = None
