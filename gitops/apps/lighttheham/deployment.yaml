@@ -45,7 +45,7 @@ spec:
                 name: lighttheham-s3
       containers:
         - name: app
-          image: zot.phillips-homelab.net/light-the-ham:latest
+          image: zot.phillips-homelab.net/light-the-ham:02df783
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
