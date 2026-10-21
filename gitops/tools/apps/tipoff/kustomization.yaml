@@ -17,6 +17,7 @@ resources:
   - cronjob-pinnacle.yaml
   - cronjob-pinnacle-nfl.yaml
   - cronjob-pinnacle-props.yaml
+  - cronjob-pinnacle-props-nfl.yaml
   - cronjob-polymarket.yaml
   - cronjob-novig.yaml
   - cronjob-novig-props.yaml
@@ -31,7 +32,7 @@ resources:
 images:
   - name: tipoff
     newName: zot.phillips-homelab.net/tipoff
-    newTag: 7fe9a44
+    newTag: 529773d
 
 labels:
   - includeSelectors: false

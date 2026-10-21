@@ -1,0 +1,62 @@
+# Pinnacle NFL player-props ingest CronJob (tipoff issue #14, PR 2).
+#
+# Same job as cronjob-pinnacle-props.yaml with --sport nfl: passing /
+# rushing / receiving yards, receptions, passing TDs, anytime TD. Reuses
+# the event rows written by tipoff-ingest-pinnacle-nfl, so it runs 3 min
+# behind that job's */15 (0,15,30,45). Issue #14 PR 3 retunes both to
+# an NFL-shaped schedule.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tipoff-ingest-pinnacle-props-nfl
+  labels:
+    app.kubernetes.io/name: tipoff-ingest-pinnacle-props-nfl
+    app.kubernetes.io/component: ingest
+    tipoff.io/source: pinnacle-props
+spec:
+  schedule: "3-59/15 * * * *"   # 1,6,11,...  1-min offset from pinnacle */5
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 240
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: tipoff-ingest-pinnacle-props-nfl
+            tipoff.io/source: pinnacle-props
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: feed
+              image: tipoff   # rewritten by kustomization.yaml
+              args: ["ingest", "pinnacle-props", "--sport", "nfl"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: tipoff-pg-app
+                      key: uri
+                - name: LOG_LEVEL
+                  value: info
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 65532
+                runAsGroup: 65532
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
