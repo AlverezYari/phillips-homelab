@@ -13,6 +13,10 @@ metadata:
     app: cloudflared-personal
 spec:
   replicas: 2
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: cloudflared-personal
@@ -24,7 +28,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: cloudflared
-          image: cloudflare/cloudflared:2024.10.0
+          image: cloudflare/cloudflared:2026.10.3
           args:
             - tunnel
             - --protocol
