@@ -30,7 +30,9 @@ To (re)write it:
 ```sh
 TOKEN=$(kubectl -n publishers get secret row-publisher-token -o jsonpath='{.data.token}' | base64 -d)
 kubectl -n publishers get secret row-publisher-token -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/ca.crt
-SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+# Straight to the API server: the Omni proxy URL in the default kubeconfig only
+# accepts Omni identities and rejects SA tokens (x509 / Unauthorized).
+SERVER=https://192.168.10.191:6443
 F=~/.kube/row-publisher.yaml; umask 077
 kubectl --kubeconfig=$F config set-cluster phillips-homelab --server="$SERVER" --certificate-authority=/tmp/ca.crt --embed-certs
 kubectl --kubeconfig=$F config set-credentials row-publisher --token="$TOKEN"
@@ -47,9 +49,11 @@ token, and the old one stops working. Then rerun the block above.
 
 ```sh
 export KUBECONFIG=~/.kube/row-publisher.yaml
-kubectl auth can-i create pods/exec -n ergobars                 # yes
-kubectl auth can-i get secret/ergobars-board -n ergobars        # yes
-kubectl auth can-i create pods/exec/row-realm3-0 -n row-realm   # yes
+# `can-i create pods/exec` means "a pod named exec"; use --subresource.
+kubectl auth can-i create pods --subresource=exec -n ergobars               # yes
+kubectl auth can-i get secret/ergobars-board -n ergobars                    # yes
+kubectl auth can-i create pods/row-realm3-0 --subresource=exec -n row-realm # yes
+kubectl auth can-i create pods/row-pg-1 --subresource=exec -n row-realm     # no
 kubectl auth can-i delete pods -n ergobars                      # no
 kubectl auth can-i get secrets -n ergobars                      # no
 kubectl auth can-i list namespaces                              # no
