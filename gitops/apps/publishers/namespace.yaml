@@ -1,0 +1,6 @@
+# Holds only the publisher ServiceAccount and its token, so no workload here
+# can mount the token.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: publishers
