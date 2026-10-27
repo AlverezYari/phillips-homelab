@@ -1,0 +1,31 @@
+# RoW bin/row-dist-upload: lists/hashes /dist in row-realm3-0/row-serve and,
+# with --via kubectl, writes objects there. Realm deploys
+# (kubectl apply -k row-realm) stay on Casey's own credentials.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: row-publisher
+  namespace: row-realm
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    resourceNames: ["row-realm3-0"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    resourceNames: ["row-realm3-0"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: row-publisher
+  namespace: row-realm
+subjects:
+  - kind: ServiceAccount
+    name: row-publisher
+    namespace: publishers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: row-publisher
