@@ -1,0 +1,84 @@
+# The RoW coordinator's own ServiceAccount (2026-11-03): drive the Sol lanes and read the live realm without Casey's
+# personal OIDC login, which expires overnight and stalled the lanes' supervision. Same pattern as row-publisher:
+# a long-lived token, rights pinned to named pods where Kubernetes allows it, nothing cluster-wide. Realm deploys
+# (`kubectl apply -k row-realm`) and pod deletion stay on Casey's own credentials.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: row-coordinator
+  namespace: publishers
+---
+# Long-lived token, filled in by the token controller. Rotate by deleting this Secret (Argo recreates it with a new
+# token) and rewriting ~/.kube/row-coordinator.yaml. See README.md.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: row-coordinator-token
+  namespace: publishers
+  annotations:
+    kubernetes.io/service-account.name: row-coordinator
+type: kubernetes.io/service-account-token
+---
+# loops/row-sol: the Sol lanes' pod (briefs, chain scripts, worktrees, STATUS, builds).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: row-coordinator
+  namespace: loops
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    resourceNames: ["row-sol"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    resourceNames: ["row-sol"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: row-coordinator
+  namespace: loops
+subjects:
+  - kind: ServiceAccount
+    name: row-coordinator
+    namespace: publishers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: row-coordinator
+---
+# row-realm: watch a rollout and read its logs; exec into the realm (content reports, admin socket) and the
+# database (read-only queries, pg_dump backups). No writes to workloads.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: row-coordinator
+  namespace: row-realm
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    resourceNames: ["row-realm3-0", "row-pg-1"]
+    verbs: ["create"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    resourceNames: ["row-realm3"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: row-coordinator
+  namespace: row-realm
+subjects:
+  - kind: ServiceAccount
+    name: row-coordinator
+    namespace: publishers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: row-coordinator
