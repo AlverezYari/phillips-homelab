@@ -54,3 +54,31 @@ kubectl auth can-i delete pods -n ergobars                      # no
 kubectl auth can-i get secrets -n ergobars                      # no
 kubectl auth can-i list namespaces                              # no
 ```
+
+## row-coordinator (2026-11-03)
+
+`publishers/row-coordinator` (`row-coordinator.yaml`) lets the RoW coordinator drive the Sol lanes and read the live
+realm with a non-expiring token instead of Casey's OIDC login (which expired overnight and stalled supervision).
+
+| Namespace   | Grants | Used by |
+|-------------|--------|---------|
+| `loops`     | `pods`, `pods/log` get and `pods/exec` create, all on `row-sol` only | briefs, chain scripts, STATUS, client builds in the Sol pod |
+| `row-realm` | `pods`, `pods/log` get/list/watch; `pods/exec` create on `row-realm3-0` and `row-pg-1`; `statefulsets` get on `row-realm3` | rollout checks, startup logs, content reports, read-only SQL and `pg_dump` backups |
+
+Not granted: realm deploys (`kubectl apply -k row-realm`), deleting pods, secrets, anything cluster-wide.
+Caveat: exec into `row-pg-1` is a shell in the database pod, so it can write the database; the coordinator's rules
+keep live writes to backed-up scripts Casey runs.
+
+Kubeconfig: the same block as above with `row-publisher` replaced by `row-coordinator`, written to
+`~/.kube/row-coordinator.yaml` (mode 600, never committed), context namespace `loops`. Rotate the same way
+(`kubectl -n publishers delete secret row-coordinator-token`, then rewrite).
+
+```sh
+export KUBECONFIG=~/.kube/row-coordinator.yaml
+kubectl auth can-i create pods/exec/row-sol -n loops            # yes
+kubectl auth can-i create pods/exec/row-pg-1 -n row-realm       # yes
+kubectl auth can-i get pods/log -n row-realm                    # yes
+kubectl auth can-i patch statefulsets -n row-realm              # no
+kubectl auth can-i delete pods -n row-realm                     # no
+kubectl auth can-i get secrets -n publishers                    # no
+```
