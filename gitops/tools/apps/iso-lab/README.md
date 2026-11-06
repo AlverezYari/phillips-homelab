@@ -40,21 +40,22 @@ Cloudflare tunnel). Glance has a link.
 
 ## Pausing and rehydrating
 
-**History:** paused 2026-10-14 20:43 UTC (#637; tunnel off in #638), rehydrated 2026-10-14 (the revert
-PR that added this line). To pause again, re-apply #637 and #638. While paused, the state is as
-follows. **No data is deleted:**
+**History:** paused 2026-10-14 20:43 UTC (#637; tunnel off in #638), rehydrated 2026-10-14 (#639), paused
+again 2026-11-06 (**current state**; the PR that added this). To pause again, re-apply #637 but **not**
+#638: `cloudflared-personal` now also serves the `kd-*` and `eastside` hostnames and must stay up.
+While paused, the state is as follows. **No data is deleted:**
 
 - **Still there:** the Garage lake (`s3://iso-market-data`), the ClickHouse PVC `data-clickhouse-0`
   (50Gi), the Postgres PVC `iso-lab-pg-1` (10Gi, Dagster run history and schedule state), the miso-ask
   PVC `miso-ask-data` (5Gi), every ExternalSecret, Service, HTTPRoute and blocky entry.
-- **Off:** every iso-lab, miso-lab and miso-ask workload is at 0 replicas, and so is
-  `cloudflared-personal`. The Dagster daemon and code server are disabled (`dagsterDaemon.enabled:
+- **Off:** every iso-lab, miso-lab and miso-ask workload is at 0 replicas. The Dagster daemon and code server are disabled (`dagsterDaemon.enabled:
   false`, `dagster-user-deployments.enableSubchart: false`: the chart treats a replica count of 0 as
   1, so they're switched off instead). `iso-lab-pg` is hibernated (`cnpg.io/hibernation: "on"`). The
   iso-lab `VMRule` is commented out of `kustomization.yaml`.
 - **Cloudflare (personal account):** not touched by gitops. The Access app for
-  `miso-lab.phillips-homelab.net`, the tunnel's public hostname and its DNS CNAME may still exist in
-  the dashboard. With the tunnel at 0 they lead nowhere.
+  `miso-lab.phillips-homelab.net`, the tunnel's public hostname and its DNS CNAME still exist in
+  the dashboard. The tunnel stays up for its other hostnames, so the public miso-lab link hits Access
+  and then errors, because its origin is at 0.
 
 **To bring it back:**
 
@@ -66,13 +67,12 @@ follows. **No data is deleted:**
    Freshness checks fail until the first poll lands, so expect a burst of ntfy alerts on resume.
 3. **Fill the gap:**
    - The daily report jobs (`refresh_*_daily`) are partitioned by market day and only run the newest
-     day. Launch a back-fill in the Dagster UI for every day from 2026-10-14 to the resume date. FTR
+     day. Launch a back-fill in the Dagster UI for every day from the pause date (now 2026-11-06) to the resume date. FTR
      (`refresh_ftr_monthly`) does the same per month.
    - The live 5-minute feeds can't be back-filled past MISO's short rolling window: node LMP and fuel
      mix recover only what `/Rolling` still holds. The hub feed's ancillary MCPs are current-interval
      only, so that part of the gap is permanent. The marts show it as missing intervals, which is
      correct (the lake is verbatim).
    - `compact_lake` catches up on its own the next morning (06:20 UTC).
-4. **Public demo again (only if someone asks Casey):** set `cloudflared-personal` back to 2 replicas,
-   make sure the Access app and its email allowlist still exist (they're required for every hostname
+4. **Public demo again (only if someone asks Casey):** make sure the Access app and its email allowlist still exist (they're required for every hostname
    on the tunnel), then load the portal through the public link signed in as an allowlisted user.
