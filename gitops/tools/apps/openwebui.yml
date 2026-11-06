@@ -15,7 +15,9 @@ spec:
     targetRevision: "16.6.0"
     helm:
       values: |-
-        replicaCount: 1
+        # PAUSED 2026-11-06: Open WebUI, Ollama and Redis are down. PVCs (chats, models) stay.
+        # Revert this PR to resume.
+        replicaCount: 0
         fullnameOverride: open-webui
 
         image:
@@ -50,6 +52,10 @@ spec:
             cpu: 1000m
             memory: 2Gi
 
+        websocket:
+          redis:
+            enabled: false
+
         extraEnvFrom:
           - secretRef:
               name: openwebui-secrets
@@ -65,7 +71,7 @@ spec:
         ollama:
           enabled: true
           fullnameOverride: open-webui-ollama
-          replicaCount: 1
+          replicaCount: 0
           runtimeClassName: nvidia
           ollama:
             gpu:
