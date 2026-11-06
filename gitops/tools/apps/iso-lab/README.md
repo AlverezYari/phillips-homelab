@@ -41,7 +41,7 @@ Cloudflare tunnel). Glance has a link.
 ## Pausing and rehydrating
 
 **History:** paused 2026-10-14 20:43 UTC (#637; tunnel off in #638), rehydrated 2026-10-14 (#639), paused
-again 2026-11-06 (**current state**; the PR that added this). To pause again, re-apply #637 but **not**
+again 2026-11-06 (**current state**; #667). To pause again, re-apply #637 but **not**
 #638: `cloudflared-personal` now also serves the `kd-*` and `eastside` hostnames and must stay up.
 While paused, the state is as follows. **No data is deleted:**
 
@@ -59,9 +59,9 @@ While paused, the state is as follows. **No data is deleted:**
 
 **To bring it back:**
 
-1. **Internal lab only (LAN/tailnet):** revert #637. Argo brings Postgres out of hibernation, then
+1. **Internal lab only (LAN/tailnet):** revert #667. Argo brings Postgres out of hibernation, then
    ClickHouse, then Dagster. Argo sync waves don't wait for health, so Dagster's init containers just
-   retry until Postgres is up. Don't revert the tunnel PR.
+   retry until Postgres is up.
 2. **Confirm the next live poll:** in https://dagster.phillips-homelab.net, wait for a green
    `__ASSET_JOB` run (polls start at minute 1 and then every 5 minutes), then `data_freshness_checks`.
    Freshness checks fail until the first poll lands, so expect a burst of ntfy alerts on resume.
