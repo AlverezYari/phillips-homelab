@@ -1,0 +1,27 @@
+# Loosen the Talos OOM trigger on homelab-04 only.
+#
+# The default trigger fires on 5% Podruntime stall, with no cooldown on that
+# rule, so it kills every 0.5 s. On this node the stall comes from the kubelet
+# waiting on an NVMe it shares with loops/row-sol, not from low memory (about
+# 47 GiB available), so the kills free nothing and take down cilium-agent.
+#
+# Changes from the v1.12.6 default:
+#   - Podruntime rule: 5% -> 50% avg10, plus a 60 s cooldown
+#   - System and node-wide (memory_full_avg10 > 75) rules: same thresholds
+#
+# cgroupRankingExpression is the unchanged default, and it is REQUIRED: in
+# v1.12.6 TriggerExpression() returns None when the ranking expression is
+# empty, so a trigger-only document validates and is then silently ignored.
+apiVersion: v1alpha1
+kind: OOMConfig
+triggerExpression: |-
+  (multiply_qos_vectors(d_qos_memory_full_total, {System: 8.0}) > 3000.0 &&
+    multiply_qos_vectors(qos_memory_full_avg10, {System: 1.0}) > 5.0) ||
+  (multiply_qos_vectors(d_qos_memory_full_total, {Podruntime: 4.0}) > 3000.0 &&
+    multiply_qos_vectors(qos_memory_full_avg10, {Podruntime: 1.0}) > 50.0 &&
+    time_since_trigger > duration("60s")) ||
+  (memory_full_avg10 > 75.0 && time_since_trigger > duration("10s"))
+cgroupRankingExpression: |-
+  memory_max.hasValue() ? 0.0 :
+    {Besteffort: 1.0, Burstable: 0.5, Guaranteed: 0.0, Podruntime: 0.0, System: 0.0}[class] *
+    double(memory_current.orValue(0u))
