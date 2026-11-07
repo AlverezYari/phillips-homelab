@@ -118,6 +118,8 @@ patches:
     file: patches/node-ip-fix.yml
   - name: nut-client
     file: patches/nut-client.yml
+  - idOverride: 500-homelab-04-oom-config
+    file: patches/oom-config-homelab-04.yml
   - idOverride: 500-homelab-04-hostname
     inline:
       machine:
