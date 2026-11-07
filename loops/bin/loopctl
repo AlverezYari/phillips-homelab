@@ -254,6 +254,8 @@ fi" \
 
 delete_sandbox() {
   local name=$1
+  [ "$(kubectl -n "$NS" get sandbox "$name" -o jsonpath='{.metadata.labels.loop\.phillips\.dev/protected}')" != "true" ] \
+    || die "sandbox $name is protected (loop.phillips.dev/protected=true); remove the label first if you mean to delete it"
   kubectl -n "$NS" delete sandbox "$name" >/dev/null && echo "sandbox $name deleted"
   sleep 5
   kubectl -n "$NS" get pvc "workspace-$name" >/dev/null 2>&1 && echo "WARNING: PVC workspace-$name still present" || echo "PVC workspace-$name cleaned up"
@@ -262,7 +264,8 @@ delete_sandbox() {
 # prune: keep the newest $KEEP reaped loops (default 4, LOOP_KEEP overrides),
 # delete older ones with their PVCs. Loops left finished but never reaped
 # (done/failed/exhausted/stopped/budget) are pruned once older than 7 days.
-# Running, starting and blocked loops are never touched.
+# Running, starting and blocked loops are never touched, and neither is any
+# sandbox labeled loop.phillips.dev/protected=true, whatever its state.
 cmd_prune() {
   local keep=${LOOP_KEEP:-4} dry=""
   while [ $# -gt 0 ]; do case $1 in --keep) keep=$2; shift 2;; --dry-run) dry=1; shift;; *) die "unknown flag $1";; esac; done
@@ -275,6 +278,8 @@ ts = lambda v: datetime.datetime.fromisoformat(v.replace('Z', '+00:00'))
 reaped, stale = [], []
 for s in json.load(sys.stdin).get('items', []):
     m = s['metadata']
+    if m.get('labels', {}).get('loop.phillips.dev/protected') == 'true':
+        continue
     st = m.get('labels', {}).get('loop.phillips.dev/state', '')
     created = ts(m['creationTimestamp'])
     if st == 'reaped':
