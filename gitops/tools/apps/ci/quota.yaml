@@ -1,0 +1,35 @@
+# Hard ceiling on Woodpecker pipeline pods. With WOODPECKER_MAX_WORKFLOWS=4
+# this fits ~4 concurrent workflows at the LimitRange defaults. The Dagger
+# engine (namespace `dagger`) is capped by its own pod limits.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ci-quota
+  namespace: ci
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "24"
+    persistentvolumeclaims: "8"
+    requests.storage: 100Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ci-defaults
+  namespace: ci
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: 100m
+      memory: 256Mi
+    default:
+      cpu: "1"
+      memory: 2Gi
+    max:
+      cpu: "4"
+      memory: 8Gi

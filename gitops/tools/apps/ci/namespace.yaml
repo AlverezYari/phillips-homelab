@@ -1,0 +1,10 @@
+# Woodpecker pipeline pods. Baseline PSA: steps can't go privileged; anything
+# that needs a container runtime goes through the Dagger engine instead.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ci
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: baseline
+    pod-security.kubernetes.io/audit: baseline

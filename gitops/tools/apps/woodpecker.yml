@@ -1,0 +1,87 @@
+# Woodpecker CI for Forgejo (code.phillips-homelab.net), row-server#318.
+# Server + agent live in `woodpecker`; pipeline pods run in `ci`, which is
+# fenced by gitops/tools/apps/ci (quota, LimitRange, low PriorityClass).
+#
+# Pipeline pods land on homelab-04 two ways: the node selector below, and the
+# per-workflow workspace PVC on nvme-scratch, a local-path class that can only
+# bind on homelab-04. local-path is RWO-only, hence STORAGE_RWX=false (all
+# steps of a workflow share one node anyway).
+#
+# Secrets come from 1Password via woodpecker-secrets.yml; createAgentSecret is
+# off because the chart generates it with `lookup`, which Argo can't evaluate
+# (it would re-randomize the agent secret on every sync).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: woodpecker
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: woodpecker
+  project: default
+  source:
+    chart: woodpecker
+    repoURL: ghcr.io/woodpecker-ci/helm
+    targetRevision: 3.7.7
+    helm:
+      values: |
+        server:
+          createAgentSecret: false
+          extraSecretNamesForEnvFrom:
+            - woodpecker-default-agent-secret
+            - woodpecker-forgejo
+          env:
+            WOODPECKER_HOST: https://ci.phillips-homelab.net
+            # Forgejo delivers webhooks to the in-cluster service, not the
+            # gateway; Forgejo's webhook.ALLOWED_HOST_LIST permits this host.
+            WOODPECKER_WEBHOOK_HOST: http://woodpecker-server.woodpecker.svc.cluster.local
+            WOODPECKER_ADMIN: cphillips-homelab
+            WOODPECKER_OPEN: "false"
+            WOODPECKER_FORGEJO: "true"
+            WOODPECKER_FORGEJO_URL: https://code.phillips-homelab.net
+            # Forgejo OAuth app ID/secret arrive via the woodpecker-forgejo secret.
+          persistentVolume:
+            enabled: true
+            size: 5Gi
+            storageClass: syno-iscsi-default
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+
+        agent:
+          replicaCount: 1
+          env:
+            WOODPECKER_SERVER: woodpecker-server:9000
+            WOODPECKER_MAX_WORKFLOWS: "4"
+            WOODPECKER_BACKEND: kubernetes
+            WOODPECKER_BACKEND_K8S_NAMESPACE: ci
+            WOODPECKER_BACKEND_K8S_NAMESPACE_PER_ORGANIZATION: "false"
+            WOODPECKER_BACKEND_K8S_STORAGE_CLASS: nvme-scratch
+            WOODPECKER_BACKEND_K8S_STORAGE_RWX: "false"
+            WOODPECKER_BACKEND_K8S_VOLUME_SIZE: 10G
+            WOODPECKER_BACKEND_K8S_POD_NODE_SELECTOR: '{"kubernetes.io/hostname": "homelab-04"}'
+            WOODPECKER_BACKEND_K8S_PRIORITY_CLASS: ci-batch
+            WOODPECKER_BACKEND_K8S_POD_LABELS: '{"app.kubernetes.io/part-of": "woodpecker-pipeline"}'
+          persistence:
+            enabled: true
+            size: 1Gi
+            storageClass: syno-iscsi-default
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
