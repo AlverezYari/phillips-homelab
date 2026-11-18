@@ -1,0 +1,24 @@
+# row-realm: the live RoW realm on homelab-04 wins scheduling and preempts
+# lower-priority pods when the node is full. Applied by the realm's own
+# manifests (RoW repo, `kubectl apply -k row-realm`) via priorityClassName.
+# Stays below the system-* classes (2e9) so cilium/kubelet-critical pods win.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: row-realm
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "RoW live realm: scheduled ahead of everything except system-critical pods."
+---
+# ci-batch: Woodpecker pipeline pods and the Dagger engine. Below the default
+# (0), so CI is the first thing preempted under pressure, and it never evicts
+# anything itself.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ci-batch
+value: -1000
+globalDefault: false
+preemptionPolicy: Never
+description: "CI pipelines and build engine: yields to everything, never preempts."

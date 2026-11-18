@@ -1,0 +1,31 @@
+# Fences for CI (row-server#318): the `ci` pipeline namespace with its quota,
+# PriorityClasses for CI and the RoW realm, and the network policy that keeps
+# the privileged Dagger engine reachable only from CI pipelines.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ci
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ci
+  project: default
+  source:
+    path: gitops/tools/apps/ci
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    # netpol.yaml / referencegrant.yaml target the `dagger` and `woodpecker`
+    # namespaces, which their own apps create; retry until they exist.
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m

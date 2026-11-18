@@ -86,6 +86,11 @@ spec:
               PROVIDER: memory
             service:
               DISABLE_REGISTRATION: true
+            # Default is "external", which refuses private addresses. Keep
+            # external hooks working and allow the in-cluster Woodpecker
+            # server (row-server#318) by name only, not all of RFC1918.
+            webhook:
+              ALLOWED_HOST_LIST: external,woodpecker-server.woodpecker.svc.cluster.local
           additionalConfigFromEnvs:
             - name: GITEA__database__PASSWD
               valueFrom:

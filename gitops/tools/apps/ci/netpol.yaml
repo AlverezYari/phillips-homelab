@@ -1,0 +1,18 @@
+# The Dagger engine is privileged and its TCP API is unauthenticated: anyone
+# who can reach :1234 can run privileged containers on homelab-04. Only
+# Woodpecker pipeline pods in `ci` may connect.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: dagger-engine-ingress
+  namespace: dagger
+spec:
+  endpointSelector: {}
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: ci
+    toPorts:
+    - ports:
+      - port: "1234"
+        protocol: TCP

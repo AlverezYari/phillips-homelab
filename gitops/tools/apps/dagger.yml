@@ -1,0 +1,100 @@
+# Dagger engine for CI (row-server#318). One engine, pinned to homelab-04,
+# reachable only from the `ci` namespace (gitops/tools/apps/ci/netpol.yaml).
+# Pipelines point the CLI at it with:
+#   _EXPERIMENTAL_DAGGER_RUNNER_HOST=tcp://dagger.dagger.svc.cluster.local:1234
+# The CLI version must match the engine (v0.21.11).
+#
+# Chart 0.21.11 was never published to registry.dagger.io (tags stop at
+# 0.21.10); the templates are unchanged, so the image is pinned explicitly.
+#
+# Cache: its own PVC (volumeClaimTemplate) with the engine's GC ceiling in
+# engine.json. The cap is soft: nvme-scratch (local-path) doesn't enforce PVC
+# size, and homelab-04's single NVMe is all EPHEMERAL (/var), so there is no
+# room for a hard-capped Talos user volume without wiping /var. GC trims to
+# maxUsedSpace and also keeps 15% of the shared /var free for everyone else.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dagger
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dagger
+  project: default
+  source:
+    chart: dagger-helm
+    repoURL: registry.dagger.io
+    targetRevision: 0.21.10
+    helm:
+      values: |
+        # Service `dagger`, StatefulSet `dagger-engine`.
+        fullnameOverride: dagger
+        engine:
+          kind: StatefulSet
+          image:
+            ref: registry.dagger.io/engine:v0.21.11
+          port: 1234
+          nodeSelector:
+            kubernetes.io/hostname: homelab-04
+          priorityClassName: ci-batch
+          # Builds run inside the engine, so this is the real CI compute fence
+          # (pipeline pods in `ci` are mostly thin dagger CLI clients).
+          # Requests sized to homelab-04's free headroom (see ci/quota.yaml);
+          # the memory limit is kept modest because 04's limits are already
+          # ~180% overcommitted and Talos' OOM controller kills bystanders.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+            limits:
+              cpu: "8"
+              memory: 12Gi
+          # No hostPath: cache lives on the PVC below; the unix socket (used
+          # by the exec probes) gets a pod-local emptyDir.
+          hostPath:
+            dataVolume:
+              enabled: false
+            runVolume:
+              enabled: false
+          volumes:
+            - name: run
+              emptyDir: {}
+          volumeMounts:
+            - name: run
+              mountPath: /run/dagger
+          statefulSet:
+            persistentVolumeClaimRetentionPolicy:
+              whenDeleted: Retain
+              whenScaled: Retain
+            persistentVolumeClaim:
+              enabled: true
+              storageClassName: nvme-scratch
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 100Gi
+          configJson: |
+            {
+              "gc": {
+                "maxUsedSpace": "80GB",
+                "reservedSpace": "10GB",
+                "minFreeSpace": "15%"
+              }
+            }
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      labels:
+        # The engine is a privileged container; scope that to this namespace.
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/audit: privileged
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
