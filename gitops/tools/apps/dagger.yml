@@ -7,8 +7,11 @@
 # Chart 0.21.11 was never published to registry.dagger.io (tags stop at
 # 0.21.10); the templates are unchanged, so the image is pinned explicitly.
 #
-# Cache: its own PVC (volumeClaimTemplate), plus the engine's own GC ceiling
-# in engine.json so the cache trims itself before it fills the volume.
+# Cache: its own PVC (volumeClaimTemplate) with the engine's GC ceiling in
+# engine.json. The cap is soft: nvme-scratch (local-path) doesn't enforce PVC
+# size, and homelab-04's single NVMe is all EPHEMERAL (/var), so there is no
+# room for a hard-capped Talos user volume without wiping /var. GC trims to
+# maxUsedSpace and also keeps 15% of the shared /var free for everyone else.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -39,13 +42,16 @@ spec:
           priorityClassName: ci-batch
           # Builds run inside the engine, so this is the real CI compute fence
           # (pipeline pods in `ci` are mostly thin dagger CLI clients).
+          # Requests sized to homelab-04's free headroom (see ci/quota.yaml);
+          # the memory limit is kept modest because 04's limits are already
+          # ~180% overcommitted and Talos' OOM controller kills bystanders.
           resources:
             requests:
-              cpu: "2"
+              cpu: "1"
               memory: 4Gi
             limits:
               cpu: "8"
-              memory: 16Gi
+              memory: 12Gi
           # No hostPath: cache lives on the PVC below; the unix socket (used
           # by the exec probes) gets a pod-local emptyDir.
           hostPath:

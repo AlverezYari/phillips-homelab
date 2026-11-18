@@ -1,6 +1,10 @@
-# Hard ceiling on Woodpecker pipeline pods. With WOODPECKER_MAX_WORKFLOWS=4
-# this fits ~4 concurrent workflows at the LimitRange defaults. The Dagger
-# engine (namespace `dagger`) is capped by its own pod limits.
+# Hard ceiling on Woodpecker pipeline pods. Sized 2026-11-17 against
+# homelab-04: 15.95 CPU / 59.9Gi allocatable, ~11 CPU / 35.5Gi already
+# requested (realm, row-sol, jellyfin, row-sims, row-bench, buildkit). CI
+# requests (2 CPU here + 1 for the Dagger engine) fit in the ~5 CPU left with
+# room for the realm to go Guaranteed; limits let builds burst into idle CPU.
+# Real build compute runs in the Dagger engine (namespace `dagger`), capped by
+# its own pod limits. Pods over quota fail to create; ci-batch never preempts.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -8,10 +12,10 @@ metadata:
   namespace: ci
 spec:
   hard:
-    requests.cpu: "4"
-    requests.memory: 8Gi
+    requests.cpu: "2"
+    requests.memory: 6Gi
     limits.cpu: "8"
-    limits.memory: 16Gi
+    limits.memory: 12Gi
     pods: "24"
     persistentvolumeclaims: "8"
     requests.storage: 100Gi

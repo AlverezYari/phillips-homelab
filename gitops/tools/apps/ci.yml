@@ -21,3 +21,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    # netpol.yaml / referencegrant.yaml target the `dagger` and `woodpecker`
+    # namespaces, which their own apps create; retry until they exist.
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
