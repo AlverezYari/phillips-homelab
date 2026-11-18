@@ -52,6 +52,9 @@ spec:
             limits:
               cpu: "8"
               memory: 12Gi
+          # The chart default (lifecycle.preStop: null) renders an empty
+          # `lifecycle:` the API server drops, leaving Argo OutOfSync forever.
+          lifecycle: null
           # No hostPath: cache lives on the PVC below; the unix socket (used
           # by the exec probes) gets a pod-local emptyDir.
           hostPath:
@@ -85,15 +88,6 @@ spec:
                 "minFreeSpace": "15%"
               }
             }
-  # The API server defaults volumeMode/status into volumeClaimTemplates, which
-  # the chart can't express; VCTs are immutable anyway, so ignore that drift.
-  ignoreDifferences:
-    - group: apps
-      kind: StatefulSet
-      name: dagger-engine
-      jqPathExpressions:
-        - .spec.volumeClaimTemplates[]?.spec.volumeMode
-        - .spec.volumeClaimTemplates[]?.status
   syncPolicy:
     automated:
       prune: true
@@ -107,4 +101,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true
