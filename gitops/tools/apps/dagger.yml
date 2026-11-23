@@ -88,6 +88,16 @@ spec:
                 "minFreeSpace": "15%"
               }
             }
+  # The API server also defaults volumeMode/status into volumeClaimTemplates,
+  # which the chart can't express; VCTs are immutable anyway, so ignore that.
+  # (Both this and `lifecycle: null` above are needed for a clean sync.)
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: dagger-engine
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates[]?.spec.volumeMode
+        - .spec.volumeClaimTemplates[]?.status
   syncPolicy:
     automated:
       prune: true
@@ -101,3 +111,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true

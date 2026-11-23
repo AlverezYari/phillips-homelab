@@ -35,9 +35,8 @@ spec:
             - woodpecker-forgejo
           env:
             WOODPECKER_HOST: https://ci.phillips-homelab.net
-            # Forgejo delivers webhooks to the in-cluster service, not the
-            # gateway; Forgejo's webhook.ALLOWED_HOST_LIST permits this host.
-            WOODPECKER_WEBHOOK_HOST: http://woodpecker-server.woodpecker.svc.cluster.local
+            # Webhooks are registered at WOODPECKER_HOST; Forgejo's
+            # webhook.ALLOWED_HOST_LIST permits that host.
             WOODPECKER_ADMIN: cphillips-homelab
             WOODPECKER_OPEN: "false"
             WOODPECKER_FORGEJO: "true"
