@@ -82,3 +82,30 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: row-coordinator
+---
+# ci: Woodpecker pipeline pods (row-server#318). Read-only, live steps only:
+# Woodpecker deletes each step pod when it finishes, so finished logs come
+# from the Woodpecker API instead.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: row-coordinator
+  namespace: ci
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: row-coordinator
+  namespace: ci
+subjects:
+  - kind: ServiceAccount
+    name: row-coordinator
+    namespace: publishers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: row-coordinator

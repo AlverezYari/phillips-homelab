@@ -92,6 +92,16 @@ spec:
             # its public URL (ci.*, which resolves to the gateway .211).
             webhook:
               ALLOWED_HOST_LIST: external,ci.phillips-homelab.net
+              # Woodpecker answers a PR hook only after listing the PR's
+              # changed files; on big PRs that outlasts the 5s default.
+              DELIVER_TIMEOUT: 30
+            # API lists default to 30 items when the client sends limit=0, as
+            # Woodpecker does for PR changed files. Forgejo recomputes the whole
+            # diff per page (~1.6s on a 3.7k-file PR), so 124 pages took ~200s
+            # before each pipeline started. 1000 per page makes that 4 pages.
+            api:
+              DEFAULT_PAGING_NUM: 1000
+              MAX_RESPONSE_ITEMS: 1000
           additionalConfigFromEnvs:
             - name: GITEA__database__PASSWD
               valueFrom:
