@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: row-realm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AlverezYari/phillips-homelab.git
+    path: gitops/apps/row-realm
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: row-realm
+  # ESO defaults these fields server-side; without the ignore the app never reports Synced
+  # (same as tools/apps/iso-lab.yml). Only matters once the ExternalSecrets are switched on.
+  ignoreDifferences:
+  - group: external-secrets.io
+    kind: ExternalSecret
+    jsonPointers:
+    - /spec/refreshInterval
+    - /spec/target/deletionPolicy
+    - /spec/data
+  syncPolicy:
+    # ADOPTION: automated sync is OFF on purpose. The objects already run (applied by hand until
+    # now); the first sync is done by hand after reading the diff. Then a follow-up PR switches on
+    # the block below, like every other app. Never add Replace=true or Force here: either one
+    # recreates objects, and recreating the StatefulSet's pod drops every player.
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

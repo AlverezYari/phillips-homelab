@@ -1,0 +1,147 @@
+# row-pg-dump: a logical dump of the production schemas with a restore-check, every 12 h (D4),
+# uploaded to garage s3://row-pg-dumps/ and kept 14 (2/day for a week). This keeps the existing
+# discipline (bin/row-pg backup|restore-check): pg_dump -Fc, pg_restore --list, a .sha256, then a
+# restore into a scratch database `row_restore_check` and an exact per-table row-count comparison.
+#
+# It runs 2 h after the base backup (pg.yaml) so the two don't contend for the DB or garage.
+#
+# The dump and verify run in an initContainer (postgres:17, the desktop's major version); the
+# upload runs in the main container (amazon/aws-cli against garage's S3 endpoint). A failed
+# initContainer fails the Job, which the VMRule (monitoring.yaml) alerts on.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: row-realm
+  name: row-pg-dump-script
+data:
+  dump.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Connection from CNPG's generated Secret (row-pg-app). PGPASSWORD is never echoed.
+    export PGHOST="$PG_HOST" PGPORT="$PG_PORT" PGUSER="$PG_USER" PGPASSWORD="$PG_PASSWORD"
+    OUT=/backups
+    mkdir -p "$OUT"
+    STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+    DUMP="$OUT/row-$STAMP.dump"
+    SCHEMAS="auction auth chars guild ledger_rowrust mail public query_cache social world"
+    FLAGS=""; for s in $SCHEMAS; do FLAGS="$FLAGS -n $s"; done
+
+    echo "pg_dump (production schemas) ..."
+    pg_dump -Fc -d "$PG_DBNAME" $FLAGS > "$DUMP"
+    pg_restore --list < "$DUMP" > /dev/null          # readable as a whole
+    sha256sum "$DUMP" > "$DUMP.sha256"
+    echo "dump: $(du -h "$DUMP" | cut -f1)"
+
+    echo "restore-check into row_restore_check ..."
+    psql -d "$PG_DBNAME" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS row_restore_check"
+    psql -d "$PG_DBNAME" -v ON_ERROR_STOP=1 -c "CREATE DATABASE row_restore_check"
+    # The dump names public explicitly (-n public), so it creates that schema itself.
+    psql -d row_restore_check -v ON_ERROR_STOP=1 -c "DROP SCHEMA public"
+    pg_restore -d row_restore_check --single-transaction --exit-on-error --no-owner --role=row "$DUMP"
+
+    # Exact row counts of every production table, live and restored (bin/row-pg restore-check).
+    count_sql() {
+      psql -d "$1" -At -c "SELECT string_agg(format('SELECT %L, count(*) FROM %I.%I',
+        schemaname||'.'||relname, schemaname, relname), ' UNION ALL ' ORDER BY 1)
+        FROM pg_stat_user_tables
+        WHERE schemaname IN ('auction','auth','chars','guild','ledger_rowrust','mail','public','query_cache','social','world')"
+    }
+    live="$(psql -d "$PG_DBNAME" -At -c "$(count_sql "$PG_DBNAME")" | sort)"
+    restored="$(psql -d row_restore_check -At -c "$(count_sql row_restore_check)" | sort)"
+
+    # The comparison mirrors bin/row-pg-compare: growth since the dump PASSES; a table the live
+    # database lost, or one with MORE rows in the restored backup than live, FAILS.
+    fail=0
+    while IFS='|' read -r t n; do
+      [[ -z "$t" ]] && continue
+      ln="$(printf '%s\n' "$live" | awk -F'|' -v t="$t" '$1==t {print $2; exit}')"
+      if [[ -z "$ln" ]]; then
+        echo "restore-check FAIL: table $t is in the backup but not in the live database" >&2; fail=1
+      elif (( n > ln )); then
+        echo "restore-check FAIL: $t backup $n rows, live $ln (rows gone since the backup)" >&2; fail=1
+      fi
+    done < <(printf '%s\n' "$restored")
+    (( fail == 0 )) && echo "restore-check PASS: $(printf '%s\n' "$restored" | grep -c '|') tables restored"
+    psql -d "$PG_DBNAME" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS row_restore_check"
+    exit "$fail"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: row-realm
+  name: row-pg-dump
+  labels:
+    app.kubernetes.io/name: dump
+spec:
+  schedule: "0 2,14 * * *"     # 02:00 and 14:00 UTC, 2 h after the base backup
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 4
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: dump
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: dump
+              image: postgres:17
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: PG_HOST
+                  valueFrom: { secretKeyRef: { name: row-pg-app, key: host } }
+                - name: PG_PORT
+                  valueFrom: { secretKeyRef: { name: row-pg-app, key: port } }
+                - name: PG_USER
+                  valueFrom: { secretKeyRef: { name: row-pg-app, key: user } }
+                - name: PG_PASSWORD
+                  valueFrom: { secretKeyRef: { name: row-pg-app, key: password } }
+                - name: PG_DBNAME
+                  valueFrom: { secretKeyRef: { name: row-pg-app, key: dbname } }
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                - name: script
+                  mountPath: /dump.sh
+                  subPath: dump.sh
+              command: ["/bin/bash", "/dump.sh"]
+          containers:
+            - name: upload
+              image: amazon/aws-cli:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom: { secretKeyRef: { name: row-garage-backup, key: ACCESS_KEY_ID } }
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom: { secretKeyRef: { name: row-garage-backup, key: ACCESS_SECRET_KEY } }
+                - name: AWS_DEFAULT_REGION
+                  valueFrom: { secretKeyRef: { name: row-garage-backup, key: region } }
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  ENDPOINT=http://garage.garage.svc:3900
+                  aws --endpoint-url "$ENDPOINT" s3 cp /backups/ s3://row-pg-dumps/ \
+                    --recursive --exclude '*' --include 'row-*.dump' --include 'row-*.dump.sha256'
+                  # keep the newest 14 dumps (2/day for a week), like bin/row-pg's ROW_PG_KEEP.
+                  aws --endpoint-url "$ENDPOINT" s3 ls s3://row-pg-dumps/ \
+                    | awk '$0 ~ /row-.*\.dump$/ {print $4}' | sort | head -n -14 \
+                    | while read -r f; do
+                        aws --endpoint-url "$ENDPOINT" s3 rm "s3://row-pg-dumps/$f"
+                        aws --endpoint-url "$ENDPOINT" s3 rm "s3://row-pg-dumps/$f.sha256" || true
+                      done
+          volumes:
+            - name: backups
+              emptyDir: {}
+            - name: script
+              configMap:
+                name: row-pg-dump-script
+                defaultMode: 0755

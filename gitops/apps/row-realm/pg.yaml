@@ -1,0 +1,131 @@
+# row-pg: the realm's Postgres on CNPG (decision D6: PG 17 on Synology iSCSI, 1 instance).
+# Production schemas only (D5). Durability settings mirror deploy/postgres/compose.yml: a ledger
+# append is acknowledged only once it is on disk.
+#
+# Backups (D4): continuous WAL archiving to garage (archive_timeout 5min), a base backup every
+# 12 h (ScheduledBackup below), and a logical dump with restore-check every 12 h (backup.yaml).
+# All kept 7 days on garage (ObjectStore retentionPolicy).
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  namespace: row-realm
+  name: row-pg
+  annotations:
+    # Never let a prune or an app deletion remove the database cluster (CNPG would delete its volumes).
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  # PG 17, the desktop's major version, so a rollback dump restores into the desktop container.
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6-system-trixie
+  instances: 1
+  enablePDB: true
+  enableSuperuserAccess: false
+
+  # The 12-hourly dump job restores into a scratch database (row_restore_check) to prove the
+  # dump, so the app owner needs CREATEDB. Same password secret CNPG made at initdb.
+  managed:
+    roles:
+      - name: row
+        ensure: present
+        login: true
+        createdb: true
+        passwordSecret:
+          name: row-pg-app
+
+  bootstrap:
+    initdb:
+      database: row
+      owner: row
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+
+  storage:
+    size: 20Gi
+    storageClass: syno-iscsi-default
+  walStorage:
+    size: 10Gi
+    storageClass: syno-iscsi-default
+
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      memory: 4Gi
+
+  postgresql:
+    parameters:
+      shared_buffers: 512MB
+      effective_cache_size: 1536MB
+      fsync: "on"
+      synchronous_commit: "on"
+      full_page_writes: "on"
+      archive_timeout: 5min
+
+  # Co-locate with the realm (both prefer homelab-04, per Casey's decision), so the DB round
+  # trip stays on one host.
+  affinity:
+    podAntiAffinityType: preferred
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - homelab-04
+
+  # barman-cloud: WAL archiver + base backups to the ObjectStore below.
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      enabled: true
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: row-pg-backups
+
+  monitoring:
+    enablePodMonitor: false   # we use a VMPodScrape (monitoring.yaml) on :9187
+
+# --- object store (garage) ---------------------------------------------------
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  namespace: row-realm
+  name: row-pg-backups
+spec:
+  configuration:
+    destinationPath: s3://row-pg-backups/
+    endpointURL: http://garage.garage.svc:3900
+    s3Credentials:
+      accessKeyId:
+        key: ACCESS_KEY_ID
+        name: row-garage-backup
+      region:
+        key: region
+        name: row-garage-backup
+      secretAccessKey:
+        key: ACCESS_SECRET_KEY
+        name: row-garage-backup
+    wal:
+      compression: gzip
+  retentionPolicy: 7d
+
+# --- base backup every 12 h --------------------------------------------------
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  namespace: row-realm
+  name: row-pg-12h
+spec:
+  backupOwnerReference: self
+  cluster:
+    name: row-pg
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  # 00:00 and 12:00 UTC, offset 2 h from the logical dump (backup.yaml) so they don't collide.
+  schedule: "0 0 */12 * * *"

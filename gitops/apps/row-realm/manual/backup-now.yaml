@@ -1,0 +1,16 @@
+# MANUAL, not in kustomization.yaml, so Argo never applies it.
+# An on-demand base backup, applied by hand before a risky change.
+# The Backup resource is immutable once it completes, so give each run a fresh name:
+#   sed 's/backup-now/backup-20261023T0400Z/' manual/backup-now.yaml | kubectl -n row-realm apply -f -
+#   kubectl -n row-realm wait --for=condition=completed backup/backup-20261023T0400Z --timeout=30m
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  namespace: row-realm
+  name: backup-now
+spec:
+  cluster:
+    name: row-pg
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
