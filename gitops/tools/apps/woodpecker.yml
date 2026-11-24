@@ -67,6 +67,11 @@ spec:
             WOODPECKER_BACKEND_K8S_POD_NODE_SELECTOR: '{"kubernetes.io/hostname": "homelab-04"}'
             WOODPECKER_BACKEND_K8S_PRIORITY_CLASS: ci-batch
             WOODPECKER_BACKEND_K8S_POD_LABELS: '{"app.kubernetes.io/part-of": "woodpecker-pipeline"}'
+            # Steps may mount Secrets that exist in `ci` (backend_options.kubernetes.secrets).
+            # Any pipeline of any activated repo can then use any Secret in `ci`, pull
+            # requests included, so only put secrets there that every author may use.
+            # Today: row-ci-zot (push to zot under row/** only), see ci/row-ci-zot.yaml.
+            WOODPECKER_BACKEND_K8S_ALLOW_NATIVE_SECRETS: "true"
           persistence:
             enabled: true
             size: 1Gi
