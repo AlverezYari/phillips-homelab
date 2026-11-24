@@ -1,7 +1,8 @@
 # The RoW coordinator's own ServiceAccount (2026-11-03): drive the Sol lanes and read the live realm without Casey's
 # personal OIDC login, which expires overnight and stalled the lanes' supervision. Same pattern as row-publisher:
-# a long-lived token, rights pinned to named pods where Kubernetes allows it, nothing cluster-wide. Realm deploys
-# (`kubectl apply -k row-realm`) and pod deletion stay on Casey's own credentials.
+# a long-lived token, rights pinned to named pods where Kubernetes allows it, nothing cluster-wide. The realm deploys through its Argo app
+# (gitops/apps/row-realm); this account may read it and start a sync of it, nothing else. Pod deletion stays on
+# Casey's own credentials.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -68,6 +69,32 @@ rules:
     resources: ["statefulsets"]
     resourceNames: ["row-realm3"]
     verbs: ["get"]
+  # Read (never write) what the Argo app row-realm manages, to compare the files with what runs before and after
+  # a sync (row-server#325). Secrets are deliberately not in this list.
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "persistentvolumeclaims", "configmaps", "serviceaccounts", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["cronjobs", "jobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io", "cilium.io"]
+    resources: ["networkpolicies", "ciliumnetworkpolicies"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters", "backups", "scheduledbackups"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "podmonitors", "prometheusrules"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["external-secrets.io"]
+    resources: ["externalsecrets"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -101,6 +128,35 @@ kind: RoleBinding
 metadata:
   name: row-coordinator
   namespace: ci
+subjects:
+  - kind: ServiceAccount
+    name: row-coordinator
+    namespace: publishers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: row-coordinator
+---
+# argocd: the one Application row-realm (row-server#325, #326). `get` reads its sync state and what is out of sync;
+# `patch` starts a sync (the release train's last step: the pin moved in git, Argo applies it).
+# KNOW: `patch` also allows changing that Application's spec. The parent app puts the spec back from git, and the
+# right is for this one Application only, but it is a real write right over how the realm is deployed.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: row-coordinator
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    resourceNames: ["row-realm"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: row-coordinator
+  namespace: argocd
 subjects:
   - kind: ServiceAccount
     name: row-coordinator
