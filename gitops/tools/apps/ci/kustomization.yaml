@@ -6,3 +6,4 @@ resources:
   - quota.yaml
   - netpol.yaml
   - referencegrant.yaml
+  - row-ci-zot.yaml

@@ -1,0 +1,28 @@
+# The registry login RoW's release pipeline pushes with (row-server#326).
+# zot user `row-ci` may write only under row/** (zot.yml accessControl); its
+# htpasswd line is in the 1P item `zot-auth`, its password in the 1P item
+# `row-ci-forgejo` (vault `phillips-homelab`, behind the `staging` store),
+# field `zot_password`.
+# Pipeline steps mount it with backend_options.kubernetes.secrets
+# (WOODPECKER_BACKEND_K8S_ALLOW_NATIVE_SECRETS in woodpecker.yml).
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: row-ci-zot
+  namespace: ci
+spec:
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: staging
+  target:
+    name: row-ci-zot
+    creationPolicy: Owner
+    template:
+      data:
+        username: row-ci
+        password: "{{ .password }}"
+  data:
+  - secretKey: password
+    remoteRef:
+      key: row-ci-forgejo
+      property: zot_password

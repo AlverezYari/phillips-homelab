@@ -46,6 +46,13 @@ spec:
                 },
                 "accessControl": {
                   "repositories": {
+                    "row/**": {
+                      "policies": [
+                        { "users": ["row-ci"], "actions": ["read","create","update"] }
+                      ],
+                      "defaultPolicy": ["read"],
+                      "anonymousPolicy": ["read"]
+                    },
                     "**": {
                       "policies": [
                         { "users": ["admin"], "actions": ["read","create","update","delete"] }
