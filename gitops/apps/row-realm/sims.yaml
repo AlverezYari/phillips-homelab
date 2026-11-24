@@ -1,0 +1,167 @@
+# row-sims: the two sim holds (300 Orgrimmar night + 20 zeppelin), matching the desktop's two
+# `row-sim hold` processes (plan §1.7). Runs at 1 replica.
+# podAffinity (required) pins them to the realm's node, since the game PVC is RWO and shared
+# read-only. Routes come from the PVC (/navmesh); ROW_SIM_PASS from Secret row-sim-pass.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: row-realm
+  name: row-sims
+  labels:
+    app.kubernetes.io/name: sims
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sims
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sims
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: realm
+              topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        # 300 sims, Orgrimmar night routes.
+        - name: sims-night
+          image: zot.phillips-homelab.net/row/realm
+          command: ["row-sim"]
+          args:
+            - hold
+            - --first
+            - "1"
+            - --count
+            - "300"
+            - --city
+            - orgrimmar
+            - --routes
+            - /navmesh/orgrimmar-night.json
+            - --goto-home
+            - --seed
+            - "1"
+            - --rate
+            - "12"
+            - --auth
+            - row-realm:3729
+            - --metrics
+            - row-realm:9468
+            - --min-free-gb
+            - "6"
+            - --wd-ms
+            - "150"
+            - --wd-secs
+            - "60"
+            - --live-realm-3
+          env:
+            - name: ROW_GAME
+              value: /game/3.3.5a
+            - name: ROW_SIM_PASS
+              valueFrom: { secretKeyRef: { name: row-sim-pass, key: ROW_SIM_PASS } }
+            - name: ROW_SIM_STATE
+              value: /run/sim
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              memory: 1536Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: game
+              mountPath: /game
+              subPath: game
+              readOnly: true
+            - name: game
+              mountPath: /navmesh
+              subPath: navmesh
+              readOnly: true
+            - name: sim-state
+              mountPath: /run/sim
+            - name: tmp
+              mountPath: /tmp
+
+        # 20 sims, zeppelin loop (Orgrimmar <-> Undercity).
+        - name: sims-zeppelin
+          image: zot.phillips-homelab.net/row/realm
+          command: ["row-sim"]
+          args:
+            - hold
+            - --first
+            - "301"
+            - --count
+            - "20"
+            - --city
+            - orgrimmar
+            - --routes
+            - /navmesh/zeppelin-orgrimmar-undercity.json
+            - --goto-home
+            - --seed
+            - "2"
+            - --rate
+            - "4"
+            - --auth
+            - row-realm:3729
+            - --metrics
+            - row-realm:9468
+            - --min-free-gb
+            - "6"
+            - --wd-ms
+            - "150"
+            - --wd-secs
+            - "60"
+            - --live-realm-3
+          env:
+            - name: ROW_GAME
+              value: /game/3.3.5a
+            - name: ROW_SIM_PASS
+              valueFrom: { secretKeyRef: { name: row-sim-pass, key: ROW_SIM_PASS } }
+            - name: ROW_SIM_STATE
+              value: /run/sim
+          resources:
+            requests:
+              cpu: "1"
+              memory: 512Mi
+            limits:
+              memory: 1536Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: game
+              mountPath: /game
+              subPath: game
+              readOnly: true
+            - name: game
+              mountPath: /navmesh
+              subPath: navmesh
+              readOnly: true
+            - name: sim-state
+              mountPath: /run/sim
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: game
+          persistentVolumeClaim:
+            claimName: row-game-data
+        - name: sim-state
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

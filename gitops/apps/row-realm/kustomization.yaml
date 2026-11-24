@@ -1,0 +1,39 @@
+# row-realm: the RoW realm (realm + auth + release server + tailscale sidecar in one StatefulSet),
+# its Postgres (CNPG), nats, the sims, backups, network policy and monitoring.
+# Adopted 2026-11 from the hand-applied folder (`kubectl apply -k`); names, labels and selectors
+# are unchanged from what ran, so Argo patches the existing objects.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: row-realm
+
+resources:
+  - namespace.yaml
+  - netpol.yaml
+  - pg.yaml
+  - backup.yaml
+  - game-pvc.yaml
+  - dist.yaml
+  - realm.yaml
+  - sims.yaml
+  - nats.yaml
+  - jobs/probe-login.yaml
+  - monitoring.yaml
+  # The seven secrets, from 1Password. OFF until every TODO(owner) in these files is filled in and
+  # the 1Password values equal the hand-made Secrets that run today (see HANDOVER.md, step 5).
+  # - row-ts-authkey-external-secret.yaml
+  # - zot-row-pull-external-secret.yaml
+  # - row-dist-token-external-secret.yaml
+  # - row-dist-upload-token-external-secret.yaml
+  # - row-garage-backup-external-secret.yaml
+  # - row-sim-pass-external-secret.yaml
+  # - row-server-account-external-secret.yaml
+
+# THE image pins. A release PR changes the `digest:` of row/realm and nothing else: the realm,
+# auth, the init container, both sims and the login probe all take it from here. Rollback is
+# reverting that PR. The manifests name the images without tag or digest on purpose.
+images:
+  - name: zot.phillips-homelab.net/row/realm
+    digest: sha256:1356c9a0bf70b5ad4344841979e20c73b62099e197a77b18db0ded747864e254   # 2026-11-15 server e9f234a7 (what runs at adoption)
+  - name: zot.phillips-homelab.net/row/dist
+    digest: sha256:0d0fc3582b52d3d5257ef0339aa1de9468939459b1f316e7e2beeb44eb88758a   # 2026-10-26 row-distro ca4422a

@@ -1,0 +1,407 @@
+# row-realm3: the standalone realm, its auth front door and the tailscale sidecar, as one
+# StatefulSet with a single replica (plan §1.3, decisions D2/D3).
+#
+# A StatefulSet (not a Deployment): if a node goes NotReady, k8s does not start a second pod until
+# the first is confirmed gone. The realm holds online state in memory and its ledger journal allows
+# exactly one writer; a Deployment can briefly run two pods during a partition.
+#
+# realm and auth share a fate (the launcher stops them together); here they share a pod. The
+# tailscale sidecar runs kernel-mode tailscaled so tailnet clients arrive on tailscale0 with real
+# 100.x source addresses (IP bans, IP locks, last_ip and the local/external split all keep working).
+#
+# Secrets (never here): row-ts-authkey, zot-row-pull (image pull), row-dist-token and
+# row-dist-upload-token (the release server's bearer tokens, key `token`) come from the
+# *-external-secret.yaml files; row-pg-app is made by CNPG; row-realm3-ts-state is written by the
+# tailscale sidecar itself (Role below) and is in no manifest.
+
+# --- non-secret environment (the DB URL and keys come from Secrets, never this ConfigMap) -----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: row-realm
+  name: row-realm3-env
+data:
+  ROW_REALM_BIND: "0.0.0.0:8099"
+  # Boss packs (encounters/*.ron), as the image carries them (Dockerfile COPY from the same commit as
+  # the code). Until 2026-11-10 a ConfigMap of copies was mounted over them; the copies were never
+  # refreshed after Oct 23, so the realm ran old packs with new code. Without them the worker
+  # loads neither the bosses nor the content behaviours (encounters_from_env returns early).
+  ROW_ENCOUNTERS: "/opt/row/encounters"
+  # The player-facing release (RELEASES.md): the login message of the day names it.
+  ROW_RELEASE_VERSION: "0.3.1"
+  ROW_REALM_ID: "3"
+  # The tailnet address of the sidecar's device `row-realm` and the pinned ClusterIP of svc row-realm.
+  # A new tailnet device (lost row-realm3-ts-state) gets a new 100.x address: change it here.
+  ROW_REALM_ADDRESS: "100.71.204.29:8099"        # the row-realm tailnet device's 100.x IP
+  ROW_REALM_LOCAL_ADDRESS: "10.101.240.10:8099"  # the pinned ClusterIP of svc row-realm
+  ROW_REALM_LOCAL_SUBNET: "10.0.0.0/8"
+  ROW_REALM_WORLD_SCHEMA: "world"
+  ROW_NATS: "nats://nats:4222"
+  ROW_GAME: "/game/3.3.5a"
+  ROW_COLLISION_DIR: "/game/row-collision"
+  ROW_DATA: "/data"
+  ROW_CONTENT: "/opt/row/content"
+  ROW_CONTENT_MANIFEST: "/run/row/content-map-{map}.json"  # per-hook load manifest (docs/content-manifests.md)
+  ROW_REALM_ERA_DIR: "/opt/row/eras"
+  ROW_REALM_CONTROL: "/run/row/ctl/r3.sock"  # dir made 0700 by the init container
+  # The activation set copied from today's live env (2026-10-22).
+  ROW_REALM_FOREVER_NUMBERS: "1"
+  ROW_REALM_FOREVER_PLAYER_STATS: "expected"
+  ROW_REALM_UDP: "1"   # the 20 Hz movement side channel; 0.1.1 keeps a UDP-only session alive
+  ROW_REALM_TEST_ACCOUNTS: "ROWCMB*,ROWDEV"   # ROWDEV: Casey plays staged Worldpacks in private test instances (2026-10-29)
+  ROW_REALM_TEST_INSTANCES_MAX: "6"
+  ROW_REALM_TEST_INSTANCES_PER_OWNER: "1"
+
+# --- headless service: the StatefulSet's stable network identity -------------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: row-realm
+  name: row-realm-headless
+  labels:
+    app.kubernetes.io/name: realm
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: realm
+  ports:
+    - name: auth
+      port: 3729
+      targetPort: 3729
+    - name: world
+      port: 8099
+      targetPort: 8099
+    - name: realm-metrics
+      port: 9468
+      targetPort: 9468
+    - name: auth-metrics
+      port: 9469
+      targetPort: 9469
+
+# --- ClusterIP service with a PINNED address ------------------------------------------------
+# The pinned IP matters: row-auth compares `local_address` as an IP against the mask
+# (`session.rs::address_for_client`); a DNS name there disables the local path.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: row-realm
+  name: row-realm
+  labels:
+    app.kubernetes.io/name: realm
+spec:
+  type: ClusterIP
+  clusterIP: 10.101.240.10   # pinned; immutable on a live Service
+  selector:
+    app.kubernetes.io/name: realm
+  ports:
+    - name: auth
+      port: 3729
+      targetPort: 3729
+    - name: world
+      port: 8099
+      targetPort: 8099
+    - name: realm-metrics
+      port: 9468
+      targetPort: 9468
+    - name: auth-metrics
+      port: 9469
+      targetPort: 9469
+
+# --- service account + RBAC for the tailscale sidecar's state secret --------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: row-realm
+  name: row-realm3
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: row-realm
+  name: row-realm3-ts
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["row-realm3-ts-state"]
+    verbs: ["get", "update", "patch"]
+  # RBAC can't limit "create" by name, so the first save of the node key needs its own rule.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: row-realm
+  name: row-realm3-ts
+subjects:
+  - kind: ServiceAccount
+    name: row-realm3
+    namespace: row-realm
+roleRef:
+  kind: Role
+  name: row-realm3-ts
+  apiGroup: rbac.authorization.k8s.io
+
+# --- the realm pod ---------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: row-realm
+  name: row-realm3
+  labels:
+    app.kubernetes.io/name: realm
+spec:
+  serviceName: row-realm-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: realm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: realm
+    spec:
+      serviceAccountName: row-realm3
+      # drain 20 s (ROW_REALM_DRAIN_SECS default) plus the final saves and tailscaled shutdown.
+      terminationGracePeriodSeconds: 90
+      # homelab-04 (Casey's decision): preferred; homelab-03 fallback. Never homelab-01/02.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: ["homelab-04"]
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: ["homelab-03"]
+      imagePullSecrets:
+        - name: zot-row-pull
+      # No pod-level runAsNonRoot: the tailscale sidecar must run as root (NET_ADMIN + /dev/net/tun).
+      # The realm and auth containers set runAsNonRoot/runAsUser themselves below.
+      securityContext:
+        fsGroup: 10001
+      initContainers:
+        # The realm's control socket wants an owned, non-symlink 0700 directory; an emptyDir is 0777.
+        - name: control-dir
+          image: zot.phillips-homelab.net/row/realm
+          command: ["bash", "-c", "mkdir -p /run/row/ctl && chmod 0700 /run/row/ctl"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: run
+              mountPath: /run/row
+      containers:
+        - name: row-realm
+          image: zot.phillips-homelab.net/row/realm   # digest: kustomization.yaml images:
+          command: ["row-realm"]
+          envFrom:
+            - configMapRef:
+                name: row-realm3-env
+          env:
+            - name: ROW_REALM_PG
+              valueFrom: { secretKeyRef: { name: row-pg-app, key: uri } }
+            - name: ROW_METRICS_ADDR
+              value: "0.0.0.0:9468"
+            - name: ROW_INSTANCE
+              value: "row-realm3"
+          ports:
+            - name: world
+              containerPort: 8099
+            - name: realm-metrics
+              containerPort: 9468
+          resources:
+            requests:
+              cpu: "2"
+              memory: 2Gi
+            limits:
+              memory: 6Gi
+          startupProbe:
+            tcpSocket: { port: world }
+            periodSeconds: 5
+            failureThreshold: 60     # the listener binds only after content/mail/AH load
+          readinessProbe:
+            tcpSocket: { port: world }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /metrics, port: realm-metrics }
+            periodSeconds: 30
+            failureThreshold: 6      # deliberately lenient: a liveness kill drops every player
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: game
+              mountPath: /game
+              subPath: game
+              readOnly: true
+            - name: game
+              mountPath: /data
+              subPath: data
+              readOnly: true
+            # The realm reads Forever tables relative to its working dir
+            # (game/forever/...), as on the desktop.
+            - name: game
+              mountPath: /opt/row/game
+              subPath: game
+              readOnly: true
+            - name: run
+              mountPath: /run/row
+            - name: tmp
+              mountPath: /tmp
+
+        - name: row-auth
+          image: zot.phillips-homelab.net/row/realm
+          command: ["row-auth"]
+          env:
+            - name: ROW_AUTH_BIND
+              value: "0.0.0.0:3729"
+            - name: ROW_AUTH_DB
+              value: "none"
+            - name: ROW_AUTH_PG
+              valueFrom: { secretKeyRef: { name: row-pg-app, key: uri } }
+            - name: ROW_AUTH_REALMS
+              value: "3"
+            - name: ROW_METRICS_ADDR
+              value: "0.0.0.0:9469"
+            - name: ROW_INSTANCE
+              value: "row-auth3"
+          ports:
+            - name: auth
+              containerPort: 3729
+            - name: auth-metrics
+              containerPort: 9469
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          readinessProbe:
+            tcpSocket: { port: auth }
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+        - name: row-serve
+          image: zot.phillips-homelab.net/row/dist   # digest: kustomization.yaml images:
+          env:
+            - name: ROW_DIST_TOKEN
+              valueFrom: { secretKeyRef: { name: row-dist-token, key: token } }
+            # PUT uploads over the tailnet (bin/row-dist-upload --via tailnet); a separate credential
+            # from the players' download token.
+            - name: ROW_DIST_UPLOAD_TOKEN
+              valueFrom: { secretKeyRef: { name: row-dist-upload-token, key: token } }
+          ports:
+            - name: dist
+              containerPort: 8137
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket: { port: dist }
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: dist
+              mountPath: /dist
+
+        - name: tailscale
+          image: tailscale/tailscale:v1.98.9
+          env:
+            - name: TS_USERSPACE
+              value: "false"
+            # The pod's eth0 MTU is 1280; WireGuard's ~80-byte overhead on 1280-byte inner packets
+            # overflowed it and cut tailnet throughput to ~150 KB/s (2026-10-26). 1200 fits.
+            - name: TS_DEBUG_MTU
+              value: "1200"
+            - name: TS_KUBE_SECRET
+              value: row-realm3-ts-state
+            - name: TS_AUTHKEY
+              valueFrom: { secretKeyRef: { name: row-ts-authkey, key: TS_AUTHKEY } }
+            - name: TS_HOSTNAME
+              value: row-realm
+            - name: TS_TAILSCALED_EXTRA_ARGS
+              value: --port=41641
+            - name: TS_STATE_DIR
+              value: /var/run/tailscale
+            # iptables can't load its modules in the pod (no /lib/modules): the router health error at start.
+            - name: TS_DEBUG_FIREWALL_MODE
+              value: nftables
+          # The kernel handed large TCP batches (GSO) into tailscale0 and much of the data out of the pod was lost on the way:
+          # downloads crawled at ~150 KB/s while uploads were fine (2026-10-27, diagnosed with Casey's gitops agent). One
+          # packet per send fixes it (50 MB in 0.5 s); the setting is lost whenever tailscale0 is made again, so set it at start.
+          lifecycle:
+            postStart:
+              exec:
+                command: ["sh", "-c", "for i in $(seq 60); do ip link set dev tailscale0 gso_max_segs 1 2>/dev/null && exit 0; sleep 1; done"]
+          ports:
+            - name: wireguard
+              containerPort: 41641
+              protocol: UDP
+              hostPort: 41641      # helps NAT traversal (plan §1.6)
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            runAsUser: 0          # tailscaled needs root for NET_ADMIN and /dev/net/tun
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              add: ["NET_ADMIN", "NET_RAW"]
+          volumeMounts:
+            - name: tun
+              mountPath: /dev/net/tun
+
+      volumes:
+        - name: game
+          persistentVolumeClaim:
+            claimName: row-game-data
+        - name: dist
+          persistentVolumeClaim:
+            claimName: row-dist
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice

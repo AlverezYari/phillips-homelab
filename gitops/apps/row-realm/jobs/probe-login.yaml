@@ -1,0 +1,55 @@
+# The in-cluster login gate (plan §1.7). A suspended CronJob used only as a template, triggered
+# by hand per run:
+#   kubectl -n row-realm create job --from=cronjob/row-probe-login probe-<UTC>
+#   kubectl -n row-realm wait --for=condition=complete job/probe-<UTC> --timeout=90s
+#
+# row-probe logs the server's own test account in and exits 0 on success. It reads `.server-account`
+# from its compile-time path (crates/row-probe -> /src/row-server/.server-account), so the secret
+# is mounted there.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: row-realm
+  name: row-probe-login
+  labels:
+    app.kubernetes.io/name: probe
+spec:
+  schedule: "0 0 31 2 *"   # never fires on its own; suspended anyway
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 90
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: probe
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          containers:
+            - name: probe
+              image: zot.phillips-homelab.net/row/realm
+              command: ["row-probe"]
+              args: ["--auth", "row-realm:3729", "--seconds", "2"]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: server-account
+                  mountPath: /src/row-server/.server-account
+                  subPath: .server-account
+                  readOnly: true
+          volumes:
+            - name: server-account
+              secret:
+                secretName: row-server-account

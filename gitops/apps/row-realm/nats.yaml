@@ -1,0 +1,84 @@
+# nats: the realm's bus (presence, chat, party frames, the social/mail/auction request-reply
+# surfaces). Same config as deploy/nats/compose.yml + nats.conf, ClusterIP only.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: row-realm
+  name: nats-conf
+data:
+  nats.conf: |
+    server_name: row-nats-1
+    http_port: 8222
+
+    jetstream {
+      store_dir: /data
+      # fsync every message before JetStream acknowledges it (docs/row-ledger.md).
+      sync_interval: always
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: row-realm
+  name: nats
+  labels:
+    app.kubernetes.io/name: nats
+spec:
+  selector:
+    app.kubernetes.io/name: nats
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitor
+      port: 8222
+      targetPort: 8222
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: row-realm
+  name: nats
+  labels:
+    app.kubernetes.io/name: nats
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nats
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nats
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: nats
+          image: nats:2.14.8-alpine
+          args: ["-c", "/etc/nats/nats.conf"]
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: monitor
+              containerPort: 8222
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: conf
+              mountPath: /etc/nats/nats.conf
+              subPath: nats.conf
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: conf
+          configMap:
+            name: nats-conf

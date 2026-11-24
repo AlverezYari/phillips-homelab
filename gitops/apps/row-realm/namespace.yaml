@@ -1,0 +1,15 @@
+# row-realm namespace (decision D1). Privileged is required only by the tailscale sidecar
+# (NET_ADMIN + /dev/net/tun), as the `tailscale` namespace already has; everything else in the
+# namespace is still held to baseline by warn/audit, so drift gets flagged.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: row-realm
+  annotations:
+    # Never let a prune or an app deletion remove the namespace (it would take the volumes' claims along).
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline
+    app.kubernetes.io/part-of: row-realm

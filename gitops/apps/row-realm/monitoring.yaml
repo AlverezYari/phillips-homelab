@@ -1,0 +1,145 @@
+# Monitoring and ntfy for row-realm (plan §1.8): scrape the realm/auth metrics and CNPG's exporter,
+# alert on the realm's save/tick health and the backup discipline, and route to the ntfy topic
+# `row-realm` the way iso-lab does it.
+
+# --- scrape realm :9468 and auth :9469 --------------------------------------
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  namespace: row-realm
+  name: row-realm3
+spec:
+  podMetricsEndpoints:
+    - interval: 15s
+      path: /metrics
+      port: realm-metrics
+    - interval: 15s
+      path: /metrics
+      port: auth-metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: realm
+  # If the session-save cardinality grows (row_realm_session_save_*{slot}, ~4 series per online
+  # session, ~1300 at 320 sims), drop it here with metricRelabelConfigs.
+
+# --- scrape CNPG's exporter on :9187 ----------------------------------------
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  namespace: row-realm
+  name: row-pg
+spec:
+  podMetricsEndpoints:
+    - interval: 30s
+      path: /metrics
+      port: metrics
+  selector:
+    matchLabels:
+      cnpg.io/cluster: row-pg
+
+# --- alerts -----------------------------------------------------------------
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  namespace: row-realm
+  name: row-realm
+spec:
+  groups:
+    - name: row-realm.health
+      rules:
+        - alert: RowRealmDown
+          expr: up{app_kubernetes_io_name="realm"} == 0
+          for: 2m
+          labels: { severity: critical, namespace: row-realm }
+          annotations:
+            summary: "row-realm: the realm target is down"
+            description: "The realm metrics endpoint has been unreachable for {{ $value }} of 2m. No players can log in."
+        - alert: RowRealmTickSlow
+          expr: histogram_quantile(0.99, sum(rate(row_worker_tick_seconds_bucket[5m])) by (le)) > 0.200
+          for: 5m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-realm: worker tick p99 over 200 ms for 5m"
+            description: "Tick p99 is {{ $value }}s. The sims' watchdog threshold is 200 ms; sustained slowness will trip it."
+        - alert: RowRealmSaveAgeHigh
+          expr: row_realm_max_save_age_seconds > 180
+          for: 1m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-realm: max save age over 180 s"
+            description: "Oldest un-saved character state is {{ $value }}s old. DB latency or a wedged save loop."
+        - alert: RowRealmSaveFailures
+          expr: row_realm_session_save_consecutive_failures > 0
+          for: 5m
+          labels: { severity: critical, namespace: row-realm }
+          annotations:
+            summary: "row-realm: session saves are failing"
+            description: "A session has {{ $value }} consecutive save failures. Progress is not being persisted."
+        - alert: RowRealmWorkersLost
+          expr: increase(row_realm_workers_lost_total[10m]) > 0
+          for: 0m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-realm: a map worker was lost"
+            description: "row_realm_workers_lost_total increased by {{ $value }} in 10m."
+    - name: row-realm.backup
+      rules:
+        # CNPG exporter + barman-cloud metrics. Verify the exact metric names against the CNPG
+        # version (1.29.0) before relying on these; the forgejo/atuin dashboards are the reference.
+        - alert: RowPgNotReady
+          expr: cnpg_collector_up{cnpg_cluster="row-pg"} == 0
+          for: 5m
+          labels: { severity: critical, namespace: row-realm }
+          annotations:
+            summary: "row-pg: CNPG collector down"
+            description: "The CNPG exporter has failed to collect for {{ $value }} of 5m."
+        - alert: RowPgWalArchiverStale
+          expr: (time() - cnpg_last_wal_archived_timestamp{cnpg_cluster="row-pg"}) > 900
+          for: 5m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-pg: WAL not archived for over 15m"
+            description: "Last WAL archived {{ $value }}s ago. Point-in-time recovery is behind."
+        - alert: RowPgBackupStale
+          expr: (time() - cnpg_backup_timestamp{cnpg_cluster="row-pg"}) > 93600
+          for: 5m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-pg: base backup older than 26h"
+            description: "Last base backup was {{ $value }}s ago (schedule is 12h)."
+        - alert: RowPgDumpFailed
+          expr: kube_job_status_failed{job_name=~"row-pg-dump-.*"} > 0
+          for: 5m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-pg: the logical dump + restore-check Job failed"
+            description: "A row-pg-dump Job failed. The dump/restore-check discipline is broken until it passes again."
+        - alert: RowGameDataPvcFull
+          expr: kubelet_volume_stats_used_bytes{persistentvolumeclaim="row-game-data"} / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim="row-game-data"} > 0.8
+          for: 5m
+          labels: { severity: warning, namespace: row-realm }
+          annotations:
+            summary: "row-game-data: PVC over 80% used"
+            description: "The game-data PVC is at {{ $value | humanizePercentage }}."
+
+# --- ntfy -------------------------------------------------------------------
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertmanagerConfig
+metadata:
+  namespace: row-realm
+  name: row-realm-ntfy
+spec:
+  receivers:
+    - name: ntfy
+      webhook_configs:
+        - send_resolved: true
+          url: http://ntfy.ntfy.svc.cluster.local/row-realm?template=alertmanager
+  route:
+    group_by: [alertname]
+    group_interval: 5m
+    group_wait: 30s
+    receiver: ntfy
+    repeat_interval: 3h

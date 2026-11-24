@@ -1,0 +1,29 @@
+# row-game-data: the private game data on a 25Gi Synology iSCSI PVC (Retain), RWO.
+#
+# Layout (filled once by row-game-loader, then mounted read-only by the realm/sims on the SAME
+# node — RWO means one node):
+#   /game/3.3.5a/Data    the MPQ chain, byte-identical (~17 GB)
+#   /game/row-collision  only the current bakes whose fingerprint matches the chain
+#   /data/dbc            87 MB from the desktop's ROW_DATA/dbc
+#   /navmesh             orgrimmar.nav and the sim route files
+#   /MANIFEST.sha256     one line per file
+#
+# Privacy: this PVC lives only on Casey's Synology; no Job uploads it anywhere; no image contains
+# it; its backups are the desktop originals, so it is never added to garage.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: row-realm
+  name: row-game-data
+  annotations:
+    # Never let a prune or an app deletion remove this volume claim (game data / release store).
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 25Gi
+

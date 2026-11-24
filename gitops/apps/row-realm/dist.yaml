@@ -1,0 +1,26 @@
+# row-dist: the signed-release store that row-serve serves to friends over the tailnet.
+#
+# A small RW PVC (10Gi, syno-iscsi-default; grown from 2Gi on 2026-10-27 when it filled) mounted at /dist in the row-serve container. The content
+# is written by hand from the desktop with bin/row-dist-upload (kubectl exec ... tar) — never baked
+# into an image and never fetched from the desktop at runtime:
+#   /dist/stable/manifest.json + manifest.json.sig     (and /dist/dev/ later)
+#   /dist/objects/<xx>/<sha256>                        the content-addressed store
+#
+# Privacy: only our own client binary, addons and config live here. No game data, no Blizzard /
+# Forever / NVIDIA files — the release builder's deny-list and the upload script both refuse those.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: row-realm
+  name: row-dist
+  annotations:
+    # Never let a prune or an app deletion remove this volume claim (game data / release store).
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: syno-iscsi-default
+  resources:
+    requests:
+      storage: 10Gi

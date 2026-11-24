@@ -1,0 +1,243 @@
+# Default-deny network policy for row-realm (Cilium, kube-proxy replacement).
+#
+# Everything is denied unless a rule below allows it. The flows mirror the plan §1.1:
+#   sims + probe Jobs -> realm :3729/:8099 (and the sim watchdog reads :9468)
+#   realm -> row-pg :5432 and nats :4222
+#   realm (tailscale sidecar) -> world UDP 41641 / TCP 443
+#   dump Job -> row-pg :5432 and garage :3900
+#   CNPG -> garage :3900 (WAL archiving + base backups)
+#   vmagent (monitoring ns) -> realm :9468/:9469 and CNPG :9187
+#
+# Ports as named elsewhere: 3729 auth, 8099 world, 9468 realm metrics, 9469 auth metrics,
+# 5432 postgres, 9187 CNPG exporter, 4222 nats, 3900 garage (S3).
+
+# --- default deny -----------------------------------------------------------
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: default-deny
+spec:
+  endpointSelector: {}
+  # An empty rule matches nothing, so every endpoint in the namespace is default-deny in both directions.
+  ingress:
+    - {}
+  egress:
+    - {}
+
+# --- DNS for everything -----------------------------------------------------
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: allow-dns
+spec:
+  endpointSelector: {}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+
+# --- realm pod: the tailscale sidecar shares this pod's network namespace ----
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: realm
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: realm
+  ingress:
+    # sims -> world + auth, and their watchdog reads the realm's metrics.
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: sims
+      toPorts:
+        - ports:
+            - port: "8099"
+            - port: "3729"
+            - port: "9468"
+    # probe Jobs -> world + auth.
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: probe
+      toPorts:
+        - ports:
+            - port: "8099"
+            - port: "3729"
+    # vmagent scrapes realm + auth metrics.
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: vmagent
+            k8s:io.kubernetes.pod.namespace: monitoring
+      toPorts:
+        - ports:
+            - port: "9468"
+            - port: "9469"
+    # tailnet peers -> the release server (row-serve :8137). Friends arrive through the tailscale
+    # sidecar's tailscale0 with their real 100.x addresses (Tailscale CGNAT 100.64.0.0/10), the
+    # same path 3729/8099 use. The Tailscale ACL still gates which peers reach the node, and
+    # row-serve's bearer token gates which peers may download.
+    - fromCIDR:
+        - "100.64.0.0/10"
+      toPorts:
+        - ports:
+            - port: "8137"
+  egress:
+    # The tailscale sidecar keeps its node state in a Secret through the API server.
+    - toEntities:
+        - kube-apiserver
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: row-pg
+      toPorts:
+        - ports:
+            - port: "5432"
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: nats
+      toPorts:
+        - ports:
+            - port: "4222"
+    # tailscale sidecar: WireGuard (--port=41641) and DERP/control over 443.
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "41641"
+              protocol: UDP
+            - port: "443"
+              protocol: TCP
+
+# --- nats: only the realm talks to it --------------------------------------
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: nats
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: nats
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: realm
+      toPorts:
+        - ports:
+            - port: "4222"
+
+# --- sims: egress to the realm (auth/world + metrics) and DNS only ----------
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: sims
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: sims
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: realm
+      toPorts:
+        - ports:
+            - port: "3729"
+            - port: "8099"
+            - port: "9468"
+
+# --- logical dump CronJob: postgres + garage ---------------------------------
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: dump
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: dump
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: row-pg
+      toPorts:
+        - ports:
+            - port: "5432"
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: garage
+            k8s:io.kubernetes.pod.namespace: garage
+      toPorts:
+        - ports:
+            - port: "3900"
+
+# --- CNPG row-pg: realm/dump in, garage (WAL + base backups) out -------------
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  namespace: row-realm
+  name: row-pg
+spec:
+  endpointSelector:
+    matchLabels:
+      cnpg.io/cluster: row-pg
+  ingress:
+    # The CNPG operator and the barman-cloud plugin talk to the instance manager.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cnpg-system
+    # Its own instances (replication, should a second one be added).
+    - fromEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: row-pg
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: realm
+      toPorts:
+        - ports:
+            - port: "5432"
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: dump
+      toPorts:
+        - ports:
+            - port: "5432"
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: vmagent
+            k8s:io.kubernetes.pod.namespace: monitoring
+      toPorts:
+        - ports:
+            - port: "9187"
+  egress:
+    # The instance manager reads and updates its Cluster through the API server.
+    - toEntities:
+        - kube-apiserver
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: cnpg-system
+    - toEndpoints:
+        - matchLabels:
+            cnpg.io/cluster: row-pg
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: garage
+            k8s:io.kubernetes.pod.namespace: garage
+      toPorts:
+        - ports:
+            - port: "3900"
