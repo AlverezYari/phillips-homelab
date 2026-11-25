@@ -53,6 +53,13 @@ spec:
                       "defaultPolicy": ["read"],
                       "anonymousPolicy": ["read"]
                     },
+                    "row-private/**": {
+                      "policies": [
+                        { "users": ["row-ci"], "actions": ["read","create","update"] }
+                      ],
+                      "defaultPolicy": [],
+                      "anonymousPolicy": []
+                    },
                     "**": {
                       "policies": [
                         { "users": ["admin"], "actions": ["read","create","update","delete"] }
