@@ -34,6 +34,6 @@ resources:
 # reverting that PR. The manifests name the images without tag or digest on purpose.
 images:
   - name: zot.phillips-homelab.net/row/realm
-    digest: sha256:5137e7756c3618ea233c90d5d146f676b0ecf9e57f78ecdfccb370e5c166f1c8   # 2026-11-25 server f0547f40, built by CI (release 5)
+    digest: sha256:eec390a8c5841d8bedb8b54469d4ec0488887ed7aafd6cd9492d9133ee3021b7   # 2026-11-26 server 89e65f3d, built by CI (release 6)
   - name: zot.phillips-homelab.net/row/dist
     digest: sha256:0d0fc3582b52d3d5257ef0339aa1de9468939459b1f316e7e2beeb44eb88758a   # 2026-10-26 row-distro ca4422a
