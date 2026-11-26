@@ -60,6 +60,13 @@ spec:
                       "defaultPolicy": [],
                       "anonymousPolicy": []
                     },
+                    "row-private/client-build": {
+                      "policies": [
+                        { "users": ["row-ci"], "actions": ["read","create"] }
+                      ],
+                      "defaultPolicy": [],
+                      "anonymousPolicy": []
+                    },
                     "**": {
                       "policies": [
                         { "users": ["admin"], "actions": ["read","create","update","delete"] }
